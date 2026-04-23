@@ -1,0 +1,503 @@
+import { BrowserWindow } from 'electron'
+import type {
+  AIConfig,
+  AIProvider,
+  TextToSQLRequest,
+  TextToSQLResponse,
+  QueryResult,
+  DatabaseSchema
+} from '../../shared/types'
+import { IPC } from '../../shared/ipc-channels'
+import configStore from './ConfigStore'
+
+// ============================================================
+// LangChain provider factory helpers
+// ============================================================
+
+// We use dynamic imports so that missing optional packages don't crash startup.
+// Each provider is loaded on demand when first used.
+
+interface LLMMessage {
+  role: 'system' | 'user' | 'assistant'
+  content: string
+}
+
+interface LLMClient {
+  invoke(messages: LLMMessage[], jsonMode?: boolean): Promise<string>
+}
+
+// ============================================================
+// Few-shot examples for Text-to-SQL
+// ============================================================
+
+const FEW_SHOT_EXAMPLES = `
+Example 1:
+User: "查询所有用户的姓名和邮箱"
+Response: {"sql":"SELECT name, email FROM users","explanation":"从 users 表中查询所有用户的姓名和邮箱字段","isDangerous":false}
+
+Example 2:
+User: "统计每个部门的员工数量，按数量降序排列"
+Response: {"sql":"SELECT department, COUNT(*) AS employee_count FROM employees GROUP BY department ORDER BY employee_count DESC","explanation":"按部门分组统计员工数量，并按数量从高到低排序","isDangerous":false}
+
+Example 3:
+User: "查找最近7天内注册的用户"
+Response: {"sql":"SELECT * FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)","explanation":"查询 created_at 字段在最近7天内的用户记录","isDangerous":false}
+`
+
+// ============================================================
+// SQL readonly filter
+// ============================================================
+
+const WRITE_STATEMENT_PATTERN =
+  /^\s*(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|CREATE|REPLACE|RENAME|GRANT|REVOKE|LOCK|UNLOCK)\b/i
+
+/**
+ * Parse the SQL from an AI response and filter out non-SELECT statements
+ * when in readonly mode.
+ */
+export function filterReadonlySQL(sql: string): string | null {
+  const trimmed = sql.trim()
+  if (WRITE_STATEMENT_PATTERN.test(trimmed)) {
+    return null
+  }
+  return trimmed
+}
+
+/**
+ * Build a schema description string for injection into the AI prompt.
+ */
+export function buildSchemaDescription(schema: DatabaseSchema): string {
+  const lines: string[] = []
+  for (const db of schema.databases) {
+    lines.push(`Database: ${db.name}`)
+    for (const table of db.tables) {
+      const cols = table.columns
+        .map((c) => {
+          let desc = `${c.name} ${c.type}`
+          if (!c.nullable) desc += ' NOT NULL'
+          if (c.comment) desc += ` -- ${c.comment}`
+          return desc
+        })
+        .join(', ')
+      const pks = table.primaryKeys.length > 0 ? ` PK(${table.primaryKeys.join(',')})` : ''
+      lines.push(`  Table: ${table.name}${pks} (${cols})`)
+      if (table.foreignKeys.length > 0) {
+        for (const fk of table.foreignKeys) {
+          lines.push(
+            `    FK: ${fk.columnName} -> ${fk.referencedTable}.${fk.referencedColumn}`
+          )
+        }
+      }
+    }
+  }
+  return lines.join('\n')
+}
+
+// ============================================================
+// AIModule — singleton
+// ============================================================
+
+class AIModule {
+  private static instance: AIModule | null = null
+  private currentConfig: AIConfig | null = null
+  private llmClient: LLMClient | null = null
+
+  private constructor() {}
+
+  static getInstance(): AIModule {
+    if (!AIModule.instance) {
+      AIModule.instance = new AIModule()
+    }
+    return AIModule.instance
+  }
+
+  // ============================================================
+  // Provider management
+  // ============================================================
+
+  async switchProvider(config: AIConfig): Promise<void> {
+    this.currentConfig = config
+    this.llmClient = null // reset; will be lazily re-created
+    configStore.saveAIConfig(config)
+  }
+
+  private getConfig(): AIConfig {
+    if (this.currentConfig) return this.currentConfig
+    const stored = configStore.getAIConfig()
+    this.currentConfig = stored
+    return stored
+  }
+
+  private async getLLMClient(): Promise<LLMClient> {
+    if (this.llmClient) return this.llmClient
+
+    const config = this.getConfig()
+    const apiKey = configStore.getDecryptedAPIKey() ?? config.apiKey ?? ''
+
+    this.llmClient = await this.createClient(config.provider, apiKey, config)
+    return this.llmClient
+  }
+
+  private async createClient(
+    provider: AIProvider,
+    apiKey: string,
+    config: AIConfig
+  ): Promise<LLMClient> {
+    switch (provider) {
+      case 'openai':
+        return this.createOpenAIClient(apiKey, config)
+      case 'groq':
+        return this.createGroqClient(apiKey, config)
+      case 'claude':
+        return this.createClaudeClient(apiKey, config)
+      case 'deepseek':
+        return this.createDeepSeekClient(apiKey, config)
+      case 'ollama':
+        return this.createOllamaClient(config)
+      default:
+        throw new Error(`不支持的 AI 提供商: ${provider}`)
+    }
+  }
+
+  private async createOpenAIClient(apiKey: string, config: AIConfig): Promise<LLMClient> {
+    try {
+      const { ChatOpenAI } = await import('@langchain/openai')
+      const model = new ChatOpenAI({
+        openAIApiKey: apiKey,
+        modelName: config.model || 'gpt-4o-mini',
+        temperature: config.temperature ?? 0.2
+      })
+      return {
+        invoke: async (messages) => {
+          const { HumanMessage, SystemMessage } = await import('@langchain/core/messages')
+          const langchainMessages = messages.map((m) => {
+            if (m.role === 'system') return new SystemMessage(m.content)
+            return new HumanMessage(m.content)
+          })
+          const response = await model.invoke(langchainMessages)
+          return typeof response.content === 'string'
+            ? response.content
+            : JSON.stringify(response.content)
+        }
+      }
+    } catch {
+      // Fallback to langchain package
+      return this.createFallbackHTTPClient(
+        'https://api.openai.com/v1/chat/completions',
+        apiKey,
+        config.model || 'gpt-4o-mini',
+        config.temperature ?? 0.2
+      )
+    }
+  }
+
+  private async createGroqClient(apiKey: string, config: AIConfig): Promise<LLMClient> {
+    try {
+      const { ChatGroq } = await import('@langchain/groq')
+      const model = new ChatGroq({
+        apiKey,
+        model: config.model || 'llama3-8b-8192',
+        temperature: config.temperature ?? 0.2
+      })
+      return {
+        invoke: async (messages) => {
+          const { HumanMessage, SystemMessage } = await import('@langchain/core/messages')
+          const langchainMessages = messages.map((m) => {
+            if (m.role === 'system') return new SystemMessage(m.content)
+            return new HumanMessage(m.content)
+          })
+          const response = await model.invoke(langchainMessages)
+          return typeof response.content === 'string'
+            ? response.content
+            : JSON.stringify(response.content)
+        }
+      }
+    } catch {
+      return this.createFallbackHTTPClient(
+        'https://api.groq.com/openai/v1/chat/completions',
+        apiKey,
+        config.model || 'llama3-8b-8192',
+        config.temperature ?? 0.2
+      )
+    }
+  }
+
+  private async createClaudeClient(apiKey: string, config: AIConfig): Promise<LLMClient> {
+    try {
+      const { ChatAnthropic } = await import('@langchain/anthropic')
+      const model = new ChatAnthropic({
+        anthropicApiKey: apiKey,
+        model: config.model || 'claude-3-haiku-20240307',
+        temperature: config.temperature ?? 0.2
+      })
+      return {
+        invoke: async (messages) => {
+          const { HumanMessage, SystemMessage } = await import('@langchain/core/messages')
+          const langchainMessages = messages.map((m) => {
+            if (m.role === 'system') return new SystemMessage(m.content)
+            return new HumanMessage(m.content)
+          })
+          const response = await model.invoke(langchainMessages)
+          return typeof response.content === 'string'
+            ? response.content
+            : JSON.stringify(response.content)
+        }
+      }
+    } catch {
+      return this.createFallbackHTTPClient(
+        'https://api.anthropic.com/v1/messages',
+        apiKey,
+        config.model || 'claude-3-haiku-20240307',
+        config.temperature ?? 0.2
+      )
+    }
+  }
+
+  private async createDeepSeekClient(apiKey: string, config: AIConfig): Promise<LLMClient> {
+    // DeepSeek uses OpenAI-compatible API
+    return this.createFallbackHTTPClient(
+      'https://api.deepseek.com/v1/chat/completions',
+      apiKey,
+      config.model || 'deepseek-chat',
+      config.temperature ?? 0.2
+    )
+  }
+
+  private async createOllamaClient(config: AIConfig): Promise<LLMClient> {
+    try {
+      const { ChatOllama } = await import('@langchain/ollama')
+      const model = new ChatOllama({
+        baseUrl: config.baseUrl || 'http://localhost:11434',
+        model: config.model || 'llama3',
+        temperature: config.temperature ?? 0.2
+      })
+      return {
+        invoke: async (messages) => {
+          const { HumanMessage, SystemMessage } = await import('@langchain/core/messages')
+          const langchainMessages = messages.map((m) => {
+            if (m.role === 'system') return new SystemMessage(m.content)
+            return new HumanMessage(m.content)
+          })
+          const response = await model.invoke(langchainMessages)
+          return typeof response.content === 'string'
+            ? response.content
+            : JSON.stringify(response.content)
+        }
+      }
+    } catch {
+      return this.createFallbackHTTPClient(
+        `${config.baseUrl || 'http://localhost:11434'}/api/chat`,
+        '',
+        config.model || 'llama3',
+        config.temperature ?? 0.2
+      )
+    }
+  }
+
+  /**
+   * HTTP fallback client for providers without installed LangChain sub-packages.
+   * Uses the OpenAI-compatible chat completions API format.
+   */
+  private createFallbackHTTPClient(
+    endpoint: string,
+    apiKey: string,
+    model: string,
+    temperature: number
+  ): LLMClient {
+    return {
+      invoke: async (messages: LLMMessage[], jsonMode = false): Promise<string> => {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json'
+        }
+        if (apiKey) {
+          headers['Authorization'] = `Bearer ${apiKey}`
+        }
+
+        const body: Record<string, unknown> = {
+          model,
+          temperature,
+          messages
+        }
+        // Only request JSON mode when caller explicitly needs it
+        if (jsonMode) {
+          body.response_format = { type: 'json_object' }
+        }
+
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body)
+        })
+
+        if (!response.ok) {
+          const text = await response.text()
+          throw new Error(`LLM API 错误 ${response.status}: ${text}`)
+        }
+
+        const data = (await response.json()) as {
+          choices?: Array<{ message?: { content?: string } }>
+        }
+        return data.choices?.[0]?.message?.content ?? ''
+      }
+    }
+  }
+
+  // ============================================================
+  // Text-to-SQL
+  // ============================================================
+
+  async textToSQL(request: TextToSQLRequest): Promise<TextToSQLResponse> {
+    const startTime = Date.now()
+    const config = this.getConfig()
+    const client = await this.getLLMClient()
+
+    const schemaDesc = buildSchemaDescription(request.schema)
+
+    const systemPrompt = `你是一个专业的 MySQL SQL 生成助手。根据用户的自然语言描述和提供的数据库 Schema，生成准确的 SQL 查询语句。
+
+数据库 Schema:
+${schemaDesc}
+
+规则：
+1. 只生成 MySQL 兼容的 SQL 语句
+2. 返回 JSON 格式，包含 sql、explanation、isDangerous 三个字段
+3. sql 字段为生成的 SQL 语句
+4. explanation 字段为对 SQL 的中文自然语言解释
+5. isDangerous 字段为布尔值，表示该 SQL 是否包含危险操作（DROP、TRUNCATE、无 WHERE 的 DELETE 等）
+${config.mode === 'readonly' ? '6. 只生成 SELECT 查询语句，不生成任何写操作或 DDL 语句' : ''}
+
+Few-shot 示例：
+${FEW_SHOT_EXAMPLES}`
+
+    const messages: LLMMessage[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: request.naturalLanguage }
+    ]
+
+    const rawResponse = await client.invoke(messages, true)
+    const latency = Date.now() - startTime
+
+    // Parse JSON response
+    let parsed: { sql?: string; explanation?: string; isDangerous?: boolean }
+    try {
+      // Extract JSON from response (handle markdown code blocks)
+      const jsonMatch = rawResponse.match(/```(?:json)?\s*([\s\S]*?)```/) 
+      const jsonStr = jsonMatch ? jsonMatch[1] : rawResponse
+      parsed = JSON.parse(jsonStr.trim())
+    } catch {
+      // If JSON parsing fails, try to extract SQL directly
+      parsed = {
+        sql: rawResponse.trim(),
+        explanation: '无法解析 AI 响应格式',
+        isDangerous: false
+      }
+    }
+
+    let sql = parsed.sql?.trim() ?? ''
+    const explanation = parsed.explanation?.trim() ?? ''
+    const isDangerous = parsed.isDangerous ?? false
+
+    // Apply readonly filter
+    if (config.mode === 'readonly') {
+      const filtered = filterReadonlySQL(sql)
+      if (filtered === null) {
+        sql = '-- 只读模式：已拒绝生成写操作 SQL'
+      } else {
+        sql = filtered
+      }
+    }
+
+    return {
+      sql,
+      explanation,
+      isDangerous,
+      provider: config.provider,
+      model: config.model,
+      latency
+    }
+  }
+
+  // ============================================================
+  // Explain SQL statement
+  // ============================================================
+
+  async explainSQL(sql: string): Promise<string> {
+    const client = await this.getLLMClient()
+
+    const prompt = `请用简洁的中文解释以下 SQL 语句的含义和作用：
+
+\`\`\`sql
+${sql}
+\`\`\`
+
+请从以下几个角度解释：
+1. 这条 SQL 的整体目的是什么
+2. 涉及哪些表和字段
+3. 有哪些过滤、排序、分组条件
+4. 可能的性能注意事项（如有）`
+
+    const messages: LLMMessage[] = [
+      { role: 'system', content: '你是一个资深数据库专家，擅长用通俗易懂的中文解释 SQL 语句。' },
+      { role: 'user', content: prompt }
+    ]
+
+    return await client.invoke(messages)
+  }
+
+  // ============================================================
+  // Explain result
+  // ============================================================
+
+  async explainResult(result: QueryResult, question?: string): Promise<string> {
+    const client = await this.getLLMClient()
+
+    const rowSample = result.rows.slice(0, 20)
+    const colNames = result.columns.map((c) => c.name).join(', ')
+    const rowsText = rowSample
+      .map((row) => result.columns.map((c) => String(row[c.name] ?? '')).join(' | '))
+      .join('\n')
+
+    const prompt = `以下是一个 SQL 查询的结果集（共 ${result.rows.length} 行）：
+
+SQL: ${result.sql}
+列名: ${colNames}
+数据样本（前 ${rowSample.length} 行）:
+${rowsText}
+
+${question ? `用户问题: ${question}\n` : ''}请用简洁的中文对这个查询结果进行自然语言总结和洞察分析，包括：
+1. 数据概况（行数、关键指标）
+2. 主要发现或规律
+3. 如有异常值或值得关注的数据，请指出`
+
+    const messages: LLMMessage[] = [
+      {
+        role: 'system',
+        content: '你是一个数据分析助手，擅长对 SQL 查询结果进行自然语言总结和洞察分析。'
+      },
+      { role: 'user', content: prompt }
+    ]
+
+    return await client.invoke(messages)
+  }
+
+  // ============================================================
+  // Broadcast to renderer
+  // ============================================================
+
+  private notifyRenderer(channel: string, data: unknown): void {
+    const windows = BrowserWindow.getAllWindows()
+    for (const win of windows) {
+      if (!win.isDestroyed()) {
+        win.webContents.send(channel, data)
+      }
+    }
+  }
+
+  // Expose for IPC layer
+  broadcastError(error: string): void {
+    this.notifyRenderer(IPC.AI_TEXT_TO_SQL, { error })
+  }
+}
+
+export const aiModule = AIModule.getInstance()
+export default aiModule
