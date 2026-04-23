@@ -23,85 +23,65 @@ function wrapError(err: unknown): Error {
 }
 
 export function register(): void {
-  ipcMain.handle(IPC.AI_TEXT_TO_SQL, async (_event, request: TextToSQLRequest) => {
+  ipcMain.handle(IPC.AI_TEXT_TO_SQL, async (_event, request: TextToSQLRequest & { streamId?: string }) => {
     try {
       return await aiModule.textToSQL(request)
-    } catch (err) {
-      throw wrapError(err)
-    }
+    } catch (err) { throw wrapError(err) }
   })
 
-  ipcMain.handle(IPC.AI_EXPLAIN_RESULT, async (_event, result: QueryResult, question?: string) => {
+  ipcMain.handle(IPC.AI_EXPLAIN_RESULT, async (_event, result: QueryResult, question?: string, streamId?: string) => {
     try {
-      return await aiModule.explainResult(result, question)
-    } catch (err) {
-      throw wrapError(err)
-    }
+      return await aiModule.explainResult(result, question, streamId)
+    } catch (err) { throw wrapError(err) }
   })
 
-  ipcMain.handle(IPC.AI_EXPLAIN_SQL, async (_event, sql: string) => {
+  ipcMain.handle(IPC.AI_EXPLAIN_SQL, async (_event, sql: string, streamId?: string) => {
     try {
-      return await aiModule.explainSQL(sql)
-    } catch (err) {
-      throw wrapError(err)
-    }
+      return await aiModule.explainSQL(sql, streamId)
+    } catch (err) { throw wrapError(err) }
   })
 
-  ipcMain.handle(IPC.AI_OPTIMIZE_QUERY, async (_event, request: OptimizeQueryRequest) => {
+  ipcMain.handle(IPC.AI_OPTIMIZE_QUERY, async (_event, request: OptimizeQueryRequest & { streamId?: string }) => {
     try {
       return await aiModule.optimizeQuery(request)
-    } catch (err) {
-      throw wrapError(err)
-    }
+    } catch (err) { throw wrapError(err) }
   })
 
-  ipcMain.handle(IPC.AI_DIAGNOSE_ERROR, async (_event, request: DiagnoseErrorRequest) => {
+  ipcMain.handle(IPC.AI_DIAGNOSE_ERROR, async (_event, request: DiagnoseErrorRequest & { streamId?: string }) => {
     try {
       return await aiModule.diagnoseError(request)
-    } catch (err) {
-      throw wrapError(err)
-    }
+    } catch (err) { throw wrapError(err) }
   })
 
-  ipcMain.handle(IPC.AI_SCHEMA_DOC, async (_event, request: SchemaDocRequest) => {
+  ipcMain.handle(IPC.AI_SCHEMA_DOC, async (_event, request: SchemaDocRequest & { streamId?: string }) => {
     try {
       return await aiModule.generateSchemaDoc(request)
-    } catch (err) {
-      throw wrapError(err)
-    }
+    } catch (err) { throw wrapError(err) }
   })
 
-  ipcMain.handle(IPC.AI_SECURITY_AUDIT, async (_event, request: SecurityAuditRequest) => {
+  ipcMain.handle(IPC.AI_SECURITY_AUDIT, async (_event, request: SecurityAuditRequest & { streamId?: string }) => {
     try {
       return await aiModule.securityAudit(request)
-    } catch (err) {
-      throw wrapError(err)
-    }
+    } catch (err) { throw wrapError(err) }
   })
 
   ipcMain.handle(IPC.AI_MIGRATION, async (_event, request: MigrationRequest) => {
     try {
       return await aiModule.generateMigration(request)
-    } catch (err) {
-      throw wrapError(err)
-    }
+    } catch (err) { throw wrapError(err) }
   })
 
-  ipcMain.handle(IPC.AI_DATA_QUALITY, async (_event, request: DataQualityRequest) => {
+  ipcMain.handle(IPC.AI_DATA_QUALITY, async (_event, request: DataQualityRequest & { streamId?: string }) => {
     try {
       return await aiModule.analyzeDataQuality(request)
-    } catch (err) {
-      throw wrapError(err)
-    }
+    } catch (err) { throw wrapError(err) }
   })
 
   ipcMain.handle(IPC.AI_CONFIG_SAVE, async (_event, config: AIConfig) => {
     try {
       await aiModule.switchProvider(config)
       return { success: true }
-    } catch (err) {
-      throw wrapError(err)
-    }
+    } catch (err) { throw wrapError(err) }
   })
 
   ipcMain.handle(IPC.AI_CONFIG_GET, () => {
@@ -109,8 +89,6 @@ export function register(): void {
       const stored = configStore.getAIConfig()
       const apiKey = configStore.getDecryptedAPIKey()
       return { ...stored, apiKey }
-    } catch (err) {
-      throw wrapError(err)
-    }
+    } catch (err) { throw wrapError(err) }
   })
 }

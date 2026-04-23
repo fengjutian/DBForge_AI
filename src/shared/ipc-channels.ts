@@ -40,6 +40,10 @@ export const IPC = {
   AI_DATA_QUALITY: 'ai:data-quality',
   AI_CONFIG_SAVE: 'ai:config-save',
   AI_CONFIG_GET: 'ai:config-get',
+  // AI streaming (main -> renderer push)
+  AI_STREAM_CHUNK: 'ai:stream-chunk',
+  AI_STREAM_END: 'ai:stream-end',
+  AI_STREAM_ERROR: 'ai:stream-error',
 
   // Backup
   BACKUP_DETECT_TOOL: 'backup:detect-tool',

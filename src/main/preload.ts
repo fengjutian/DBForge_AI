@@ -80,26 +80,38 @@ const electronAPI = {
 
   // ── AI ─────────────────────────────────────────────────────
   ai: {
-    textToSQL: (request: TextToSQLRequest): Promise<TextToSQLResponse> =>
+    textToSQL: (request: TextToSQLRequest & { streamId?: string }): Promise<TextToSQLResponse> =>
       ipcRenderer.invoke(IPC.AI_TEXT_TO_SQL, request),
-    explainResult: (result: QueryResult, question?: string): Promise<string> =>
-      ipcRenderer.invoke(IPC.AI_EXPLAIN_RESULT, result, question),
-    explainSQL: (sql: string): Promise<string> =>
-      ipcRenderer.invoke(IPC.AI_EXPLAIN_SQL, sql),
-    optimizeQuery: (request: OptimizeQueryRequest): Promise<OptimizeQueryResponse> =>
+    explainResult: (result: QueryResult, question?: string, streamId?: string): Promise<string> =>
+      ipcRenderer.invoke(IPC.AI_EXPLAIN_RESULT, result, question, streamId),
+    explainSQL: (sql: string, streamId?: string): Promise<string> =>
+      ipcRenderer.invoke(IPC.AI_EXPLAIN_SQL, sql, streamId),
+    optimizeQuery: (request: OptimizeQueryRequest & { streamId?: string }): Promise<OptimizeQueryResponse> =>
       ipcRenderer.invoke(IPC.AI_OPTIMIZE_QUERY, request),
-    diagnoseError: (request: DiagnoseErrorRequest): Promise<DiagnoseErrorResponse> =>
+    diagnoseError: (request: DiagnoseErrorRequest & { streamId?: string }): Promise<DiagnoseErrorResponse> =>
       ipcRenderer.invoke(IPC.AI_DIAGNOSE_ERROR, request),
-    generateSchemaDoc: (request: SchemaDocRequest): Promise<SchemaDocResponse> =>
+    generateSchemaDoc: (request: SchemaDocRequest & { streamId?: string }): Promise<SchemaDocResponse> =>
       ipcRenderer.invoke(IPC.AI_SCHEMA_DOC, request),
-    securityAudit: (request: SecurityAuditRequest): Promise<SecurityAuditResponse> =>
+    securityAudit: (request: SecurityAuditRequest & { streamId?: string }): Promise<SecurityAuditResponse> =>
       ipcRenderer.invoke(IPC.AI_SECURITY_AUDIT, request),
     generateMigration: (request: MigrationRequest): Promise<MigrationResponse> =>
       ipcRenderer.invoke(IPC.AI_MIGRATION, request),
-    analyzeDataQuality: (request: DataQualityRequest): Promise<DataQualityResponse> =>
+    analyzeDataQuality: (request: DataQualityRequest & { streamId?: string }): Promise<DataQualityResponse> =>
       ipcRenderer.invoke(IPC.AI_DATA_QUALITY, request),
     saveConfig: (config: AIConfig) => ipcRenderer.invoke(IPC.AI_CONFIG_SAVE, config),
-    getConfig: (): Promise<AIConfig> => ipcRenderer.invoke(IPC.AI_CONFIG_GET)
+    getConfig: (): Promise<AIConfig> => ipcRenderer.invoke(IPC.AI_CONFIG_GET),
+    onStreamChunk: (callback: (data: { streamId: string; chunk: string }) => void) => {
+      ipcRenderer.on(IPC.AI_STREAM_CHUNK, (_event, data) => callback(data))
+      return () => ipcRenderer.removeAllListeners(IPC.AI_STREAM_CHUNK)
+    },
+    onStreamEnd: (callback: (data: { streamId: string }) => void) => {
+      ipcRenderer.on(IPC.AI_STREAM_END, (_event, data) => callback(data))
+      return () => ipcRenderer.removeAllListeners(IPC.AI_STREAM_END)
+    },
+    onStreamError: (callback: (data: { streamId: string; error: string }) => void) => {
+      ipcRenderer.on(IPC.AI_STREAM_ERROR, (_event, data) => callback(data))
+      return () => ipcRenderer.removeAllListeners(IPC.AI_STREAM_ERROR)
+    }
   },
 
   // ── Backup ─────────────────────────────────────────────────

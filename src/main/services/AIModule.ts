@@ -36,6 +36,7 @@ interface LLMMessage {
 
 interface LLMClient {
   invoke(messages: LLMMessage[], jsonMode?: boolean): Promise<string>
+  stream(messages: LLMMessage[], onChunk: (chunk: string) => void): Promise<string>
 }
 
 // ============================================================
@@ -177,28 +178,32 @@ class AIModule {
       const model = new ChatOpenAI({
         openAIApiKey: apiKey,
         modelName: config.model || 'gpt-4o-mini',
-        temperature: config.temperature ?? 0.2
+        temperature: config.temperature ?? 0.2,
+        streaming: true
       })
       return {
         invoke: async (messages) => {
           const { HumanMessage, SystemMessage } = await import('@langchain/core/messages')
-          const langchainMessages = messages.map((m) => {
-            if (m.role === 'system') return new SystemMessage(m.content)
-            return new HumanMessage(m.content)
-          })
-          const response = await model.invoke(langchainMessages)
-          return typeof response.content === 'string'
-            ? response.content
-            : JSON.stringify(response.content)
+          const lc = messages.map(m => m.role === 'system' ? new SystemMessage(m.content) : new HumanMessage(m.content))
+          const response = await model.invoke(lc)
+          return typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
+        },
+        stream: async (messages, onChunk) => {
+          const { HumanMessage, SystemMessage } = await import('@langchain/core/messages')
+          const lc = messages.map(m => m.role === 'system' ? new SystemMessage(m.content) : new HumanMessage(m.content))
+          let full = ''
+          const stream = await model.stream(lc)
+          for await (const chunk of stream) {
+            const text = typeof chunk.content === 'string' ? chunk.content : ''
+            if (text) { full += text; onChunk(text) }
+          }
+          return full
         }
       }
     } catch {
-      // Fallback to langchain package
       return this.createFallbackHTTPClient(
         'https://api.openai.com/v1/chat/completions',
-        apiKey,
-        config.model || 'gpt-4o-mini',
-        config.temperature ?? 0.2
+        apiKey, config.model || 'gpt-4o-mini', config.temperature ?? 0.2
       )
     }
   }
@@ -207,29 +212,32 @@ class AIModule {
     try {
       const { ChatGroq } = await import('@langchain/groq')
       const model = new ChatGroq({
-        apiKey,
-        model: config.model || 'llama3-8b-8192',
-        temperature: config.temperature ?? 0.2
+        apiKey, model: config.model || 'llama3-8b-8192',
+        temperature: config.temperature ?? 0.2, streaming: true
       })
       return {
         invoke: async (messages) => {
           const { HumanMessage, SystemMessage } = await import('@langchain/core/messages')
-          const langchainMessages = messages.map((m) => {
-            if (m.role === 'system') return new SystemMessage(m.content)
-            return new HumanMessage(m.content)
-          })
-          const response = await model.invoke(langchainMessages)
-          return typeof response.content === 'string'
-            ? response.content
-            : JSON.stringify(response.content)
+          const lc = messages.map(m => m.role === 'system' ? new SystemMessage(m.content) : new HumanMessage(m.content))
+          const response = await model.invoke(lc)
+          return typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
+        },
+        stream: async (messages, onChunk) => {
+          const { HumanMessage, SystemMessage } = await import('@langchain/core/messages')
+          const lc = messages.map(m => m.role === 'system' ? new SystemMessage(m.content) : new HumanMessage(m.content))
+          let full = ''
+          const stream = await model.stream(lc)
+          for await (const chunk of stream) {
+            const text = typeof chunk.content === 'string' ? chunk.content : ''
+            if (text) { full += text; onChunk(text) }
+          }
+          return full
         }
       }
     } catch {
       return this.createFallbackHTTPClient(
         'https://api.groq.com/openai/v1/chat/completions',
-        apiKey,
-        config.model || 'llama3-8b-8192',
-        config.temperature ?? 0.2
+        apiKey, config.model || 'llama3-8b-8192', config.temperature ?? 0.2
       )
     }
   }
@@ -240,38 +248,39 @@ class AIModule {
       const model = new ChatAnthropic({
         anthropicApiKey: apiKey,
         model: config.model || 'claude-3-haiku-20240307',
-        temperature: config.temperature ?? 0.2
+        temperature: config.temperature ?? 0.2, streaming: true
       })
       return {
         invoke: async (messages) => {
           const { HumanMessage, SystemMessage } = await import('@langchain/core/messages')
-          const langchainMessages = messages.map((m) => {
-            if (m.role === 'system') return new SystemMessage(m.content)
-            return new HumanMessage(m.content)
-          })
-          const response = await model.invoke(langchainMessages)
-          return typeof response.content === 'string'
-            ? response.content
-            : JSON.stringify(response.content)
+          const lc = messages.map(m => m.role === 'system' ? new SystemMessage(m.content) : new HumanMessage(m.content))
+          const response = await model.invoke(lc)
+          return typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
+        },
+        stream: async (messages, onChunk) => {
+          const { HumanMessage, SystemMessage } = await import('@langchain/core/messages')
+          const lc = messages.map(m => m.role === 'system' ? new SystemMessage(m.content) : new HumanMessage(m.content))
+          let full = ''
+          const stream = await model.stream(lc)
+          for await (const chunk of stream) {
+            const text = typeof chunk.content === 'string' ? chunk.content : ''
+            if (text) { full += text; onChunk(text) }
+          }
+          return full
         }
       }
     } catch {
       return this.createFallbackHTTPClient(
         'https://api.anthropic.com/v1/messages',
-        apiKey,
-        config.model || 'claude-3-haiku-20240307',
-        config.temperature ?? 0.2
+        apiKey, config.model || 'claude-3-haiku-20240307', config.temperature ?? 0.2
       )
     }
   }
 
   private async createDeepSeekClient(apiKey: string, config: AIConfig): Promise<LLMClient> {
-    // DeepSeek uses OpenAI-compatible API
     return this.createFallbackHTTPClient(
       'https://api.deepseek.com/v1/chat/completions',
-      apiKey,
-      config.model || 'deepseek-chat',
-      config.temperature ?? 0.2
+      apiKey, config.model || 'deepseek-chat', config.temperature ?? 0.2
     )
   }
 
@@ -286,29 +295,32 @@ class AIModule {
       return {
         invoke: async (messages) => {
           const { HumanMessage, SystemMessage } = await import('@langchain/core/messages')
-          const langchainMessages = messages.map((m) => {
-            if (m.role === 'system') return new SystemMessage(m.content)
-            return new HumanMessage(m.content)
-          })
-          const response = await model.invoke(langchainMessages)
-          return typeof response.content === 'string'
-            ? response.content
-            : JSON.stringify(response.content)
+          const lc = messages.map(m => m.role === 'system' ? new SystemMessage(m.content) : new HumanMessage(m.content))
+          const response = await model.invoke(lc)
+          return typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
+        },
+        stream: async (messages, onChunk) => {
+          const { HumanMessage, SystemMessage } = await import('@langchain/core/messages')
+          const lc = messages.map(m => m.role === 'system' ? new SystemMessage(m.content) : new HumanMessage(m.content))
+          let full = ''
+          const stream = await model.stream(lc)
+          for await (const chunk of stream) {
+            const text = typeof chunk.content === 'string' ? chunk.content : ''
+            if (text) { full += text; onChunk(text) }
+          }
+          return full
         }
       }
     } catch {
       return this.createFallbackHTTPClient(
         `${config.baseUrl || 'http://localhost:11434'}/api/chat`,
-        '',
-        config.model || 'llama3',
-        config.temperature ?? 0.2
+        '', config.model || 'llama3', config.temperature ?? 0.2
       )
     }
   }
 
   /**
-   * HTTP fallback client for providers without installed LangChain sub-packages.
-   * Uses the OpenAI-compatible chat completions API format.
+   * HTTP fallback client — supports both regular and SSE streaming.
    */
   private createFallbackHTTPClient(
     endpoint: string,
@@ -316,40 +328,55 @@ class AIModule {
     model: string,
     temperature: number
   ): LLMClient {
+    const buildHeaders = (): Record<string, string> => {
+      const h: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (apiKey) h['Authorization'] = `Bearer ${apiKey}`
+      return h
+    }
+
     return {
       invoke: async (messages: LLMMessage[], jsonMode = false): Promise<string> => {
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json'
-        }
-        if (apiKey) {
-          headers['Authorization'] = `Bearer ${apiKey}`
-        }
-
-        const body: Record<string, unknown> = {
-          model,
-          temperature,
-          messages
-        }
-        // Only request JSON mode when caller explicitly needs it
-        if (jsonMode) {
-          body.response_format = { type: 'json_object' }
-        }
-
+        const body: Record<string, unknown> = { model, temperature, messages }
+        if (jsonMode) body.response_format = { type: 'json_object' }
         const response = await fetch(endpoint, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(body)
+          method: 'POST', headers: buildHeaders(), body: JSON.stringify(body)
         })
-
-        if (!response.ok) {
-          const text = await response.text()
-          throw new Error(`LLM API 错误 ${response.status}: ${text}`)
-        }
-
-        const data = (await response.json()) as {
-          choices?: Array<{ message?: { content?: string } }>
-        }
+        if (!response.ok) throw new Error(`LLM API 错误 ${response.status}: ${await response.text()}`)
+        const data = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> }
         return data.choices?.[0]?.message?.content ?? ''
+      },
+
+      stream: async (messages: LLMMessage[], onChunk: (chunk: string) => void): Promise<string> => {
+        const body: Record<string, unknown> = { model, temperature, messages, stream: true }
+        const response = await fetch(endpoint, {
+          method: 'POST', headers: buildHeaders(), body: JSON.stringify(body)
+        })
+        if (!response.ok) throw new Error(`LLM API 错误 ${response.status}: ${await response.text()}`)
+        if (!response.body) throw new Error('流式响应不可用')
+
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let full = ''
+        let buffer = ''
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() ?? ''
+          for (const line of lines) {
+            const trimmed = line.trim()
+            if (!trimmed || trimmed === 'data: [DONE]') continue
+            const data = trimmed.startsWith('data: ') ? trimmed.slice(6) : trimmed
+            try {
+              const parsed = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> }
+              const text = parsed.choices?.[0]?.delta?.content ?? ''
+              if (text) { full += text; onChunk(text) }
+            } catch { /* skip malformed lines */ }
+          }
+        }
+        return full
       }
     }
   }
@@ -358,11 +385,9 @@ class AIModule {
   // Text-to-SQL
   // ============================================================
 
-  async textToSQL(request: TextToSQLRequest): Promise<TextToSQLResponse> {
+  async textToSQL(request: TextToSQLRequest & { streamId?: string }): Promise<TextToSQLResponse> {
     const startTime = Date.now()
     const config = this.getConfig()
-    const client = await this.getLLMClient()
-
     const schemaDesc = buildSchemaDescription(request.schema)
 
     const systemPrompt = `你是一个专业的 MySQL SQL 生成助手。根据用户的自然语言描述和提供的数据库 Schema，生成准确的 SQL 查询语句。
@@ -386,56 +411,37 @@ ${FEW_SHOT_EXAMPLES}`
       { role: 'user', content: request.naturalLanguage }
     ]
 
-    const rawResponse = await client.invoke(messages, true)
+    const rawResponse = request.streamId
+      ? await this.streamCall(request.streamId, messages)
+      : await (await this.getLLMClient()).invoke(messages, true)
     const latency = Date.now() - startTime
 
-    // Parse JSON response
     let parsed: { sql?: string; explanation?: string; isDangerous?: boolean }
     try {
-      // Extract JSON from response (handle markdown code blocks)
-      const jsonMatch = rawResponse.match(/```(?:json)?\s*([\s\S]*?)```/) 
+      const jsonMatch = rawResponse.match(/```(?:json)?\s*([\s\S]*?)```/)
       const jsonStr = jsonMatch ? jsonMatch[1] : rawResponse
       parsed = JSON.parse(jsonStr.trim())
     } catch {
-      // If JSON parsing fails, try to extract SQL directly
-      parsed = {
-        sql: rawResponse.trim(),
-        explanation: '无法解析 AI 响应格式',
-        isDangerous: false
-      }
+      parsed = { sql: rawResponse.trim(), explanation: '无法解析 AI 响应格式', isDangerous: false }
     }
 
     let sql = parsed.sql?.trim() ?? ''
     const explanation = parsed.explanation?.trim() ?? ''
     const isDangerous = parsed.isDangerous ?? false
 
-    // Apply readonly filter
     if (config.mode === 'readonly') {
       const filtered = filterReadonlySQL(sql)
-      if (filtered === null) {
-        sql = '-- 只读模式：已拒绝生成写操作 SQL'
-      } else {
-        sql = filtered
-      }
+      sql = filtered === null ? '-- 只读模式：已拒绝生成写操作 SQL' : filtered
     }
 
-    return {
-      sql,
-      explanation,
-      isDangerous,
-      provider: config.provider,
-      model: config.model,
-      latency
-    }
+    return { sql, explanation, isDangerous, provider: config.provider, model: config.model, latency }
   }
 
   // ============================================================
   // Explain SQL statement
   // ============================================================
 
-  async explainSQL(sql: string): Promise<string> {
-    const client = await this.getLLMClient()
-
+  async explainSQL(sql: string, streamId?: string): Promise<string> {
     const prompt = `请用简洁的中文解释以下 SQL 语句的含义和作用：
 
 \`\`\`sql
@@ -453,20 +459,20 @@ ${sql}
       { role: 'user', content: prompt }
     ]
 
-    return await client.invoke(messages)
+    return streamId
+      ? this.streamCall(streamId, messages)
+      : (await this.getLLMClient()).invoke(messages)
   }
 
   // ============================================================
   // Explain result
   // ============================================================
 
-  async explainResult(result: QueryResult, question?: string): Promise<string> {
-    const client = await this.getLLMClient()
-
+  async explainResult(result: QueryResult, question?: string, streamId?: string): Promise<string> {
     const rowSample = result.rows.slice(0, 20)
-    const colNames = result.columns.map((c) => c.name).join(', ')
+    const colNames = result.columns.map(c => c.name).join(', ')
     const rowsText = rowSample
-      .map((row) => result.columns.map((c) => String(row[c.name] ?? '')).join(' | '))
+      .map(row => result.columns.map(c => String(row[c.name] ?? '')).join(' | '))
       .join('\n')
 
     const prompt = `以下是一个 SQL 查询的结果集（共 ${result.rows.length} 行）：
@@ -482,24 +488,21 @@ ${question ? `用户问题: ${question}\n` : ''}请用简洁的中文对这个�
 3. 如有异常值或值得关注的数据，请指出`
 
     const messages: LLMMessage[] = [
-      {
-        role: 'system',
-        content: '你是一个数据分析助手，擅长对 SQL 查询结果进行自然语言总结和洞察分析。'
-      },
+      { role: 'system', content: '你是一个数据分析助手，擅长对 SQL 查询结果进行自然语言总结和洞察分析。' },
       { role: 'user', content: prompt }
     ]
 
-    return await client.invoke(messages)
+    return streamId
+      ? this.streamCall(streamId, messages)
+      : (await this.getLLMClient()).invoke(messages)
   }
 
   // ============================================================
   // Optimize Query
   // ============================================================
 
-  async optimizeQuery(request: OptimizeQueryRequest): Promise<OptimizeQueryResponse> {
+  async optimizeQuery(request: OptimizeQueryRequest & { streamId?: string }): Promise<OptimizeQueryResponse> {
     const startTime = Date.now()
-    const client = await this.getLLMClient()
-
     const schemaDesc = request.schema ? buildSchemaDescription(request.schema) : ''
 
     const prompt = `请分析以下 SQL 查询并提供优化建议：
@@ -521,7 +524,9 @@ ${schemaDesc ? `数据库 Schema:\n${schemaDesc}\n` : ''}
       { role: 'user', content: prompt }
     ]
 
-    const raw = await client.invoke(messages, true)
+    const raw = request.streamId
+      ? await this.streamCall(request.streamId, messages)
+      : await (await this.getLLMClient()).invoke(messages, true)
     const latency = Date.now() - startTime
 
     let parsed: { optimizedSql?: string; suggestions?: string[]; explanation?: string }
@@ -544,10 +549,8 @@ ${schemaDesc ? `数据库 Schema:\n${schemaDesc}\n` : ''}
   // Diagnose Error
   // ============================================================
 
-  async diagnoseError(request: DiagnoseErrorRequest): Promise<DiagnoseErrorResponse> {
+  async diagnoseError(request: DiagnoseErrorRequest & { streamId?: string }): Promise<DiagnoseErrorResponse> {
     const startTime = Date.now()
-    const client = await this.getLLMClient()
-
     const schemaDesc = request.schema ? buildSchemaDescription(request.schema) : ''
 
     const prompt = `以下 SQL 执行时报错，请诊断原因并给出修复方案：
@@ -570,7 +573,9 @@ ${schemaDesc ? `数据库 Schema:\n${schemaDesc}\n` : ''}
       { role: 'user', content: prompt }
     ]
 
-    const raw = await client.invoke(messages, true)
+    const raw = request.streamId
+      ? await this.streamCall(request.streamId, messages)
+      : await (await this.getLLMClient()).invoke(messages, true)
     const latency = Date.now() - startTime
 
     let parsed: { diagnosis?: string; fixedSql?: string; suggestions?: string[] }
@@ -593,16 +598,12 @@ ${schemaDesc ? `数据库 Schema:\n${schemaDesc}\n` : ''}
   // Schema Documentation
   // ============================================================
 
-  async generateSchemaDoc(request: SchemaDocRequest): Promise<SchemaDocResponse> {
+  async generateSchemaDoc(request: SchemaDocRequest & { streamId?: string }): Promise<SchemaDocResponse> {
     const startTime = Date.now()
-    const client = await this.getLLMClient()
-
     const schemaDesc = buildSchemaDescription(request.schema)
     const scope = request.targetTable
       ? `表 ${request.targetDb}.${request.targetTable}`
-      : request.targetDb
-        ? `数据库 ${request.targetDb}`
-        : '整个数据库 Schema'
+      : request.targetDb ? `数据库 ${request.targetDb}` : '整个数据库 Schema'
 
     const prompt = `请为以下数据库 Schema 生成详细的中文技术文档，范围：${scope}
 
@@ -622,7 +623,9 @@ ${schemaDesc}
       { role: 'user', content: prompt }
     ]
 
-    const documentation = await client.invoke(messages)
+    const documentation = request.streamId
+      ? await this.streamCall(request.streamId, messages)
+      : await (await this.getLLMClient()).invoke(messages)
     const latency = Date.now() - startTime
 
     return { documentation, latency }
@@ -632,9 +635,8 @@ ${schemaDesc}
   // Security Audit
   // ============================================================
 
-  async securityAudit(request: SecurityAuditRequest): Promise<SecurityAuditResponse> {
+  async securityAudit(request: SecurityAuditRequest & { streamId?: string }): Promise<SecurityAuditResponse> {
     const startTime = Date.now()
-    const client = await this.getLLMClient()
 
     const prompt = `请对以下 SQL 进行安全审计：
 
@@ -654,7 +656,9 @@ ${request.sql}
       { role: 'user', content: prompt }
     ]
 
-    const raw = await client.invoke(messages, true)
+    const raw = request.streamId
+      ? await this.streamCall(request.streamId, messages)
+      : await (await this.getLLMClient()).invoke(messages, true)
     const latency = Date.now() - startTime
 
     let parsed: { issues?: Array<{ severity: 'high' | 'medium' | 'low'; type: string; description: string; suggestion: string }>; safe?: boolean; summary?: string }
@@ -725,15 +729,13 @@ ${targetDesc}
   // Data Quality Analysis
   // ============================================================
 
-  async analyzeDataQuality(request: DataQualityRequest): Promise<DataQualityResponse> {
+  async analyzeDataQuality(request: DataQualityRequest & { streamId?: string }): Promise<DataQualityResponse> {
     const startTime = Date.now()
-    const client = await this.getLLMClient()
-
     const { result } = request
     const rowSample = result.rows.slice(0, 50)
-    const colNames = result.columns.map((c) => c.name).join(', ')
+    const colNames = result.columns.map(c => c.name).join(', ')
     const rowsText = rowSample
-      .map((row) => result.columns.map((c) => String(row[c.name] ?? 'NULL')).join(' | '))
+      .map(row => result.columns.map(c => String(row[c.name] ?? 'NULL')).join(' | '))
       .join('\n')
 
     const prompt = `请对以下查询结果进行数据质量分析：
@@ -754,7 +756,9 @@ ${rowsText}
       { role: 'user', content: prompt }
     ]
 
-    const raw = await client.invoke(messages, true)
+    const raw = request.streamId
+      ? await this.streamCall(request.streamId, messages)
+      : await (await this.getLLMClient()).invoke(messages, true)
     const latency = Date.now() - startTime
 
     let parsed: { issues?: Array<{ column: string; type: 'null' | 'duplicate' | 'outlier' | 'format'; description: string; count: number }>; summary?: string }
@@ -773,19 +777,42 @@ ${rowsText}
   }
 
   // ============================================================
+  // Streaming helpers
+  // ============================================================
+
+  /**
+   * Run an AI call with streaming, pushing chunks to the renderer via IPC.
+   * Returns the full accumulated text.
+   */
+  async streamCall(
+    streamId: string,
+    messages: LLMMessage[]
+  ): Promise<string> {
+    const client = await this.getLLMClient()
+    try {
+      const full = await client.stream(messages, (chunk) => {
+        this.notifyRenderer(IPC.AI_STREAM_CHUNK, { streamId, chunk })
+      })
+      this.notifyRenderer(IPC.AI_STREAM_END, { streamId })
+      return full
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      this.notifyRenderer(IPC.AI_STREAM_ERROR, { streamId, error: msg })
+      throw err
+    }
+  }
+
+  // ============================================================
   // Broadcast to renderer
   // ============================================================
 
   private notifyRenderer(channel: string, data: unknown): void {
     const windows = BrowserWindow.getAllWindows()
     for (const win of windows) {
-      if (!win.isDestroyed()) {
-        win.webContents.send(channel, data)
-      }
+      if (!win.isDestroyed()) win.webContents.send(channel, data)
     }
   }
 
-  // Expose for IPC layer
   broadcastError(error: string): void {
     this.notifyRenderer(IPC.AI_TEXT_TO_SQL, { error })
   }

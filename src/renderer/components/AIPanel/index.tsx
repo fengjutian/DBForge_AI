@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useConnectionStore } from '../../store/connectionStore'
 import { useEditorStore } from '../../store/editorStore'
 import { useResultStore } from '../../store/resultStore'
+import { useAIStream, newStreamId } from '../../hooks/useAIStream'
 import type {
   TextToSQLResponse,
   DatabaseSchema,
@@ -27,21 +28,33 @@ const TAB_LABELS: Record<Tab, string> = {
 }
 
 export default function AIPanel(): React.ReactElement {
-  const { activeConnectionId } = useConnectionStore()
+  const { activeConnectionId, activeDatabase, switchDatabase } = useConnectionStore()
   const { tabs, activeTabId, updateContent, pendingExplainSQL, setPendingExplainSQL } = useEditorStore()
   const { result, error: queryError } = useResultStore()
+  const { startStream, clearStream, isStreaming, getText } = useAIStream()
 
   const [tab, setTab] = useState<Tab>('generate')
   const [globalError, setGlobalError] = useState<string | null>(null)
+
+  // ── Database selector state ──
+  const [databases, setDatabases] = useState<string[]>([])
+  const [selectedDb, setSelectedDb] = useState<string | null>(activeDatabase)
+  const [dbLoading, setDbLoading] = useState(false)
+
+  // ── Stream IDs (stable per session, reset on new call) ──
+  const [genStreamId, setGenStreamId] = useState('')
+  const [explainSqlStreamId, setExplainSqlStreamId] = useState('')
+  const [explainResultStreamId, setExplainResultStreamId] = useState('')
+  const [optimizeStreamId, setOptimizeStreamId] = useState('')
+  const [diagnoseStreamId, setDiagnoseStreamId] = useState('')
+  const [schemaDocStreamId, setSchemaDocStreamId] = useState('')
+  const [securityStreamId, setSecurityStreamId] = useState('')
+  const [dataQualityStreamId, setDataQualityStreamId] = useState('')
 
   // ── Generate SQL state ──
   const [genInput, setGenInput] = useState('')
   const [genLoading, setGenLoading] = useState(false)
   const [genResponse, setGenResponse] = useState<TextToSQLResponse | null>(null)
-  const [sqlExplanation, setSqlExplanation] = useState<string | null>(null)
-  const [explainingSql, setExplainingSql] = useState(false)
-  const [resultExplanation, setResultExplanation] = useState<string | null>(null)
-  const [explainingResult, setExplainingResult] = useState(false)
 
   // ── Optimize state ──
   const [optimizeLoading, setOptimizeLoading] = useState(false)
@@ -71,6 +84,55 @@ export default function AIPanel(): React.ReactElement {
 
   const activeTab = tabs.find(t => t.id === activeTabId)
   const currentSQL = activeTab?.content?.trim() ?? ''
+
+  // Load database list when connection changes
+  const loadDatabases = useCallback(async () => {
+    if (!activeConnectionId) { setDatabases([]); setSelectedDb(null); return }
+    setDbLoading(true)
+    try {
+      const schema: DatabaseSchema = await window.electronAPI.schema.fetch(activeConnectionId)
+      const names = schema.databases.map(d => d.name)
+      setDatabases(names)
+      // Keep selectedDb if still valid, else default to activeDatabase or first
+      setSelectedDb(prev => {
+        if (prev && names.includes(prev)) return prev
+        if (activeDatabase && names.includes(activeDatabase)) return activeDatabase
+        return names[0] ?? null
+      })
+    } catch { /* ignore */ } finally {
+      setDbLoading(false)
+    }
+  }, [activeConnectionId, activeDatabase])
+
+  useEffect(() => { loadDatabases() }, [loadDatabases])
+
+  // Sync selectedDb when activeDatabase changes externally
+  useEffect(() => {
+    if (activeDatabase) setSelectedDb(activeDatabase)
+  }, [activeDatabase])
+
+  const handleSwitchDb = async (db: string) => {
+    if (!activeConnectionId || db === selectedDb) return
+    setSelectedDb(db)
+    try {
+      await switchDatabase(activeConnectionId, db)
+    } catch (e) {
+      setGlobalError(extractErrorMessage(e))
+    }
+  }
+
+  /** Fetch schema filtered to the selected database */
+  const fetchSchema = async (): Promise<DatabaseSchema | undefined> => {
+    if (!activeConnectionId) return undefined
+    try {
+      const schema = await window.electronAPI.schema.fetch(activeConnectionId)
+      if (!selectedDb) return schema
+      return {
+        ...schema,
+        databases: schema.databases.filter(d => d.name === selectedDb)
+      }
+    } catch { return undefined }
+  }
 
   const loadHistory = async () => {
     setHistoryLoading(true)
@@ -102,15 +164,22 @@ export default function AIPanel(): React.ReactElement {
     }
   }, [queryError, tab])
 
-  const handleUseSQL = (sql: string) => updateContent(activeTabId, sql)
+  const handleUseSQL = (sql: string) => {
+    const current = activeTab?.content ?? ''
+    const newContent = current.trim() ? `${current.trimEnd()}\n\n${sql}` : sql
+    updateContent(activeTabId, newContent)
+  }
 
   // ── Generate SQL ──
   const handleGenerate = async () => {
     if (!genInput.trim() || !activeConnectionId) return
-    setGenLoading(true); setGlobalError(null); setGenResponse(null); setSqlExplanation(null); setResultExplanation(null)
+    const sid = newStreamId('gen')
+    setGenStreamId(sid); clearStream(sid); startStream(sid)
+    setGenLoading(true); setGlobalError(null); setGenResponse(null)
     try {
-      const schema: DatabaseSchema = await window.electronAPI.schema.fetch(activeConnectionId)
-      const res = await window.electronAPI.ai.textToSQL({ naturalLanguage: genInput, schema, connectionId: activeConnectionId })
+      const schema = await fetchSchema()
+      if (!schema) { setGlobalError('无法获取数据库结构'); return }
+      const res = await window.electronAPI.ai.textToSQL({ naturalLanguage: genInput, schema, connectionId: activeConnectionId, streamId: sid })
       setGenResponse(res)
     } catch (e) {
       setGlobalError(extractErrorMessage(e))
@@ -121,40 +190,35 @@ export default function AIPanel(): React.ReactElement {
 
   const handleExplainSQL = async (sql: string) => {
     if (!sql.trim()) return
-    setExplainingSql(true); setSqlExplanation(null)
+    const sid = newStreamId('explain')
+    setExplainSqlStreamId(sid); clearStream(sid); startStream(sid)
     try {
-      const text = await window.electronAPI.ai.explainSQL(sql)
-      setSqlExplanation(text)
+      await window.electronAPI.ai.explainSQL(sql, sid)
     } catch (e) {
       setGlobalError(extractErrorMessage(e))
-    } finally {
-      setExplainingSql(false)
     }
   }
 
   const handleExplainResult = async () => {
     if (!result) return
-    setExplainingResult(true); setResultExplanation(null)
+    const sid = newStreamId('explainResult')
+    setExplainResultStreamId(sid); clearStream(sid); startStream(sid)
     try {
-      const text = await window.electronAPI.ai.explainResult(result, genInput || undefined)
-      setResultExplanation(text)
+      await window.electronAPI.ai.explainResult(result, genInput || undefined, sid)
     } catch (e) {
       setGlobalError(extractErrorMessage(e))
-    } finally {
-      setExplainingResult(false)
     }
   }
 
   // ── Optimize ──
   const handleOptimize = async () => {
     if (!currentSQL) return
+    const sid = newStreamId('optimize')
+    setOptimizeStreamId(sid); clearStream(sid); startStream(sid)
     setOptimizeLoading(true); setGlobalError(null); setOptimizeResponse(null)
     try {
-      let schema: DatabaseSchema | undefined
-      if (activeConnectionId) {
-        try { schema = await window.electronAPI.schema.fetch(activeConnectionId) } catch { /* optional */ }
-      }
-      const res = await window.electronAPI.ai.optimizeQuery({ sql: currentSQL, schema })
+      const schema = await fetchSchema()
+      const res = await window.electronAPI.ai.optimizeQuery({ sql: currentSQL, schema, streamId: sid })
       setOptimizeResponse(res)
     } catch (e) {
       setGlobalError(extractErrorMessage(e))
@@ -166,13 +230,12 @@ export default function AIPanel(): React.ReactElement {
   // ── Diagnose ──
   const handleDiagnose = async () => {
     if (!currentSQL || !diagnoseError.trim()) return
+    const sid = newStreamId('diagnose')
+    setDiagnoseStreamId(sid); clearStream(sid); startStream(sid)
     setDiagnoseLoading(true); setGlobalError(null); setDiagnoseResponse(null)
     try {
-      let schema: DatabaseSchema | undefined
-      if (activeConnectionId) {
-        try { schema = await window.electronAPI.schema.fetch(activeConnectionId) } catch { /* optional */ }
-      }
-      const res = await window.electronAPI.ai.diagnoseError({ sql: currentSQL, errorMessage: diagnoseError, schema })
+      const schema = await fetchSchema()
+      const res = await window.electronAPI.ai.diagnoseError({ sql: currentSQL, errorMessage: diagnoseError, schema, streamId: sid })
       setDiagnoseResponse(res)
     } catch (e) {
       setGlobalError(extractErrorMessage(e))
@@ -184,9 +247,11 @@ export default function AIPanel(): React.ReactElement {
   // ── Security ──
   const handleSecurityAudit = async () => {
     if (!currentSQL) return
+    const sid = newStreamId('security')
+    setSecurityStreamId(sid); clearStream(sid); startStream(sid)
     setSecurityLoading(true); setGlobalError(null); setSecurityResponse(null)
     try {
-      const res = await window.electronAPI.ai.securityAudit({ sql: currentSQL })
+      const res = await window.electronAPI.ai.securityAudit({ sql: currentSQL, streamId: sid })
       setSecurityResponse(res)
     } catch (e) {
       setGlobalError(extractErrorMessage(e))
@@ -198,10 +263,13 @@ export default function AIPanel(): React.ReactElement {
   // ── Schema Doc ──
   const handleSchemaDoc = async () => {
     if (!activeConnectionId) return
+    const sid = newStreamId('schemaDoc')
+    setSchemaDocStreamId(sid); clearStream(sid); startStream(sid)
     setSchemaDocLoading(true); setGlobalError(null); setSchemaDocResponse(null)
     try {
-      const schema = await window.electronAPI.schema.fetch(activeConnectionId)
-      const res = await window.electronAPI.ai.generateSchemaDoc({ schema })
+      const schema = await fetchSchema()
+      if (!schema) { setGlobalError('无法获取数据库结构'); return }
+      const res = await window.electronAPI.ai.generateSchemaDoc({ schema, targetDb: selectedDb ?? undefined, streamId: sid })
       setSchemaDocResponse(res)
     } catch (e) {
       setGlobalError(extractErrorMessage(e))
@@ -213,9 +281,11 @@ export default function AIPanel(): React.ReactElement {
   // ── Data Quality ──
   const handleDataQuality = async () => {
     if (!result) return
+    const sid = newStreamId('dataQuality')
+    setDataQualityStreamId(sid); clearStream(sid); startStream(sid)
     setDataQualityLoading(true); setGlobalError(null); setDataQualityResponse(null)
     try {
-      const res = await window.electronAPI.ai.analyzeDataQuality({ result })
+      const res = await window.electronAPI.ai.analyzeDataQuality({ result, streamId: sid })
       setDataQualityResponse(res)
     } catch (e) {
       setGlobalError(extractErrorMessage(e))
@@ -246,6 +316,30 @@ export default function AIPanel(): React.ReactElement {
       {/* Header */}
       <div className="px-3 pt-2 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
         <div className="font-semibold text-sm mb-2">AI 助手</div>
+
+        {/* Database selector */}
+        {activeConnectionId && (
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-xs text-gray-400 flex-shrink-0">🗄 数据库：</span>
+            {dbLoading ? (
+              <span className="text-xs text-gray-400">加载中...</span>
+            ) : databases.length > 0 ? (
+              <select
+                value={selectedDb ?? ''}
+                onChange={e => handleSwitchDb(e.target.value)}
+                className="flex-1 text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-0"
+              >
+                {databases.map(db => (
+                  <option key={db} value={db}>{db}</option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-xs text-gray-400">无数据库</span>
+            )}
+            <button onClick={loadDatabases} title="刷新" className="text-xs text-gray-400 hover:text-blue-500 flex-shrink-0">↻</button>
+          </div>
+        )}
+
         <div className="flex gap-0.5 flex-wrap">
           {tabs_list.map(t => (
             <button key={t} onClick={() => { setTab(t); setGlobalError(null) }}
@@ -273,10 +367,11 @@ export default function AIPanel(): React.ReactElement {
             setGenInput={setGenInput}
             genLoading={genLoading}
             genResponse={genResponse}
-            sqlExplanation={sqlExplanation}
-            explainingSql={explainingSql}
-            resultExplanation={resultExplanation}
-            explainingResult={explainingResult}
+            genStreamText={getText(genStreamId)}
+            sqlExplanation={getText(explainSqlStreamId)}
+            explainingSql={isStreaming(explainSqlStreamId)}
+            resultExplanation={getText(explainResultStreamId)}
+            explainingResult={isStreaming(explainResultStreamId)}
             hasResult={!!result}
             currentSQL={currentSQL}
             onGenerate={handleGenerate}
@@ -291,6 +386,7 @@ export default function AIPanel(): React.ReactElement {
             currentSQL={currentSQL}
             loading={optimizeLoading}
             response={optimizeResponse}
+            streamText={getText(optimizeStreamId)}
             onOptimize={handleOptimize}
             onUseSQL={handleUseSQL}
           />
@@ -303,6 +399,7 @@ export default function AIPanel(): React.ReactElement {
             setErrorMessage={setDiagnoseError}
             loading={diagnoseLoading}
             response={diagnoseResponse}
+            streamText={getText(diagnoseStreamId)}
             onDiagnose={handleDiagnose}
             onUseSQL={handleUseSQL}
           />
@@ -313,6 +410,7 @@ export default function AIPanel(): React.ReactElement {
             currentSQL={currentSQL}
             loading={securityLoading}
             response={securityResponse}
+            streamText={getText(securityStreamId)}
             onAudit={handleSecurityAudit}
           />
         )}
@@ -322,6 +420,7 @@ export default function AIPanel(): React.ReactElement {
             activeConnectionId={activeConnectionId}
             loading={schemaDocLoading}
             response={schemaDocResponse}
+            streamText={getText(schemaDocStreamId)}
             onGenerate={handleSchemaDoc}
           />
         )}
@@ -331,6 +430,7 @@ export default function AIPanel(): React.ReactElement {
             hasResult={!!result}
             loading={dataQualityLoading}
             response={dataQualityResponse}
+            streamText={getText(dataQualityStreamId)}
             onAnalyze={handleDataQuality}
           />
         )}
@@ -381,9 +481,10 @@ interface GenerateTabProps {
   setGenInput: (v: string) => void
   genLoading: boolean
   genResponse: TextToSQLResponse | null
-  sqlExplanation: string | null
+  genStreamText: string
+  sqlExplanation: string
   explainingSql: boolean
-  resultExplanation: string | null
+  resultExplanation: string
   explainingResult: boolean
   hasResult: boolean
   currentSQL: string
@@ -415,6 +516,11 @@ function GenerateTab(p: GenerateTabProps): React.ReactElement {
         </button>
       </div>
 
+      {/* Streaming preview while generating */}
+      {p.genLoading && p.genStreamText && (
+        <StreamingBox text={p.genStreamText} />
+      )}
+
       {p.genResponse && (
         <div className="space-y-2">
           {p.genResponse.isDangerous && (
@@ -430,9 +536,11 @@ function GenerateTab(p: GenerateTabProps): React.ReactElement {
             onExplain={() => p.onExplainSQL(p.genResponse!.sql)}
             explainLoading={p.explainingSql}
           />
-          {p.sqlExplanation && (
+          {(p.explainingSql || p.sqlExplanation) && (
             <InfoBox color="amber" title="📖 SQL 解释">
-              <MarkdownRenderer content={p.sqlExplanation} />
+              {p.explainingSql && !p.sqlExplanation
+                ? <StreamingDots />
+                : <MarkdownRenderer content={p.sqlExplanation} />}
             </InfoBox>
           )}
           {p.genResponse.explanation && (
@@ -449,10 +557,12 @@ function GenerateTab(p: GenerateTabProps): React.ReactElement {
             className="w-full text-sm py-1.5 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50">
             {p.explainingResult ? '分析中...' : '🤖 AI 解释查询结果'}
           </button>
-          {p.resultExplanation && (
+          {(p.explainingResult || p.resultExplanation) && (
             <div className="mt-2">
               <InfoBox color="blue" title="🤖 结果分析">
-                <MarkdownRenderer content={p.resultExplanation} />
+                {p.explainingResult && !p.resultExplanation
+                  ? <StreamingDots />
+                  : <MarkdownRenderer content={p.resultExplanation} />}
               </InfoBox>
             </div>
           )}
@@ -465,10 +575,12 @@ function GenerateTab(p: GenerateTabProps): React.ReactElement {
             className="w-full text-sm py-1.5 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50">
             {p.explainingSql ? '解释中...' : '📖 解释编辑器中的 SQL'}
           </button>
-          {p.sqlExplanation && !p.genResponse && (
+          {(p.explainingSql || p.sqlExplanation) && !p.genResponse && (
             <div className="mt-2">
               <InfoBox color="amber" title="📖 SQL 解释">
-                <MarkdownRenderer content={p.sqlExplanation} />
+                {p.explainingSql && !p.sqlExplanation
+                  ? <StreamingDots />
+                  : <MarkdownRenderer content={p.sqlExplanation} />}
               </InfoBox>
             </div>
           )}
@@ -484,6 +596,7 @@ interface OptimizeTabProps {
   currentSQL: string
   loading: boolean
   response: OptimizeQueryResponse | null
+  streamText: string
   onOptimize: () => void
   onUseSQL: (sql: string) => void
 }
@@ -503,6 +616,8 @@ function OptimizeTab(p: OptimizeTabProps): React.ReactElement {
           </button>
         </>
       )}
+
+      {p.loading && p.streamText && <StreamingBox text={p.streamText} />}
 
       {p.response && (
         <div className="space-y-2">
@@ -540,6 +655,7 @@ interface DiagnoseTabProps {
   setErrorMessage: (v: string) => void
   loading: boolean
   response: DiagnoseErrorResponse | null
+  streamText: string
   onDiagnose: () => void
   onUseSQL: (sql: string) => void
 }
@@ -563,18 +679,16 @@ function DiagnoseTab(p: DiagnoseTabProps): React.ReactElement {
         </button>
       </div>
 
+      {p.loading && p.streamText && <StreamingBox text={p.streamText} />}
+
       {p.response && (
         <div className="space-y-2">
           <InfoBox color="red" title="🔍 错误诊断">
             <MarkdownRenderer content={p.response.diagnosis} />
           </InfoBox>
           {p.response.fixedSql && (
-            <SQLBlock
-              label="修复后的 SQL"
-              sql={p.response.fixedSql}
-              meta=""
-              onUse={() => p.onUseSQL(p.response!.fixedSql!)}
-            />
+            <SQLBlock label="修复后的 SQL" sql={p.response.fixedSql} meta=""
+              onUse={() => p.onUseSQL(p.response!.fixedSql!)} />
           )}
           {p.response.suggestions.length > 0 && (
             <InfoBox color="amber" title="💡 修复建议">
@@ -593,13 +707,6 @@ function DiagnoseTab(p: DiagnoseTabProps): React.ReactElement {
 
 // ── Security Tab ─────────────────────────────────────────────
 
-interface SecurityTabProps {
-  currentSQL: string
-  loading: boolean
-  response: SecurityAuditResponse | null
-  onAudit: () => void
-}
-
 const SEVERITY_COLORS = {
   high: 'text-red-600 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
   medium: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800',
@@ -607,6 +714,14 @@ const SEVERITY_COLORS = {
 }
 
 const SEVERITY_LABELS = { high: '高危', medium: '中危', low: '低危' }
+
+interface SecurityTabProps {
+  currentSQL: string
+  loading: boolean
+  response: SecurityAuditResponse | null
+  streamText: string
+  onAudit: () => void
+}
 
 function SecurityTab(p: SecurityTabProps): React.ReactElement {
   return (
@@ -623,6 +738,8 @@ function SecurityTab(p: SecurityTabProps): React.ReactElement {
           </button>
         </>
       )}
+
+      {p.loading && p.streamText && <StreamingBox text={p.streamText} />}
 
       {p.response && (
         <div className="space-y-2">
@@ -656,6 +773,7 @@ interface SchemaDocTabProps {
   activeConnectionId: string | null
   loading: boolean
   response: SchemaDocResponse | null
+  streamText: string
   onGenerate: () => void
 }
 
@@ -668,6 +786,7 @@ function SchemaDocTab(p: SchemaDocTabProps): React.ReactElement {
           {p.loading ? '生成中...' : '📚 生成 Schema 文档'}
         </button>
       )}
+      {p.loading && p.streamText && <StreamingBox text={p.streamText} />}
       {p.response && (
         <div className="bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 p-3">
           <div className="flex items-center justify-between mb-2">
@@ -687,6 +806,7 @@ interface DataQualityTabProps {
   hasResult: boolean
   loading: boolean
   response: DataQualityResponse | null
+  streamText: string
   onAnalyze: () => void
 }
 
@@ -706,6 +826,8 @@ function DataQualityTab(p: DataQualityTabProps): React.ReactElement {
           {p.loading ? '分析中...' : '🔬 AI 数据质量分析'}
         </button>
       )}
+
+      {p.loading && p.streamText && <StreamingBox text={p.streamText} />}
 
       {p.response && (
         <div className="space-y-2">
@@ -856,4 +978,24 @@ function extractErrorMessage(e: unknown): string {
   if (typeof obj.userMessage === 'string' && obj.userMessage) return obj.userMessage
   if (typeof obj.message === 'string' && obj.message) return obj.message
   return JSON.stringify(e)
+}
+
+/** Inline streaming text preview box */
+function StreamingBox({ text }: { text: string }): React.ReactElement {
+  return (
+    <div className="text-xs bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-2 font-mono whitespace-pre-wrap break-all max-h-40 overflow-y-auto text-gray-600 dark:text-gray-300">
+      {text}<span className="inline-block w-1.5 h-3 bg-blue-500 animate-pulse ml-0.5 align-middle" />
+    </div>
+  )
+}
+
+/** Animated dots for "waiting for first token" */
+function StreamingDots(): React.ReactElement {
+  return (
+    <span className="inline-flex gap-1 items-center text-gray-400">
+      <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce" style={{ animationDelay: '0ms' }} />
+      <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce" style={{ animationDelay: '150ms' }} />
+      <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce" style={{ animationDelay: '300ms' }} />
+    </span>
+  )
 }
