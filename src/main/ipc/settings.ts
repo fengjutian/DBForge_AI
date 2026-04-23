@@ -214,7 +214,7 @@ export function register(): void {
 
 // ── Schema fetch helper ───────────────────────────────────────
 
-async function fetchSchema(connectionId: string) {
+export async function fetchSchema(connectionId: string) {
   const pool = connectionManager.getPool(connectionId)
 
   // 1. All databases

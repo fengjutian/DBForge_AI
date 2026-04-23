@@ -100,6 +100,15 @@ const electronAPI = {
       ipcRenderer.invoke(IPC.AI_DATA_QUALITY, request),
     saveConfig: (config: AIConfig) => ipcRenderer.invoke(IPC.AI_CONFIG_SAVE, config),
     getConfig: (): Promise<AIConfig> => ipcRenderer.invoke(IPC.AI_CONFIG_GET),
+    // Table analysis
+    analyzeTableDependencies: (req: { connectionId: string; dbName: string; tableName: string; streamId?: string }) =>
+      ipcRenderer.invoke(IPC.AI_TABLE_DEPENDENCIES, req),
+    generateTableDataDict: (req: { connectionId: string; dbName: string; tableName: string; streamId?: string }) =>
+      ipcRenderer.invoke(IPC.AI_TABLE_DATA_DICT, req),
+    analyzeTableIndexes: (req: { connectionId: string; dbName: string; tableName: string; streamId?: string }) =>
+      ipcRenderer.invoke(IPC.AI_TABLE_INDEX_ANALYSIS, req),
+    analyzeTableQueryPerf: (req: { connectionId: string; dbName: string; tableName: string; streamId?: string; history: Array<{ sql: string; duration: number; executedAt: number; success: boolean }> }) =>
+      ipcRenderer.invoke(IPC.AI_TABLE_QUERY_PERF, req),
     onStreamChunk: (callback: (data: { streamId: string; chunk: string }) => void) => {
       ipcRenderer.on(IPC.AI_STREAM_CHUNK, (_event, data) => callback(data))
       return () => ipcRenderer.removeAllListeners(IPC.AI_STREAM_CHUNK)

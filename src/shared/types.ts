@@ -234,6 +234,26 @@ export interface DataQualityResponse {
 }
 
 // ============================================================
+// Table Analysis Types
+// ============================================================
+
+export interface TableAnalysisRequest {
+  connectionId: string
+  dbName: string
+  tableName: string
+  streamId?: string
+}
+
+export interface TableQueryPerfRequest extends TableAnalysisRequest {
+  history: Array<{ sql: string; duration: number; executedAt: number; success: boolean }>
+}
+
+export interface TableAnalysisResponse {
+  content: string  // Markdown
+  latency: number
+}
+
+// ============================================================
 // Backup Types
 // ============================================================
 

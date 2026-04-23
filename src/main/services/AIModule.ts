@@ -886,6 +886,198 @@ ${rowsText}
   broadcastError(error: string): void {
     this.notifyRenderer(IPC.AI_TEXT_TO_SQL, { error })
   }
+
+  // ============================================================
+  // Table Analysis — Dependencies
+  // ============================================================
+
+  async analyzeTableDependencies(
+    schema: import('../../shared/types').DatabaseSchema,
+    dbName: string,
+    tableName: string,
+    streamId?: string
+  ): Promise<import('../../shared/types').TableAnalysisResponse> {
+    const startTime = Date.now()
+    const db = schema.databases.find(d => d.name === dbName)
+    const table = db?.tables.find(t => t.name === tableName)
+    if (!db || !table) throw new Error(`表 ${dbName}.${tableName} 不存在`)
+
+    const allTables = db.tables.map(t => {
+      const fks = t.foreignKeys.map(fk => `  FK: ${t.name}.${fk.columnName} → ${fk.referencedTable}.${fk.referencedColumn}`).join('\n')
+      return `表: ${t.name}${fks ? '\n' + fks : ''}`
+    }).join('\n')
+
+    const targetFKs = table.foreignKeys
+    const referencedBy = db.tables.filter(t => t.foreignKeys.some(fk => fk.referencedTable === tableName))
+
+    const prompt = `请分析 MySQL 数据库 \`${dbName}\` 中表 \`${tableName}\` 的依赖关系。
+
+## 目标表结构
+表名: ${tableName}
+字段: ${table.columns.map(c => `${c.name}(${c.type})`).join(', ')}
+主键: ${table.primaryKeys.join(', ') || '无'}
+外键(引用其他表): ${targetFKs.length ? targetFKs.map(fk => `${fk.columnName} → ${fk.referencedTable}.${fk.referencedColumn}`).join(', ') : '无'}
+被引用(其他表的外键指向本表): ${referencedBy.length ? referencedBy.map(t => t.name).join(', ') : '无'}
+
+## 数据库所有表的关系
+${allTables}
+
+请用 Markdown 格式输出以下内容：
+1. **直接依赖**：本表引用了哪些表，说明业务含义
+2. **被依赖**：哪些表依赖本表，删除/修改本表数据的影响
+3. **间接依赖链**：通过多跳关联的重要表
+4. **操作建议**：查询、删除、更新时需要注意的关联关系
+5. **Mermaid 关系图**（用 \`\`\`mermaid 代码块）：展示直接关联的表`
+
+    const messages: LLMMessage[] = [
+      { role: 'system', content: '你是一个数据库架构专家，擅长分析表之间的依赖关系和业务含义。' },
+      { role: 'user', content: prompt }
+    ]
+
+    const content = streamId
+      ? await this.streamCall(streamId, messages)
+      : await (await this.getLLMClient()).invoke(messages)
+
+    return { content, latency: Date.now() - startTime }
+  }
+
+  // ============================================================
+  // Table Analysis — Data Dictionary
+  // ============================================================
+
+  async generateTableDataDict(
+    schema: import('../../shared/types').DatabaseSchema,
+    dbName: string,
+    tableName: string,
+    streamId?: string
+  ): Promise<import('../../shared/types').TableAnalysisResponse> {
+    const startTime = Date.now()
+    const db = schema.databases.find(d => d.name === dbName)
+    const table = db?.tables.find(t => t.name === tableName)
+    if (!db || !table) throw new Error(`表 ${dbName}.${tableName} 不存在`)
+
+    const colsDesc = table.columns.map(c =>
+      `- ${c.name}: 类型=${c.type}, 可空=${c.nullable ? '是' : '否'}${c.defaultValue ? ', 默认=' + c.defaultValue : ''}${c.comment ? ', 注释=' + c.comment : ''}`
+    ).join('\n')
+
+    const prompt = `请为 MySQL 表 \`${dbName}.${tableName}\` 生成详细的数据字典文档。
+
+## 表结构
+${colsDesc}
+主键: ${table.primaryKeys.join(', ') || '无'}
+外键: ${table.foreignKeys.map(fk => `${fk.columnName} → ${fk.referencedTable}.${fk.referencedColumn}`).join(', ') || '无'}
+${table.rowCount !== undefined ? `估计行数: ${table.rowCount.toLocaleString()}` : ''}
+
+请用 Markdown 格式输出：
+1. **表概述**：推断该表的业务用途和存储的数据类型
+2. **字段说明表格**（Markdown 表格）：字段名 | 数据类型 | 是否必填 | 业务含义 | 取值说明
+3. **主键与索引说明**
+4. **关联关系说明**
+5. **使用注意事项**：常见查询模式、数据维护建议`
+
+    const messages: LLMMessage[] = [
+      { role: 'system', content: '你是一个技术文档专家，擅长为数据库表生成清晰易懂的数据字典。' },
+      { role: 'user', content: prompt }
+    ]
+
+    const content = streamId
+      ? await this.streamCall(streamId, messages)
+      : await (await this.getLLMClient()).invoke(messages)
+
+    return { content, latency: Date.now() - startTime }
+  }
+
+  // ============================================================
+  // Table Analysis — Index Analysis
+  // ============================================================
+
+  async analyzeTableIndexes(
+    schema: import('../../shared/types').DatabaseSchema,
+    dbName: string,
+    tableName: string,
+    streamId?: string
+  ): Promise<import('../../shared/types').TableAnalysisResponse> {
+    const startTime = Date.now()
+    const db = schema.databases.find(d => d.name === dbName)
+    const table = db?.tables.find(t => t.name === tableName)
+    if (!db || !table) throw new Error(`表 ${dbName}.${tableName} 不存在`)
+
+    const colsDesc = table.columns.map(c => `${c.name}(${c.type}, ${c.nullable ? 'NULL' : 'NOT NULL'})`).join(', ')
+
+    const prompt = `请对 MySQL 表 \`${dbName}.${tableName}\` 进行索引分析和优化建议。
+
+## 表结构
+字段: ${colsDesc}
+主键: ${table.primaryKeys.join(', ') || '无'}
+外键字段: ${table.foreignKeys.map(fk => fk.columnName).join(', ') || '无'}
+${table.rowCount !== undefined ? `估计行数: ${table.rowCount.toLocaleString()}` : ''}
+
+请用 Markdown 格式输出：
+1. **现有索引分析**：主键索引、外键索引的覆盖情况
+2. **缺失索引建议**：根据字段类型和外键关系，推荐应该添加的索引
+3. **复合索引建议**：哪些字段组合适合建立复合索引，给出具体 SQL
+4. **索引优化 SQL**：直接可执行的 CREATE INDEX 语句
+5. **注意事项**：索引对写入性能的影响、维护建议`
+
+    const messages: LLMMessage[] = [
+      { role: 'system', content: '你是一个 MySQL 性能优化专家，擅长索引设计和查询优化。' },
+      { role: 'user', content: prompt }
+    ]
+
+    const content = streamId
+      ? await this.streamCall(streamId, messages)
+      : await (await this.getLLMClient()).invoke(messages)
+
+    return { content, latency: Date.now() - startTime }
+  }
+
+  // ============================================================
+  // Table Analysis — Query Performance
+  // ============================================================
+
+  async analyzeTableQueryPerf(
+    dbName: string,
+    tableName: string,
+    history: Array<{ sql: string; duration: number; executedAt: number; success: boolean }>,
+    streamId?: string
+  ): Promise<import('../../shared/types').TableAnalysisResponse> {
+    const startTime = Date.now()
+
+    const relevant = history
+      .filter(h => h.sql.toLowerCase().includes(tableName.toLowerCase()))
+      .slice(0, 50)
+
+    const historyDesc = relevant.length
+      ? relevant.map((h, i) =>
+          `${i + 1}. [${h.success ? '成功' : '失败'}] 耗时${h.duration}ms\n   ${h.sql.slice(0, 200)}`
+        ).join('\n')
+      : '暂无该表的历史查询记录'
+
+    const slowQueries = relevant.filter(h => h.duration > 1000)
+
+    const prompt = `请分析 MySQL 表 \`${dbName}.${tableName}\` 的查询性能情况。
+
+## 历史查询记录（共 ${relevant.length} 条，慢查询 ${slowQueries.length} 条）
+${historyDesc}
+
+请用 Markdown 格式输出：
+1. **查询模式分析**：归纳常见的查询类型（SELECT/INSERT/UPDATE/DELETE 比例）
+2. **慢查询分析**：列出耗时超过 1 秒的查询，分析原因
+3. **性能问题诊断**：识别 N+1 查询、全表扫描、缺少 WHERE 条件等问题
+4. **优化建议**：针对每个慢查询给出具体的优化方案
+5. **优化后的 SQL 示例**：给出改写后的高效 SQL`
+
+    const messages: LLMMessage[] = [
+      { role: 'system', content: '你是一个 MySQL 查询性能优化专家，擅长分析慢查询和提供优化方案。' },
+      { role: 'user', content: prompt }
+    ]
+
+    const content = streamId
+      ? await this.streamCall(streamId, messages)
+      : await (await this.getLLMClient()).invoke(messages)
+
+    return { content, latency: Date.now() - startTime }
+  }
 }
 
 export const aiModule = AIModule.getInstance()

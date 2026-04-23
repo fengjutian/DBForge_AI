@@ -3,6 +3,7 @@ import type { DatabaseSchema, DatabaseInfo, TableInfo } from '../../../shared/ty
 import { useConnectionStore } from '../../store/connectionStore'
 import { useEditorStore } from '../../store/editorStore'
 import ERDiagram from '../ERDiagram'
+import TableAnalysisModal, { type AnalysisType } from '../TableAnalysisModal'
 
 interface ContextMenu { x: number; y: number; type: 'table'; tableId: string; dbName: string; tableName: string }
 
@@ -14,6 +15,7 @@ export default function SchemaBrowser(): React.ReactElement {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [menu, setMenu] = useState<ContextMenu | null>(null)
   const [erDiagram, setErDiagram] = useState<{ dbName: string; tableName: string } | null>(null)
+  const [analysis, setAnalysis] = useState<{ dbName: string; tableName: string; type: AnalysisType } | null>(null)
 
   const fetchSchema = useCallback(async (id: string) => {
     setLoading(true)
@@ -50,7 +52,6 @@ export default function SchemaBrowser(): React.ReactElement {
     const tabId = openPreviewTab(previewKey, `⊞ ${tableName}`, activeConnectionId)
     updatePreviewTab(tabId, { previewStatus: 'running', previewError: null })
     try {
-      // Fetch total count and first page in parallel
       const [countResult, dataResult] = await Promise.all([
         window.electronAPI.query.execute({
           connectionId: activeConnectionId,
@@ -76,7 +77,14 @@ export default function SchemaBrowser(): React.ReactElement {
     closeMenu()
   }
 
-  const handleRefresh = async () => {    if (!activeConnectionId) return
+  const handleAnalysis = (type: AnalysisType) => {
+    if (!menu) return
+    setAnalysis({ dbName: menu.dbName, tableName: menu.tableName, type })
+    closeMenu()
+  }
+
+  const handleRefresh = async () => {
+    if (!activeConnectionId) return
     closeMenu()
     setLoading(true)
     try {
@@ -142,13 +150,33 @@ export default function SchemaBrowser(): React.ReactElement {
 
       {/* Context menu */}
       {menu && (
-        <div className="fixed z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded shadow-lg py-1 text-sm"
+        <div className="fixed z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded shadow-lg py-1 text-sm min-w-[180px]"
           style={{ left: menu.x, top: menu.y }}
           onClick={e => e.stopPropagation()}>
-          <button onClick={handlePreview} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">预览数据</button>
-          <button onClick={handleShowER} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">查看 ER 图</button>
+          <button onClick={handlePreview} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
+            ⊞ 预览数据
+          </button>
+          <button onClick={handleShowER} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
+            🔀 查看 ER 图
+          </button>
           <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
-          <button onClick={handleRefresh} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">刷新 Schema</button>
+          <div className="px-4 py-1 text-xs text-gray-400 font-medium">AI 分析</div>
+          <button onClick={() => handleAnalysis('dependencies')} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
+            🔗 依赖关系图
+          </button>
+          <button onClick={() => handleAnalysis('data-dict')} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
+            📖 数据字典
+          </button>
+          <button onClick={() => handleAnalysis('indexes')} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
+            ⚡ 索引分析
+          </button>
+          <button onClick={() => handleAnalysis('query-perf')} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
+            📊 查询性能分析
+          </button>
+          <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
+          <button onClick={handleRefresh} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
+            ↻ 刷新 Schema
+          </button>
         </div>
       )}
 
@@ -163,6 +191,17 @@ export default function SchemaBrowser(): React.ReactElement {
           />
         ) : null
       })()}
+
+      {/* Table Analysis modal */}
+      {analysis && activeConnectionId && (
+        <TableAnalysisModal
+          connectionId={activeConnectionId}
+          dbName={analysis.dbName}
+          tableName={analysis.tableName}
+          type={analysis.type}
+          onClose={() => setAnalysis(null)}
+        />
+      )}
     </div>
   )
 }

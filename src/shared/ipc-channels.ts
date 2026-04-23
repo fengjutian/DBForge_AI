@@ -40,6 +40,11 @@ export const IPC = {
   AI_DATA_QUALITY: 'ai:data-quality',
   AI_CONFIG_SAVE: 'ai:config-save',
   AI_CONFIG_GET: 'ai:config-get',
+  // Table analysis
+  AI_TABLE_DEPENDENCIES: 'ai:table-dependencies',
+  AI_TABLE_DATA_DICT: 'ai:table-data-dict',
+  AI_TABLE_INDEX_ANALYSIS: 'ai:table-index-analysis',
+  AI_TABLE_QUERY_PERF: 'ai:table-query-perf',
   // AI streaming (main -> renderer push)
   AI_STREAM_CHUNK: 'ai:stream-chunk',
   AI_STREAM_END: 'ai:stream-end',
