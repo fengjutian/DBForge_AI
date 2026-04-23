@@ -32,6 +32,12 @@ export const IPC = {
   AI_TEXT_TO_SQL: 'ai:text-to-sql',
   AI_EXPLAIN_RESULT: 'ai:explain-result',
   AI_EXPLAIN_SQL: 'ai:explain-sql',
+  AI_OPTIMIZE_QUERY: 'ai:optimize-query',
+  AI_DIAGNOSE_ERROR: 'ai:diagnose-error',
+  AI_SCHEMA_DOC: 'ai:schema-doc',
+  AI_SECURITY_AUDIT: 'ai:security-audit',
+  AI_MIGRATION: 'ai:migration',
+  AI_DATA_QUALITY: 'ai:data-quality',
   AI_CONFIG_SAVE: 'ai:config-save',
   AI_CONFIG_GET: 'ai:config-get',
 

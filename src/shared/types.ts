@@ -154,6 +154,85 @@ export interface TextToSQLResponse {
   latency: number
 }
 
+export interface OptimizeQueryRequest {
+  sql: string
+  schema?: DatabaseSchema
+}
+
+export interface OptimizeQueryResponse {
+  optimizedSql: string
+  suggestions: string[]
+  explanation: string
+  latency: number
+}
+
+export interface DiagnoseErrorRequest {
+  sql: string
+  errorMessage: string
+  schema?: DatabaseSchema
+}
+
+export interface DiagnoseErrorResponse {
+  diagnosis: string
+  fixedSql?: string
+  suggestions: string[]
+  latency: number
+}
+
+export interface SchemaDocRequest {
+  schema: DatabaseSchema
+  targetDb?: string
+  targetTable?: string
+}
+
+export interface SchemaDocResponse {
+  documentation: string
+  latency: number
+}
+
+export interface SecurityAuditRequest {
+  sql: string
+}
+
+export interface SecurityAuditResponse {
+  issues: Array<{
+    severity: 'high' | 'medium' | 'low'
+    type: string
+    description: string
+    suggestion: string
+  }>
+  safe: boolean
+  summary: string
+  latency: number
+}
+
+export interface MigrationRequest {
+  sourceSchema: DatabaseSchema
+  targetSchema: DatabaseSchema
+}
+
+export interface MigrationResponse {
+  migrationSql: string
+  changes: string[]
+  warnings: string[]
+  latency: number
+}
+
+export interface DataQualityRequest {
+  result: QueryResult
+}
+
+export interface DataQualityResponse {
+  issues: Array<{
+    column: string
+    type: 'null' | 'duplicate' | 'outlier' | 'format'
+    description: string
+    count: number
+  }>
+  summary: string
+  latency: number
+}
+
 // ============================================================
 // Backup Types
 // ============================================================

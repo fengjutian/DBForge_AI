@@ -8,6 +8,18 @@ import type {
   AIConfig,
   TextToSQLRequest,
   TextToSQLResponse,
+  OptimizeQueryRequest,
+  OptimizeQueryResponse,
+  DiagnoseErrorRequest,
+  DiagnoseErrorResponse,
+  SchemaDocRequest,
+  SchemaDocResponse,
+  SecurityAuditRequest,
+  SecurityAuditResponse,
+  MigrationRequest,
+  MigrationResponse,
+  DataQualityRequest,
+  DataQualityResponse,
   BackupOptions,
   BackupProgress,
   QueryHistory,
@@ -74,6 +86,18 @@ const electronAPI = {
       ipcRenderer.invoke(IPC.AI_EXPLAIN_RESULT, result, question),
     explainSQL: (sql: string): Promise<string> =>
       ipcRenderer.invoke(IPC.AI_EXPLAIN_SQL, sql),
+    optimizeQuery: (request: OptimizeQueryRequest): Promise<OptimizeQueryResponse> =>
+      ipcRenderer.invoke(IPC.AI_OPTIMIZE_QUERY, request),
+    diagnoseError: (request: DiagnoseErrorRequest): Promise<DiagnoseErrorResponse> =>
+      ipcRenderer.invoke(IPC.AI_DIAGNOSE_ERROR, request),
+    generateSchemaDoc: (request: SchemaDocRequest): Promise<SchemaDocResponse> =>
+      ipcRenderer.invoke(IPC.AI_SCHEMA_DOC, request),
+    securityAudit: (request: SecurityAuditRequest): Promise<SecurityAuditResponse> =>
+      ipcRenderer.invoke(IPC.AI_SECURITY_AUDIT, request),
+    generateMigration: (request: MigrationRequest): Promise<MigrationResponse> =>
+      ipcRenderer.invoke(IPC.AI_MIGRATION, request),
+    analyzeDataQuality: (request: DataQualityRequest): Promise<DataQualityResponse> =>
+      ipcRenderer.invoke(IPC.AI_DATA_QUALITY, request),
     saveConfig: (config: AIConfig) => ipcRenderer.invoke(IPC.AI_CONFIG_SAVE, config),
     getConfig: (): Promise<AIConfig> => ipcRenderer.invoke(IPC.AI_CONFIG_GET)
   },
