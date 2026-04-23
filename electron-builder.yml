@@ -82,6 +82,9 @@ publish:
 npmRebuild: true
 nodeGypRebuild: false
 
+# Exclude optional native modules that require a C++ compiler
+buildDependenciesFromSource: false
+
 # Asar packaging
 asar: true
 asarUnpack:

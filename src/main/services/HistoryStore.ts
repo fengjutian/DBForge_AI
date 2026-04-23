@@ -141,6 +141,13 @@ class HistoryStore {
   }
 
   /**
+   * Delete a single history entry by id.
+   */
+  deleteById(id: number): void {
+    this.db.prepare(`DELETE FROM query_history WHERE id = ?`).run(id)
+  }
+
+  /**
    * Delete all history entries.
    */
   clear(): void {
