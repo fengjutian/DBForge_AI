@@ -33,6 +33,10 @@ interface EditorState {
   tabs: Tab[]
   activeTabId: string
 
+  // Cross-component: SQL pending AI explanation (set by SQLEditor context menu)
+  pendingExplainSQL: string | null
+  setPendingExplainSQL: (sql: string | null) => void
+
   // Actions
   addTab: (tab?: Partial<Omit<Tab, 'id'>>) => void
   closeTab: (id: string) => void
@@ -50,6 +54,9 @@ const initialTab = createEmptyTab()
 export const useEditorStore = create<EditorState>((set, get) => ({
   tabs: [initialTab],
   activeTabId: initialTab.id,
+  pendingExplainSQL: null,
+
+  setPendingExplainSQL: (sql) => set({ pendingExplainSQL: sql }),
 
   addTab: (partial) => {
     const tab: Tab = {

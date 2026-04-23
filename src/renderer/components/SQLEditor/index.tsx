@@ -11,7 +11,7 @@ interface SQLEditorProps {
 }
 
 export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement {
-  const { tabs, updateContent } = useEditorStore()
+  const { tabs, updateContent, setPendingExplainSQL } = useEditorStore()
   const { config } = useSettingsStore()
   const { setResult, setStatus, setQueryId } = useResultStore()
   const { activeConnectionId } = useConnectionStore()
@@ -70,11 +70,24 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
     // Ctrl+K: format
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, formatQuery)
 
+    // Right-click context menu: AI explain selected SQL
+    editor.addAction({
+      id: 'ai-explain-sql',
+      label: '🤖 使用 AI 解释 SQL',
+      contextMenuGroupId: 'navigation',
+      contextMenuOrder: 1.5,
+      precondition: 'editorHasSelection',
+      run: (ed) => {
+        const selected = ed.getModel()?.getValueInRange(ed.getSelection()!)?.trim()
+        if (selected) setPendingExplainSQL(selected)
+      }
+    })
+
     // MySQL language config
     monaco.languages.setLanguageConfiguration('sql', {
       comments: { lineComment: '--', blockComment: ['/*', '*/'] }
     })
-  }, [executeQuery, formatQuery])
+  }, [executeQuery, formatQuery, setPendingExplainSQL])
 
   // Re-register shortcuts when deps change
   useEffect(() => {

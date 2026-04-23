@@ -8,7 +8,7 @@ type Tab = 'generate' | 'history'
 
 export default function AIPanel(): React.ReactElement {
   const { activeConnectionId } = useConnectionStore()
-  const { tabs, activeTabId, updateContent } = useEditorStore()
+  const { tabs, activeTabId, updateContent, pendingExplainSQL, setPendingExplainSQL } = useEditorStore()
   const { result } = useResultStore()
 
   const [tab, setTab] = useState<Tab>('generate')
@@ -39,6 +39,15 @@ export default function AIPanel(): React.ReactElement {
   useEffect(() => {
     if (tab === 'history') loadHistory()
   }, [tab])
+
+  // Triggered by SQLEditor context menu "AI 解释 SQL"
+  useEffect(() => {
+    if (!pendingExplainSQL) return
+    setPendingExplainSQL(null)
+    setTab('generate')
+    handleExplainSQL(pendingExplainSQL)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingExplainSQL])
 
   const handleSubmit = async () => {
     if (!input.trim() || !activeConnectionId) return
