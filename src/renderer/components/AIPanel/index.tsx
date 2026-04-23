@@ -3,6 +3,7 @@ import { useConnectionStore } from '../../store/connectionStore'
 import { useEditorStore } from '../../store/editorStore'
 import { useResultStore } from '../../store/resultStore'
 import type { TextToSQLResponse, DatabaseSchema, QueryHistory } from '../../../shared/types'
+import MarkdownRenderer from '../MarkdownRenderer'
 
 type Tab = 'generate' | 'history'
 
@@ -179,13 +180,14 @@ export default function AIPanel(): React.ReactElement {
                 <pre className="text-xs font-mono p-3 overflow-x-auto whitespace-pre-wrap">{response.sql}</pre>
               </div>
               {sqlExplanation && (
-                <div className="text-xs text-gray-600 dark:text-gray-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-2 whitespace-pre-wrap">
-                  📖 {sqlExplanation}
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-2">
+                  <div className="text-xs text-amber-700 dark:text-amber-400 font-medium mb-1">📖 SQL 解释</div>
+                  <MarkdownRenderer content={sqlExplanation} />
                 </div>
-              )}
-              {response.explanation && (
-                <div className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 rounded p-2">
-                  💡 {response.explanation}
+              )}              {response.explanation && (
+                <div className="bg-gray-50 dark:bg-gray-800 rounded p-2">
+                  <div className="text-xs text-gray-500 font-medium mb-1">💡 说明</div>
+                  <MarkdownRenderer content={response.explanation} />
                 </div>
               )}
             </div>
@@ -198,8 +200,9 @@ export default function AIPanel(): React.ReactElement {
                 {explaining ? '分析中...' : '🤖 AI 解释查询结果'}
               </button>
               {explanation && (
-                <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 rounded p-2 whitespace-pre-wrap">
-                  {explanation}
+                <div className="mt-2 bg-blue-50 dark:bg-blue-900/20 rounded p-2">
+                  <div className="text-xs text-blue-700 dark:text-blue-400 font-medium mb-1">🤖 结果分析</div>
+                  <MarkdownRenderer content={explanation} />
                 </div>
               )}
             </div>
@@ -215,8 +218,9 @@ export default function AIPanel(): React.ReactElement {
                 {explainingSql ? '解释中...' : '📖 解释编辑器中的 SQL'}
               </button>
               {sqlExplanation && !response && (
-                <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-2 whitespace-pre-wrap">
-                  {sqlExplanation}
+                <div className="mt-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-2">
+                  <div className="text-xs text-amber-700 dark:text-amber-400 font-medium mb-1">📖 SQL 解释</div>
+                  <MarkdownRenderer content={sqlExplanation} />
                 </div>
               )}
             </div>
