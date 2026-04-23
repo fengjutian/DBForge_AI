@@ -36,7 +36,11 @@ interface LLMMessage {
 
 interface LLMClient {
   invoke(messages: LLMMessage[], jsonMode?: boolean): Promise<string>
-  stream(messages: LLMMessage[], onChunk: (chunk: string) => void): Promise<string>
+  stream(
+    messages: LLMMessage[],
+    onChunk: (chunk: string) => void,
+    onThinking?: (chunk: string) => void
+  ): Promise<string>
 }
 
 // ============================================================
@@ -188,12 +192,15 @@ class AIModule {
           const response = await model.invoke(lc)
           return typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
         },
-        stream: async (messages, onChunk) => {
+        stream: async (messages, onChunk, onThinking) => {
           const { HumanMessage, SystemMessage } = await import('@langchain/core/messages')
           const lc = messages.map(m => m.role === 'system' ? new SystemMessage(m.content) : new HumanMessage(m.content))
           let full = ''
           const stream = await model.stream(lc)
           for await (const chunk of stream) {
+            // o1/o3 reasoning via additional_kwargs
+            const reasoning = (chunk.additional_kwargs as Record<string, unknown>)?.reasoning as string | undefined
+            if (reasoning) onThinking?.(reasoning)
             const text = typeof chunk.content === 'string' ? chunk.content : ''
             if (text) { full += text; onChunk(text) }
           }
@@ -222,7 +229,7 @@ class AIModule {
           const response = await model.invoke(lc)
           return typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
         },
-        stream: async (messages, onChunk) => {
+        stream: async (messages, onChunk, _onThinking) => {
           const { HumanMessage, SystemMessage } = await import('@langchain/core/messages')
           const lc = messages.map(m => m.role === 'system' ? new SystemMessage(m.content) : new HumanMessage(m.content))
           let full = ''
@@ -257,14 +264,22 @@ class AIModule {
           const response = await model.invoke(lc)
           return typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
         },
-        stream: async (messages, onChunk) => {
+        stream: async (messages, onChunk, onThinking) => {
           const { HumanMessage, SystemMessage } = await import('@langchain/core/messages')
           const lc = messages.map(m => m.role === 'system' ? new SystemMessage(m.content) : new HumanMessage(m.content))
           let full = ''
           const stream = await model.stream(lc)
           for await (const chunk of stream) {
-            const text = typeof chunk.content === 'string' ? chunk.content : ''
-            if (text) { full += text; onChunk(text) }
+            // Claude extended thinking: content is array with type='thinking'
+            if (Array.isArray(chunk.content)) {
+              for (const block of chunk.content as Array<{ type: string; thinking?: string; text?: string }>) {
+                if (block.type === 'thinking' && block.thinking) onThinking?.(block.thinking)
+                else if (block.type === 'text' && block.text) { full += block.text; onChunk(block.text) }
+              }
+            } else {
+              const text = typeof chunk.content === 'string' ? chunk.content : ''
+              if (text) { full += text; onChunk(text) }
+            }
           }
           return full
         }
@@ -299,7 +314,7 @@ class AIModule {
           const response = await model.invoke(lc)
           return typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
         },
-        stream: async (messages, onChunk) => {
+        stream: async (messages, onChunk, _onThinking) => {
           const { HumanMessage, SystemMessage } = await import('@langchain/core/messages')
           const lc = messages.map(m => m.role === 'system' ? new SystemMessage(m.content) : new HumanMessage(m.content))
           let full = ''
@@ -346,7 +361,7 @@ class AIModule {
         return data.choices?.[0]?.message?.content ?? ''
       },
 
-      stream: async (messages: LLMMessage[], onChunk: (chunk: string) => void): Promise<string> => {
+      stream: async (messages: LLMMessage[], onChunk: (chunk: string) => void, onThinking?: (chunk: string) => void): Promise<string> => {
         const body: Record<string, unknown> = { model, temperature, messages, stream: true }
         const response = await fetch(endpoint, {
           method: 'POST', headers: buildHeaders(), body: JSON.stringify(body)
@@ -358,6 +373,47 @@ class AIModule {
         const decoder = new TextDecoder()
         let full = ''
         let buffer = ''
+        // Track inline <think>...</think> tag state
+        let inThinkTag = false
+        let thinkBuffer = ''
+
+        const flushThink = () => {
+          if (thinkBuffer) { onThinking?.(thinkBuffer); thinkBuffer = '' }
+        }
+
+        const processText = (text: string) => {
+          let i = 0
+          while (i < text.length) {
+            if (!inThinkTag) {
+              const openIdx = text.indexOf('<think>', i)
+              if (openIdx === -1) {
+                // No more think tags — rest is content
+                const rest = text.slice(i)
+                if (rest) { full += rest; onChunk(rest) }
+                break
+              }
+              // Content before <think>
+              const before = text.slice(i, openIdx)
+              if (before) { full += before; onChunk(before) }
+              inThinkTag = true
+              i = openIdx + 7 // skip '<think>'
+            } else {
+              const closeIdx = text.indexOf('</think>', i)
+              if (closeIdx === -1) {
+                // Still inside think block
+                thinkBuffer += text.slice(i)
+                onThinking?.(text.slice(i))
+                break
+              }
+              // End of think block
+              const thinking = text.slice(i, closeIdx)
+              if (thinking) { thinkBuffer += thinking; onThinking?.(thinking) }
+              flushThink()
+              inThinkTag = false
+              i = closeIdx + 8 // skip '</think>'
+            }
+          }
+        }
 
         while (true) {
           const { done, value } = await reader.read()
@@ -370,9 +426,21 @@ class AIModule {
             if (!trimmed || trimmed === 'data: [DONE]') continue
             const data = trimmed.startsWith('data: ') ? trimmed.slice(6) : trimmed
             try {
-              const parsed = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> }
-              const text = parsed.choices?.[0]?.delta?.content ?? ''
-              if (text) { full += text; onChunk(text) }
+              const parsed = JSON.parse(data) as {
+                choices?: Array<{
+                  delta?: {
+                    content?: string
+                    reasoning_content?: string  // DeepSeek R1
+                  }
+                }>
+              }
+              const delta = parsed.choices?.[0]?.delta
+              // reasoning_content (DeepSeek R1, o1-style)
+              const thinking = delta?.reasoning_content ?? ''
+              if (thinking) onThinking?.(thinking)
+              // regular content — also parse inline <think> tags
+              const text = delta?.content ?? ''
+              if (text) processText(text)
             } catch { /* skip malformed lines */ }
           }
         }
@@ -790,9 +858,11 @@ ${rowsText}
   ): Promise<string> {
     const client = await this.getLLMClient()
     try {
-      const full = await client.stream(messages, (chunk) => {
-        this.notifyRenderer(IPC.AI_STREAM_CHUNK, { streamId, chunk })
-      })
+      const full = await client.stream(
+        messages,
+        (chunk) => { this.notifyRenderer(IPC.AI_STREAM_CHUNK, { streamId, chunk }) },
+        (chunk) => { this.notifyRenderer(IPC.AI_STREAM_THINKING, { streamId, chunk }) }
+      )
       this.notifyRenderer(IPC.AI_STREAM_END, { streamId })
       return full
     } catch (err) {

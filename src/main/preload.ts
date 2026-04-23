@@ -111,6 +111,10 @@ const electronAPI = {
     onStreamError: (callback: (data: { streamId: string; error: string }) => void) => {
       ipcRenderer.on(IPC.AI_STREAM_ERROR, (_event, data) => callback(data))
       return () => ipcRenderer.removeAllListeners(IPC.AI_STREAM_ERROR)
+    },
+    onStreamThinking: (callback: (data: { streamId: string; chunk: string }) => void) => {
+      ipcRenderer.on(IPC.AI_STREAM_THINKING, (_event, data) => callback(data))
+      return () => ipcRenderer.removeAllListeners(IPC.AI_STREAM_THINKING)
     }
   },
 

@@ -31,7 +31,7 @@ export default function AIPanel(): React.ReactElement {
   const { activeConnectionId, activeDatabase, switchDatabase } = useConnectionStore()
   const { tabs, activeTabId, updateContent, pendingExplainSQL, setPendingExplainSQL } = useEditorStore()
   const { result, error: queryError } = useResultStore()
-  const { startStream, clearStream, isStreaming, getText } = useAIStream()
+  const { startStream, clearStream, isStreaming, getText, getThinking } = useAIStream()
 
   const [tab, setTab] = useState<Tab>('generate')
   const [globalError, setGlobalError] = useState<string | null>(null)
@@ -368,8 +368,10 @@ export default function AIPanel(): React.ReactElement {
             genLoading={genLoading}
             genResponse={genResponse}
             genStreamText={getText(genStreamId)}
+            genThinking={getThinking(genStreamId)}
             sqlExplanation={getText(explainSqlStreamId)}
             explainingSql={isStreaming(explainSqlStreamId)}
+            explainSqlThinking={getThinking(explainSqlStreamId)}
             resultExplanation={getText(explainResultStreamId)}
             explainingResult={isStreaming(explainResultStreamId)}
             hasResult={!!result}
@@ -387,6 +389,7 @@ export default function AIPanel(): React.ReactElement {
             loading={optimizeLoading}
             response={optimizeResponse}
             streamText={getText(optimizeStreamId)}
+            thinking={getThinking(optimizeStreamId)}
             onOptimize={handleOptimize}
             onUseSQL={handleUseSQL}
           />
@@ -400,6 +403,7 @@ export default function AIPanel(): React.ReactElement {
             loading={diagnoseLoading}
             response={diagnoseResponse}
             streamText={getText(diagnoseStreamId)}
+            thinking={getThinking(diagnoseStreamId)}
             onDiagnose={handleDiagnose}
             onUseSQL={handleUseSQL}
           />
@@ -411,6 +415,7 @@ export default function AIPanel(): React.ReactElement {
             loading={securityLoading}
             response={securityResponse}
             streamText={getText(securityStreamId)}
+            thinking={getThinking(securityStreamId)}
             onAudit={handleSecurityAudit}
           />
         )}
@@ -421,6 +426,7 @@ export default function AIPanel(): React.ReactElement {
             loading={schemaDocLoading}
             response={schemaDocResponse}
             streamText={getText(schemaDocStreamId)}
+            thinking={getThinking(schemaDocStreamId)}
             onGenerate={handleSchemaDoc}
           />
         )}
@@ -431,6 +437,7 @@ export default function AIPanel(): React.ReactElement {
             loading={dataQualityLoading}
             response={dataQualityResponse}
             streamText={getText(dataQualityStreamId)}
+            thinking={getThinking(dataQualityStreamId)}
             onAnalyze={handleDataQuality}
           />
         )}
@@ -482,8 +489,10 @@ interface GenerateTabProps {
   genLoading: boolean
   genResponse: TextToSQLResponse | null
   genStreamText: string
+  genThinking: string
   sqlExplanation: string
   explainingSql: boolean
+  explainSqlThinking: string
   resultExplanation: string
   explainingResult: boolean
   hasResult: boolean
@@ -516,10 +525,8 @@ function GenerateTab(p: GenerateTabProps): React.ReactElement {
         </button>
       </div>
 
-      {/* Streaming preview while generating */}
-      {p.genLoading && p.genStreamText && (
-        <StreamingBox text={p.genStreamText} />
-      )}
+      {p.genLoading && p.genThinking && <ThinkingBox text={p.genThinking} />}
+      {p.genLoading && p.genStreamText && <StreamingBox text={p.genStreamText} />}
 
       {p.genResponse && (
         <div className="space-y-2">
@@ -538,6 +545,7 @@ function GenerateTab(p: GenerateTabProps): React.ReactElement {
           />
           {(p.explainingSql || p.sqlExplanation) && (
             <InfoBox color="amber" title="📖 SQL 解释">
+              {p.explainSqlThinking && <ThinkingBox text={p.explainSqlThinking} />}
               {p.explainingSql && !p.sqlExplanation
                 ? <StreamingDots />
                 : <MarkdownRenderer content={p.sqlExplanation} />}
@@ -578,6 +586,7 @@ function GenerateTab(p: GenerateTabProps): React.ReactElement {
           {(p.explainingSql || p.sqlExplanation) && !p.genResponse && (
             <div className="mt-2">
               <InfoBox color="amber" title="📖 SQL 解释">
+                {p.explainSqlThinking && <ThinkingBox text={p.explainSqlThinking} />}
                 {p.explainingSql && !p.sqlExplanation
                   ? <StreamingDots />
                   : <MarkdownRenderer content={p.sqlExplanation} />}
@@ -597,6 +606,7 @@ interface OptimizeTabProps {
   loading: boolean
   response: OptimizeQueryResponse | null
   streamText: string
+  thinking: string
   onOptimize: () => void
   onUseSQL: (sql: string) => void
 }
@@ -617,6 +627,7 @@ function OptimizeTab(p: OptimizeTabProps): React.ReactElement {
         </>
       )}
 
+      {p.loading && p.thinking && <ThinkingBox text={p.thinking} />}
       {p.loading && p.streamText && <StreamingBox text={p.streamText} />}
 
       {p.response && (
@@ -656,6 +667,7 @@ interface DiagnoseTabProps {
   loading: boolean
   response: DiagnoseErrorResponse | null
   streamText: string
+  thinking: string
   onDiagnose: () => void
   onUseSQL: (sql: string) => void
 }
@@ -679,6 +691,7 @@ function DiagnoseTab(p: DiagnoseTabProps): React.ReactElement {
         </button>
       </div>
 
+      {p.loading && p.thinking && <ThinkingBox text={p.thinking} />}
       {p.loading && p.streamText && <StreamingBox text={p.streamText} />}
 
       {p.response && (
@@ -720,6 +733,7 @@ interface SecurityTabProps {
   loading: boolean
   response: SecurityAuditResponse | null
   streamText: string
+  thinking: string
   onAudit: () => void
 }
 
@@ -739,6 +753,7 @@ function SecurityTab(p: SecurityTabProps): React.ReactElement {
         </>
       )}
 
+      {p.loading && p.thinking && <ThinkingBox text={p.thinking} />}
       {p.loading && p.streamText && <StreamingBox text={p.streamText} />}
 
       {p.response && (
@@ -774,6 +789,7 @@ interface SchemaDocTabProps {
   loading: boolean
   response: SchemaDocResponse | null
   streamText: string
+  thinking: string
   onGenerate: () => void
 }
 
@@ -786,6 +802,7 @@ function SchemaDocTab(p: SchemaDocTabProps): React.ReactElement {
           {p.loading ? '生成中...' : '📚 生成 Schema 文档'}
         </button>
       )}
+      {p.loading && p.thinking && <ThinkingBox text={p.thinking} />}
       {p.loading && p.streamText && <StreamingBox text={p.streamText} />}
       {p.response && (
         <div className="bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 p-3">
@@ -807,6 +824,7 @@ interface DataQualityTabProps {
   loading: boolean
   response: DataQualityResponse | null
   streamText: string
+  thinking: string
   onAnalyze: () => void
 }
 
@@ -827,6 +845,7 @@ function DataQualityTab(p: DataQualityTabProps): React.ReactElement {
         </button>
       )}
 
+      {p.loading && p.thinking && <ThinkingBox text={p.thinking} />}
       {p.loading && p.streamText && <StreamingBox text={p.streamText} />}
 
       {p.response && (
@@ -978,6 +997,28 @@ function extractErrorMessage(e: unknown): string {
   if (typeof obj.userMessage === 'string' && obj.userMessage) return obj.userMessage
   if (typeof obj.message === 'string' && obj.message) return obj.message
   return JSON.stringify(e)
+}
+
+/** Collapsible thinking process box */
+function ThinkingBox({ text }: { text: string }): React.ReactElement {
+  const [expanded, setExpanded] = React.useState(false)
+  return (
+    <div className="rounded border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 text-xs">
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="w-full flex items-center gap-1.5 px-2 py-1.5 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded transition-colors"
+      >
+        <span className="inline-block w-3 h-3 border-2 border-purple-400 rounded-full animate-pulse flex-shrink-0" />
+        <span className="font-medium flex-1 text-left">思考过程</span>
+        <span className="opacity-60">{expanded ? '▲' : '▼'}</span>
+      </button>
+      {expanded && (
+        <div className="px-2 pb-2 text-purple-700 dark:text-purple-300 font-mono whitespace-pre-wrap break-all max-h-48 overflow-y-auto leading-relaxed border-t border-purple-200 dark:border-purple-800 pt-1.5">
+          {text}
+        </div>
+      )}
+    </div>
+  )
 }
 
 /** Inline streaming text preview box */

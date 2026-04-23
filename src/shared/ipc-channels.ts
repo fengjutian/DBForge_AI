@@ -44,6 +44,7 @@ export const IPC = {
   AI_STREAM_CHUNK: 'ai:stream-chunk',
   AI_STREAM_END: 'ai:stream-end',
   AI_STREAM_ERROR: 'ai:stream-error',
+  AI_STREAM_THINKING: 'ai:stream-thinking',
 
   // Backup
   BACKUP_DETECT_TOOL: 'backup:detect-tool',
