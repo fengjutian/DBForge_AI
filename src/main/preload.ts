@@ -80,11 +80,11 @@ const electronAPI = {
 
   // ── Export ─────────────────────────────────────────────────
   export: {
-    csv: (options: { connectionId: string; sql: string; fullExport?: boolean; limit?: number }) =>
+    csv: (options: { connectionId: string; sql: string; fullExport?: boolean }) =>
       ipcRenderer.invoke(IPC.EXPORT_CSV, options),
-    json: (options: { connectionId: string; sql: string; fullExport?: boolean; limit?: number }) =>
+    json: (options: { connectionId: string; sql: string; fullExport?: boolean }) =>
       ipcRenderer.invoke(IPC.EXPORT_JSON, options),
-    excel: (options: { connectionId: string; sql: string; fullExport?: boolean; limit?: number }) =>
+    excel: (options: { connectionId: string; sql: string; fullExport?: boolean }) =>
       ipcRenderer.invoke(IPC.EXPORT_EXCEL, options),
     getFile: (filePath: string) => ipcRenderer.invoke(IPC.EXPORT_GET_FILE, filePath)
   },

@@ -105,5 +105,4 @@ export interface ExportOptions {
   connectionId: string
   sql: string
   fullExport?: boolean
-  limit?: number
 }

@@ -49,13 +49,11 @@ export default function ResultPanel(): React.ReactElement {
       const exportResult = await window.electronAPI.export.csv({
         connectionId: store.connectionId,
         sql: result.sql,
-        fullExport,
-        limit: 100000
+        fullExport
       })
       
       if (exportResult.success && exportResult.filePath) {
         // File is opened automatically by the main process
-        // alert(`导出成功: ${exportResult.filePath}`)
       }
     } catch (err: any) {
       alert(`导出失败: ${err.userMessage || err.message}`)
@@ -70,13 +68,11 @@ export default function ResultPanel(): React.ReactElement {
       const exportResult = await window.electronAPI.export.json({
         connectionId: store.connectionId,
         sql: result.sql,
-        fullExport,
-        limit: 100000
+        fullExport
       })
       
       if (exportResult.success && exportResult.filePath) {
         // File is opened automatically by the main process
-        // alert(`导出成功: ${exportResult.filePath}`)
       }
     } catch (err: any) {
       alert(`导出失败: ${err.userMessage || err.message}`)
@@ -91,13 +87,11 @@ export default function ResultPanel(): React.ReactElement {
       const exportResult = await window.electronAPI.export.excel({
         connectionId: store.connectionId,
         sql: result.sql,
-        fullExport,
-        limit: 100000
+        fullExport
       })
       
       if (exportResult.success && exportResult.filePath) {
         // File is opened automatically by the main process
-        // alert(`导出成功: ${exportResult.filePath}`)
       }
     } catch (err: any) {
       alert(`导出失败: ${err.userMessage || err.message}`)
