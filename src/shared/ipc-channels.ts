@@ -28,6 +28,12 @@ export const IPC = {
   QUERY_CANCEL: 'query:cancel',
   QUERY_DANGEROUS_CHECK: 'query:dangerous-check',
 
+  // Export
+  EXPORT_CSV: 'export:csv',
+  EXPORT_JSON: 'export:json',
+  EXPORT_EXCEL: 'export:excel',
+  EXPORT_GET_FILE: 'export:get-file',
+
   // AI
   AI_TEXT_TO_SQL: 'ai:text-to-sql',
   AI_EXPLAIN_RESULT: 'ai:explain-result',
@@ -93,3 +99,11 @@ export const IPC = {
 } as const
 
 export type IPCChannel = (typeof IPC)[keyof typeof IPC]
+
+// Export options types
+export interface ExportOptions {
+  connectionId: string
+  sql: string
+  fullExport?: boolean
+  limit?: number
+}

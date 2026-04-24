@@ -18,12 +18,13 @@ interface ResultState {
   status: QueryStatus
   error: string | null
   currentQueryId: string | null
+  connectionId: string | null
   pagination: PaginationState
   sort: SortState
   search: string
 
   // Actions
-  setResult: (result: QueryResult) => void
+  setResult: (result: QueryResult, connectionId?: string) => void
   setStatus: (status: QueryStatus, error?: string) => void
   setPage: (page: number, pageSize?: number) => void
   setSort: (column: string | null, direction?: 'asc' | 'desc') => void
@@ -37,12 +38,13 @@ export const useResultStore = create<ResultState>((set) => ({
   status: 'idle',
   error: null,
   currentQueryId: null,
+  connectionId: null,
   pagination: { page: 1, pageSize: 100 },
   sort: { column: null, direction: 'asc' },
   search: '',
 
-  setResult: (result) => {
-    set({ result, status: 'idle', error: null, pagination: { page: 1, pageSize: 100 } })
+  setResult: (result, connectionId) => {
+    set({ result, status: 'idle', error: null, connectionId: connectionId ?? null, pagination: { page: 1, pageSize: 100 } })
   },
 
   setStatus: (status, error) => {
@@ -72,6 +74,7 @@ export const useResultStore = create<ResultState>((set) => ({
       status: 'idle',
       error: null,
       currentQueryId: null,
+      connectionId: null,
       sort: { column: null, direction: 'asc' },
       search: '',
       pagination: { page: 1, pageSize: 100 }

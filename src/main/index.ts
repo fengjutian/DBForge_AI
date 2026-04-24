@@ -9,6 +9,7 @@ import sessionManager from './services/SessionManager'
 import autoUpdater from './services/AutoUpdater'
 import { register as registerConnectionHandlers } from './ipc/connection'
 import { register as registerQueryHandlers } from './ipc/query'
+import { register as registerExportHandlers } from './ipc/export'
 import { register as registerAIHandlers } from './ipc/ai'
 import { register as registerBackupHandlers } from './ipc/backup'
 import { register as registerSettingsHandlers } from './ipc/settings'
@@ -76,6 +77,7 @@ app.whenReady().then(async () => {
   // Register all IPC handlers
   registerConnectionHandlers()
   registerQueryHandlers()
+  registerExportHandlers()
   registerAIHandlers()
   registerBackupHandlers()
   registerSettingsHandlers()

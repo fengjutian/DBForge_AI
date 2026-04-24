@@ -134,7 +134,7 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
         if (lastResult.columns.length === 0 && statements.length > 1) {
           lastResult = { ...lastResult, affectedRows: totalAffected }
         }
-        setResultRef.current(lastResult)
+        setResultRef.current(lastResult, connectionId)
       }
     } catch (e) {
       setStatusRef.current('error', (e as Error).message)

@@ -396,3 +396,10 @@ export interface UpdateStatusEvent {
   progress?: number
   error?: string
 }
+
+// Export result types
+export interface ExportResult {
+  success: boolean
+  filePath?: string
+  error?: string
+}

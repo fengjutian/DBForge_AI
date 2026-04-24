@@ -78,6 +78,17 @@ const electronAPI = {
       ipcRenderer.invoke(IPC.QUERY_DANGEROUS_CHECK, sql)
   },
 
+  // ── Export ─────────────────────────────────────────────────
+  export: {
+    csv: (options: { connectionId: string; sql: string; fullExport?: boolean; limit?: number }) =>
+      ipcRenderer.invoke(IPC.EXPORT_CSV, options),
+    json: (options: { connectionId: string; sql: string; fullExport?: boolean; limit?: number }) =>
+      ipcRenderer.invoke(IPC.EXPORT_JSON, options),
+    excel: (options: { connectionId: string; sql: string; fullExport?: boolean; limit?: number }) =>
+      ipcRenderer.invoke(IPC.EXPORT_EXCEL, options),
+    getFile: (filePath: string) => ipcRenderer.invoke(IPC.EXPORT_GET_FILE, filePath)
+  },
+
   // ── AI ─────────────────────────────────────────────────────
   ai: {
     textToSQL: (request: TextToSQLRequest & { streamId?: string }): Promise<TextToSQLResponse> =>

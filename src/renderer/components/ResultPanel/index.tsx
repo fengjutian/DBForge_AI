@@ -7,11 +7,14 @@ export default function ResultPanel(): React.ReactElement {
   const rows = selectDisplayRows(store)
   const total = selectTotalRows(store)
   const columns = selectColumns(store)
-  const { status, error, pagination, sort, search, setPage, setSort, setSearch, setStatus, result } = store
+  const { status, error, pagination, sort, search, setPage, setSort, setSearch, setStatus, result, connectionId } = store
 
   const [showSearch, setShowSearch] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const [exportProgress, setExportProgress] = useState<{ type: string; progress: number } | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const [jumpInput, setJumpInput] = useState('')
+  const exportMenuRef = useRef<HTMLDivElement>(null)
 
   // Ctrl+F to open search
   useEffect(() => {
@@ -25,32 +28,80 @@ export default function ResultPanel(): React.ReactElement {
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
+  // Close export menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setShowExportMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const totalPages = Math.max(1, Math.ceil(total / pagination.pageSize))
 
-  const handleExportCSV = () => {
-    if (!result) return
-    const header = result.columns.map(c => c.name).join(',')
-    const body = result.rows.map(r => result.columns.map(c => JSON.stringify(r[c.name] ?? '')).join(',')).join('\n')
-    download(`data:text/csv;charset=utf-8,${encodeURIComponent(header + '\n' + body)}`, 'result.csv')
+  const handleExportCSV = async (fullExport = false) => {
+    if (!result || !store.connectionId) return
+    setShowExportMenu(false)
+    
+    try {
+      const exportResult = await window.electronAPI.export.csv({
+        connectionId: store.connectionId,
+        sql: result.sql,
+        fullExport,
+        limit: 100000
+      })
+      
+      if (exportResult.success && exportResult.filePath) {
+        // File is opened automatically by the main process
+        // alert(`导出成功: ${exportResult.filePath}`)
+      }
+    } catch (err: any) {
+      alert(`导出失败: ${err.userMessage || err.message}`)
+    }
   }
 
-  const handleExportJSON = () => {
-    if (!result) return
-    download(`data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(result.rows, null, 2))}`, 'result.json')
+  const handleExportJSON = async (fullExport = false) => {
+    if (!result || !store.connectionId) return
+    setShowExportMenu(false)
+    
+    try {
+      const exportResult = await window.electronAPI.export.json({
+        connectionId: store.connectionId,
+        sql: result.sql,
+        fullExport,
+        limit: 100000
+      })
+      
+      if (exportResult.success && exportResult.filePath) {
+        // File is opened automatically by the main process
+        // alert(`导出成功: ${exportResult.filePath}`)
+      }
+    } catch (err: any) {
+      alert(`导出失败: ${err.userMessage || err.message}`)
+    }
   }
 
-  const handleExportExcel = async () => {
-    if (!result) return
-    const ExcelJS = await import('exceljs')
-    const wb = new ExcelJS.Workbook()
-    const ws = wb.addWorksheet('Result')
-    ws.addRow(result.columns.map(c => c.name))
-    result.rows.forEach(r => ws.addRow(result.columns.map(c => r[c.name] as string ?? '')))
-    const buf = await wb.xlsx.writeBuffer()
-    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = url; a.download = 'result.xlsx'; a.click()
-    URL.revokeObjectURL(url)
+  const handleExportExcel = async (fullExport = false) => {
+    if (!result || !store.connectionId) return
+    setShowExportMenu(false)
+    
+    try {
+      const exportResult = await window.electronAPI.export.excel({
+        connectionId: store.connectionId,
+        sql: result.sql,
+        fullExport,
+        limit: 100000
+      })
+      
+      if (exportResult.success && exportResult.filePath) {
+        // File is opened automatically by the main process
+        // alert(`导出成功: ${exportResult.filePath}`)
+      }
+    } catch (err: any) {
+      alert(`导出失败: ${err.userMessage || err.message}`)
+    }
   }
 
   const handleCancel = () => {
@@ -104,9 +155,65 @@ export default function ResultPanel(): React.ReactElement {
               className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">
               🔍 搜索
             </button>
-            <button onClick={handleExportCSV} className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">CSV</button>
-            <button onClick={handleExportJSON} className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">JSON</button>
-            <button onClick={handleExportExcel} className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">Excel</button>
+            
+            {/* Export dropdown */}
+            <div className="relative" ref={exportMenuRef}>
+              <button onClick={() => setShowExportMenu(!showExportMenu)}
+                className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-1">
+                📤 导出
+                <span className="text-gray-400">▼</span>
+              </button>
+              
+              {showExportMenu && (
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-50 overflow-hidden">
+                  <div className="px-3 py-2 text-xs text-gray-500 border-b border-gray-100 dark:border-gray-700">
+                    导出格式
+                  </div>
+                  
+                  {/* CSV options */}
+                  <div className="py-1">
+                    <button onClick={() => handleExportCSV(false)} 
+                      className="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 flex justify-between items-center">
+                      <span>当前页 CSV</span>
+                      <span className="text-gray-400 text-[10px]">({rows.length} 行)</span>
+                    </button>
+                    <button onClick={() => handleExportCSV(true)} 
+                      className="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 flex justify-between items-center">
+                      <span>全量 CSV</span>
+                      <span className="text-gray-400 text-[10px]">(最多 10 万行)</span>
+                    </button>
+                  </div>
+                  
+                  {/* JSON options */}
+                  <div className="py-1 border-t border-gray-100 dark:border-gray-700">
+                    <button onClick={() => handleExportJSON(false)} 
+                      className="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 flex justify-between items-center">
+                      <span>当前页 JSON</span>
+                      <span className="text-gray-400 text-[10px]">({rows.length} 行)</span>
+                    </button>
+                    <button onClick={() => handleExportJSON(true)} 
+                      className="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 flex justify-between items-center">
+                      <span>全量 JSON</span>
+                      <span className="text-gray-400 text-[10px]">(最多 10 万行)</span>
+                    </button>
+                  </div>
+                  
+                  {/* Excel options */}
+                  <div className="py-1 border-t border-gray-100 dark:border-gray-700">
+                    <button onClick={() => handleExportExcel(false)} 
+                      className="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 flex justify-between items-center">
+                      <span>当前页 Excel</span>
+                      <span className="text-gray-400 text-[10px]">({rows.length} 行)</span>
+                    </button>
+                    <button onClick={() => handleExportExcel(true)} 
+                      className="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 flex justify-between items-center">
+                      <span>全量 Excel</span>
+                      <span className="text-gray-400 text-[10px]">(最多 10 万行)</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>
