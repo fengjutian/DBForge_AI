@@ -4,18 +4,20 @@ import { useConnectionStore } from '../../store/connectionStore'
 import { useEditorStore } from '../../store/editorStore'
 import ERDiagram from '../ERDiagram'
 import TableAnalysisModal, { type AnalysisType } from '../TableAnalysisModal'
+import JoinBuilder from '../JoinBuilder'
 
 interface ContextMenu { x: number; y: number; type: 'table'; tableId: string; dbName: string; tableName: string }
 
 export default function SchemaBrowser(): React.ReactElement {
   const { activeConnectionId } = useConnectionStore()
-  const { openPreviewTab, updatePreviewTab } = useEditorStore()
+  const { openPreviewTab, updatePreviewTab, addTab, updateContent } = useEditorStore()
   const [schema, setSchema] = useState<DatabaseSchema | null>(null)
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [menu, setMenu] = useState<ContextMenu | null>(null)
   const [erDiagram, setErDiagram] = useState<{ dbName: string; tableName: string } | null>(null)
   const [analysis, setAnalysis] = useState<{ dbName: string; tableName: string; type: AnalysisType } | null>(null)
+  const [joinBuilder, setJoinBuilder] = useState<{ dbName: string } | null>(null)
 
   const fetchSchema = useCallback(async (id: string) => {
     setLoading(true)
@@ -77,6 +79,11 @@ export default function SchemaBrowser(): React.ReactElement {
     closeMenu()
   }
 
+  const handleShowJoinBuilder = (dbName: string) => {
+    setJoinBuilder({ dbName })
+    closeMenu()
+  }
+
   const handleAnalysis = (type: AnalysisType) => {
     if (!menu) return
     setAnalysis({ dbName: menu.dbName, tableName: menu.tableName, type })
@@ -118,6 +125,11 @@ export default function SchemaBrowser(): React.ReactElement {
               <span className="text-gray-400">{expanded.has(db.name) ? '▾' : '▸'}</span>
               <span className="text-blue-600 dark:text-blue-400">🗄 {db.name}</span>
               <span className="ml-auto text-xs text-gray-400">{db.tables.length}</span>
+              <button
+                onClick={e => { e.stopPropagation(); handleShowJoinBuilder(db.name) }}
+                title="可视化 JOIN 构建器"
+                className="ml-1 text-gray-400 hover:text-blue-500 text-xs px-0.5"
+              >🔗</button>
             </div>
             {expanded.has(db.name) && db.tables.map(table => (
               <div key={table.name}>
@@ -158,6 +170,9 @@ export default function SchemaBrowser(): React.ReactElement {
           </button>
           <button onClick={handleShowER} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
             🔀 查看 ER 图
+          </button>
+          <button onClick={() => menu && handleShowJoinBuilder(menu.dbName)} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
+            🔗 可视化 JOIN 构建器
           </button>
           <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
           <div className="px-4 py-1 text-xs text-gray-400 font-medium">AI 分析</div>
@@ -202,6 +217,21 @@ export default function SchemaBrowser(): React.ReactElement {
           onClose={() => setAnalysis(null)}
         />
       )}
+
+      {/* JOIN Builder modal */}
+      {joinBuilder && schema && (() => {
+        const db = schema.databases.find(d => d.name === joinBuilder.dbName)
+        return db ? (
+          <JoinBuilder
+            db={db}
+            onClose={() => setJoinBuilder(null)}
+            onInsertSQL={sql => {
+              addTab({ connectionId: activeConnectionId, title: 'JOIN 查询', content: sql, isDirty: true })
+              setJoinBuilder(null)
+            }}
+          />
+        ) : null
+      })()}
     </div>
   )
 }
