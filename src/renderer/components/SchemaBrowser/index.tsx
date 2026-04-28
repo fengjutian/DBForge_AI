@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import type { DatabaseSchema, DatabaseInfo, TableInfo } from '../../../shared/types'
 import { useConnectionStore } from '../../store/connectionStore'
 import { useEditorStore } from '../../store/editorStore'
@@ -7,6 +7,7 @@ import TableAnalysisModal, { type AnalysisType } from '../TableAnalysisModal'
 import JoinBuilder from '../JoinBuilder'
 
 interface ContextMenu { x: number; y: number; type: 'table'; tableId: string; dbName: string; tableName: string }
+interface Tooltip { x: number; y: number; text: string }
 
 export default function SchemaBrowser(): React.ReactElement {
   const { activeConnectionId } = useConnectionStore()
@@ -15,9 +16,11 @@ export default function SchemaBrowser(): React.ReactElement {
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [menu, setMenu] = useState<ContextMenu | null>(null)
+  const [tooltip, setTooltip] = useState<Tooltip | null>(null)
   const [erDiagram, setErDiagram] = useState<{ dbName: string; tableName: string } | null>(null)
   const [analysis, setAnalysis] = useState<{ dbName: string; tableName: string; type: AnalysisType } | null>(null)
   const [joinBuilder, setJoinBuilder] = useState<{ dbName: string } | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const fetchSchema = useCallback(async (id: string) => {
     setLoading(true)
@@ -45,6 +48,15 @@ export default function SchemaBrowser(): React.ReactElement {
   }
 
   const closeMenu = () => setMenu(null)
+
+  const showTooltip = (e: React.MouseEvent, text: string) => {
+    const el = e.currentTarget as HTMLElement
+    if (el.scrollWidth > el.clientWidth) {
+      setTooltip({ x: e.clientX, y: e.clientY, text })
+    }
+  }
+
+  const closeTooltip = () => setTooltip(null)
 
   const handlePreview = async () => {
     if (!menu || !activeConnectionId) return
@@ -104,7 +116,7 @@ export default function SchemaBrowser(): React.ReactElement {
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 select-none"
-      onClick={closeMenu}>
+      onClick={closeMenu} ref={containerRef}>
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
         <span className="font-semibold text-sm">Schema 浏览器</span>
@@ -120,10 +132,15 @@ export default function SchemaBrowser(): React.ReactElement {
         {loading && <div className="text-center text-gray-400 text-xs mt-8">加载中...</div>}
         {schema && !loading && schema.databases.map(db => (
           <div key={db.name}>
-            <div className="flex items-center gap-1 px-2 py-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 font-medium"
-              onClick={() => toggle(db.name)}>
+            <div
+              className="flex items-center gap-1 px-2 py-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 font-medium"
+              onClick={() => toggle(db.name)}
+              onMouseEnter={e => showTooltip(e, db.name)}
+              onMouseLeave={closeTooltip}
+            >
               <span className="text-gray-400">{expanded.has(db.name) ? '▾' : '▸'}</span>
-              <span className="text-blue-600 dark:text-blue-400">🗄 {db.name}</span>
+              <span className="text-blue-600 dark:text-blue-400">🗄 </span>
+              <span className="text-blue-600 dark:text-blue-400 truncate max-w-[150px]" title={db.name}>{db.name}</span>
               <span className="ml-auto text-xs text-gray-400">{db.tables.length}</span>
               <button
                 onClick={e => { e.stopPropagation(); handleShowJoinBuilder(db.name) }}
@@ -192,6 +209,13 @@ export default function SchemaBrowser(): React.ReactElement {
           <button onClick={handleRefresh} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
             ↻ 刷新 Schema
           </button>
+        </div>
+      )}
+
+      {tooltip && (
+        <div className="fixed z-50 px-2 py-1 text-xs bg-gray-800 text-white rounded shadow-lg pointer-events-none max-w-[300px] break-all"
+          style={{ left: tooltip.x + 10, top: tooltip.y + 10 }}>
+          {tooltip.text}
         </div>
       )}
 

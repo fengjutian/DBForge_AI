@@ -25,6 +25,7 @@ export default function TableAnalysisModal({ connectionId, dbName, tableName, ty
   const [error, setError] = useState<string | null>(null)
   const [latency, setLatency] = useState<number | null>(null)
   const [done, setDone] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const cfg = TYPE_CONFIG[type]
 
@@ -71,6 +72,15 @@ export default function TableAnalysisModal({ connectionId, dbName, tableName, ty
     amber: 'border-amber-500', green: 'border-green-500'
   }[cfg.color]
 
+  const handleCopy = async () => {
+    if (!text) return
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch { /* ignore */ }
+  }
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
@@ -93,6 +103,25 @@ export default function TableAnalysisModal({ connectionId, dbName, tableName, ty
             )}
             {done && latency && (
               <span className="text-xs text-gray-400">{(latency / 1000).toFixed(1)}s</span>
+            )}
+            {done && text && (
+              <button
+                onClick={handleCopy}
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition-colors"
+                title="复制分析结果"
+              >
+                {copied ? (
+                  <>
+                    <span className="text-green-500">✓</span>
+                    <span className="text-green-500">已复制</span>
+                  </>
+                ) : (
+                  <>
+                    <span>📋</span>
+                    <span>复制</span>
+                  </>
+                )}
+              </button>
             )}
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg leading-none">✕</button>
           </div>
