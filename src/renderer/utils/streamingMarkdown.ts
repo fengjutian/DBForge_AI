@@ -17,7 +17,16 @@ function isTableLine(line: string): boolean {
   const trimmed = line.trim()
   if (trimmed === '') return false
   // Header or data row: starts with | (may be incomplete at end during streaming)
-  if (trimmed.startsWith('|')) return true
+  if (trimmed.startsWith('|')) {
+    // Filter out clearly malformed lines (corrupted during streaming)
+    // Lines starting with | | (empty first cell) are usually streaming artifacts
+    if (trimmed.startsWith('| |') || trimmed.startsWith('|  ')) return false
+    // Lines with too many | relative to content are likely corrupted
+    const pipeCount = (trimmed.match(/\|/g) || []).length
+    const contentLength = trimmed.replace(/\|/g, '').trim().length
+    if (pipeCount > 0 && contentLength < pipeCount) return false
+    return true
+  }
   // Separator line: contains only |, -, :, and spaces
   if (/^\|?[\s\-:|]+\|?$/.test(trimmed) && trimmed.includes('---')) return true
   return false
@@ -71,6 +80,10 @@ function softenIncompleteTable(lines: string[]): string[] {
         .filter(c => c !== '')
       // Skip lines that don't have meaningful cells
       if (cells.length < 2) return ''
+      // Check if line looks too corrupted (like "| :--- | :--- | :--- |")
+      const pipeCount = (trimmed.match(/\|/g) || []).length
+      const contentLength = cells.join('').length
+      if (pipeCount > cells.length * 3 || contentLength < 5) return ''
       return cells.join('  ')
     })
     .filter(l => l !== '')
@@ -103,6 +116,28 @@ function removeDuplicateLines(content: string): string {
 }
 
 /**
+ * Fix common incomplete markdown patterns from streaming AI output.
+ */
+function fixIncompleteMarkdown(content: string): string {
+  let result = content
+
+  // Fix incomplete headers (e.g., "### " followed by nothing)
+  result = result.replace(/^(#{1,6})\s*$/gm, '')
+
+  // Fix trailing pipe symbols without content
+  result = result.replace(/\|(\s*\|)+/g, '|')
+
+  // Fix HTML-like artifacts from streaming
+  result = result.replace(/<br\s*\/?>/gi, '\n')
+  result = result.replace(/<\/?(div|span|p)[^>]*>/gi, '')
+
+  // Fix incomplete table separators (just --- without proper | wrapping)
+  result = result.replace(/^(\s*)-{3,}(\s*)$/gm, '|---|')
+
+  return result
+}
+
+/**
  * Process streaming markdown content.
  * Returns content with incomplete trailing tables softened to plain text.
  *
@@ -115,8 +150,10 @@ function removeDuplicateLines(content: string): string {
  * 4. Also clean up duplicate consecutive lines.
  */
 export function processStreamingMarkdown(content: string): string {
-  // First, clean up duplicate lines
-  const cleaned = removeDuplicateLines(content)
+  // First, fix incomplete markdown patterns
+  let cleaned = fixIncompleteMarkdown(content)
+  // Then, clean up duplicate lines
+  cleaned = removeDuplicateLines(cleaned)
   const lines = cleaned.split('\n')
 
   // Find the start of a potential table block at the end.
