@@ -1,98 +1,69 @@
 /**
  * Preprocess streaming markdown content to handle incomplete blocks gracefully.
- *
- * Problem: During streaming, markdown tables arrive chunk-by-chunk. remark-gfm
- * only renders a table when it sees a complete structure (header + separator +
- * data rows). Until then, raw `|` and `---` characters pollute the output.
- *
- * Solution: Detect incomplete table blocks at the end of the stream and
- * temporarily convert them to plain text. Once the table is complete, it
- * renders normally.
  */
 
-/**
- * Check if a line looks like part of a markdown table.
- */
-function isTableLine(line: string): boolean {
-  const trimmed = line.trim()
-  if (trimmed === '') return false
-  // Header or data row: starts with | (may be incomplete at end during streaming)
-  if (trimmed.startsWith('|')) {
-    // Filter out clearly malformed lines (corrupted during streaming)
-    // Lines starting with | | (empty first cell) are usually streaming artifacts
-    if (trimmed.startsWith('| |') || trimmed.startsWith('|  ')) return false
-    // Lines with too many | relative to content are likely corrupted
-    const pipeCount = (trimmed.match(/\|/g) || []).length
-    const contentLength = trimmed.replace(/\|/g, '').trim().length
-    if (pipeCount > 0 && contentLength < pipeCount) return false
-    return true
-  }
-  // Separator line: contains only |, -, :, and spaces
-  if (/^\|?[\s\-:|]+\|?$/.test(trimmed) && trimmed.includes('---')) return true
-  return false
-}
-
-/**
- * Check if a line is a table separator (|---|...).
- */
 function isSeparatorLine(line: string): boolean {
   const trimmed = line.trim()
-  return /^\|?[\s\-:|]+\|?$/.test(trimmed) && trimmed.includes('---')
+  if (!trimmed.includes('---')) return false
+  const rest = trimmed.replace(/\|/g, '').trim()
+  return /^[\s:-]+$/.test(rest)
 }
 
-/**
- * Determine whether a group of table-like lines forms a complete GFM table.
- * A complete table needs: header row + separator row + at least one data row.
- * The last row must also be complete (ends with |) — during streaming the
- * final row may be cut off mid-cell.
- */
-function isCompleteTable(lines: string[]): boolean {
-  const nonEmpty = lines.filter(l => l.trim() !== '')
-  if (nonEmpty.length < 3) return false
+function isValidTableRow(line: string): boolean {
+  const trimmed = line.trim()
+  if (!trimmed.startsWith('|')) return false
 
-  const sepIndex = nonEmpty.findIndex(isSeparatorLine)
-  // Separator must exist, not be first, and not be last
-  if (sepIndex <= 0 || sepIndex >= nonEmpty.length - 1) return false
+  const cells = trimmed.split('|').filter(c => c.trim() !== '')
+  if (cells.length < 1) return false
 
-  // Last row must be complete (ends with |)
-  const lastLine = nonEmpty[nonEmpty.length - 1].trim()
-  if (!lastLine.endsWith('|')) return false
+  if (/^\|\s*:?\s*-+\s*\|/.test(trimmed)) return false
+
+  const pipeCount = (trimmed.match(/\|/g) || []).length
+  const contentLength = trimmed.replace(/\|/g, '').trim().length
+  if (contentLength < pipeCount) return false
 
   return true
 }
 
+function isHeaderRow(line: string): boolean {
+  const trimmed = line.trim()
+  if (!trimmed.startsWith('|')) return false
 
+  const cells = trimmed.split('|').filter(c => c.trim() !== '')
+  if (cells.length < 2) return false
 
-/**
- * Convert an incomplete table block to plain text by stripping `|` and `---`.
- */
-function softenIncompleteTable(lines: string[]): string[] {
-  return lines
-    .map(line => {
-      const trimmed = line.trim()
-      if (trimmed === '') return ''
-      // Drop pure separator lines
-      if (isSeparatorLine(trimmed)) return ''
-      // Split by |, trim cells, filter empties
-      const cells = trimmed
-        .split('|')
-        .map(c => c.trim())
-        .filter(c => c !== '')
-      // Skip lines that don't have meaningful cells
-      if (cells.length < 2) return ''
-      // Check if line looks too corrupted (like "| :--- | :--- | :--- |")
-      const pipeCount = (trimmed.match(/\|/g) || []).length
-      const contentLength = cells.join('').length
-      if (pipeCount > cells.length * 3 || contentLength < 5) return ''
-      return cells.join('  ')
-    })
-    .filter(l => l !== '')
+  for (const cell of cells) {
+    const clean = cell.trim()
+    if (clean.length < 1) return false
+    if (/^:?\s*-+\s*:?$/.test(clean)) return false
+  }
+
+  return true
 }
 
-/**
- * Clean up duplicate consecutive lines in content.
- * AI sometimes outputs duplicate lines during streaming.
- */
+function isCompleteTable(lines: string[]): boolean {
+  const nonEmpty = lines.filter(l => l.trim() !== '')
+  if (nonEmpty.length < 3) return false
+
+  if (!isHeaderRow(nonEmpty[0])) return false
+
+  let sepIndex = -1
+  for (let i = 1; i < nonEmpty.length; i++) {
+    if (isSeparatorLine(nonEmpty[i])) {
+      sepIndex = i
+      break
+    }
+  }
+
+  if (sepIndex <= 0 || sepIndex >= nonEmpty.length - 1) return false
+
+  for (let i = sepIndex + 1; i < nonEmpty.length; i++) {
+    if (!isValidTableRow(nonEmpty[i])) return false
+  }
+
+  return true
+}
+
 function removeDuplicateLines(content: string): string {
   const lines = content.split('\n')
   const seen = new Set<string>()
@@ -100,12 +71,12 @@ function removeDuplicateLines(content: string): string {
 
   for (const line of lines) {
     const trimmed = line.trim()
-    // For empty lines or table separators, always include them
+
     if (trimmed === '' || isSeparatorLine(trimmed)) {
       result.push(line)
       continue
     }
-    // For non-empty lines, skip if we've seen a very similar line recently
+
     if (!seen.has(trimmed)) {
       seen.add(trimmed)
       result.push(line)
@@ -115,84 +86,137 @@ function removeDuplicateLines(content: string): string {
   return result.join('\n')
 }
 
-/**
- * Fix common incomplete markdown patterns from streaming AI output.
- */
 function fixIncompleteMarkdown(content: string): string {
   let result = content
 
-  // Fix incomplete headers (e.g., "### " followed by nothing)
   result = result.replace(/^(#{1,6})\s*$/gm, '')
 
-  // Fix trailing pipe symbols without content
   result = result.replace(/\|(\s*\|)+/g, '|')
 
-  // Fix HTML-like artifacts from streaming
   result = result.replace(/<br\s*\/?>/gi, '\n')
   result = result.replace(/<\/?(div|span|p)[^>]*>/gi, '')
+  result = result.replace(/<[^>]+>/g, '')
 
-  // Fix incomplete table separators (just --- without proper | wrapping)
   result = result.replace(/^(\s*)-{3,}(\s*)$/gm, '|---|')
+
+  result = result.replace(/\[([^\]]*)\n([^\]]*)\]/g, '[$1$2]')
+
+  result = result.replace(/`{3}\s*$/gm, '```')
+
+  result = result.replace(/\|(\s*[|:]-+)\s*/g, '| ')
+
+  result = result.replace(/\n{3,}/g, '\n\n')
 
   return result
 }
 
-/**
- * Process streaming markdown content.
- * Returns content with incomplete trailing tables softened to plain text.
- *
- * Strategy:
- * 1. Identify the contiguous block of table-like lines at the end.
- * 2. If the entire block is a complete table, leave it alone.
- * 3. Otherwise, find the longest complete prefix (if any) and only soften
- *    the incomplete suffix. This prevents a nearly-finished table from
- *    being entirely flattened just because the last row is still arriving.
- * 4. Also clean up duplicate consecutive lines.
- */
+function extractTextFromCorruptedLine(line: string): string | null {
+  const trimmed = line.trim()
+  if (!trimmed.startsWith('|')) return null
+
+  const cells = trimmed.split('|').map(c => c.trim()).filter(c => c !== '')
+
+  if (cells.length === 0) return null
+
+  const text = cells.join(' ')
+
+  if (text.length < 3) return null
+
+  return text
+}
+
 export function processStreamingMarkdown(content: string): string {
-  // First, fix incomplete markdown patterns
   let cleaned = fixIncompleteMarkdown(content)
-  // Then, clean up duplicate lines
   cleaned = removeDuplicateLines(cleaned)
+
   const lines = cleaned.split('\n')
+  const result: string[] = []
 
-  // Find the start of a potential table block at the end.
-  let tableStart = -1
-  for (let i = lines.length - 1; i >= 0; i--) {
-    if (isTableLine(lines[i])) {
-      tableStart = i
-    } else {
-      break
+  let i = 0
+  while (i < lines.length) {
+    const line = lines[i]
+    const trimmed = line.trim()
+
+    if (trimmed === '' || isSeparatorLine(trimmed)) {
+      result.push(line)
+      i++
+      continue
     }
-  }
 
-  if (tableStart === -1) return cleaned
+    if (trimmed.startsWith('|')) {
+      const tableLines: string[] = []
+      let j = i
 
-  const tableLines = lines.slice(tableStart)
-  if (isCompleteTable(tableLines)) return cleaned
+      while (j < lines.length) {
+        const l = lines[j]
+        const t = l.trim()
 
-  // Find the longest complete prefix so we don't flatten already-complete rows.
-  let completePrefixEnd = -1
-  for (let i = 3; i <= tableLines.length; i++) {
-    if (isCompleteTable(tableLines.slice(0, i))) {
-      completePrefixEnd = i
+        if (t === '' || isSeparatorLine(t) || t.startsWith('|')) {
+          tableLines.push(l)
+          j++
+        } else {
+          break
+        }
+      }
+
+      const nonEmpty = tableLines.filter(l => l.trim() !== '')
+
+      if (nonEmpty.length >= 3 && isCompleteTable(nonEmpty)) {
+        for (const tl of tableLines) {
+          result.push(tl)
+        }
+      } else {
+        let hasCompletePart = false
+        let completeEnd = -1
+
+        for (let k = 2; k <= nonEmpty.length; k++) {
+          if (isCompleteTable(nonEmpty.slice(0, k))) {
+            hasCompletePart = true
+            completeEnd = k
+          }
+        }
+
+        if (hasCompletePart && completeEnd > 0) {
+          for (let k = 0; k < tableLines.length; k++) {
+            const tl = tableLines[k]
+            const tlt = tl.trim()
+
+            if (tlt === '') {
+              result.push(tl)
+              continue
+            }
+
+            if (k < completeEnd) {
+              result.push(tl)
+            } else {
+              const extracted = extractTextFromCorruptedLine(tlt)
+              if (extracted) {
+                result.push(extracted)
+              }
+            }
+          }
+        } else {
+          for (const tl of tableLines) {
+            const tlt = tl.trim()
+            if (tlt === '' || isSeparatorLine(tlt)) {
+              result.push(tl)
+            } else {
+              const extracted = extractTextFromCorruptedLine(tlt)
+              if (extracted) {
+                result.push(extracted)
+              }
+            }
+          }
+        }
+      }
+
+      i = j
+      continue
     }
+
+    result.push(line)
+    i++
   }
 
-  if (completePrefixEnd === -1) {
-    // No complete prefix at all — soften the whole block.
-    const softened = softenIncompleteTable(tableLines)
-    return [...lines.slice(0, tableStart), ...softened].join('\n')
-  }
-
-  if (completePrefixEnd === tableLines.length) {
-    // Entire block is complete (shouldn't happen given earlier check, but guard anyway).
-    return cleaned
-  }
-
-  // Keep the complete prefix as a real table, soften only the trailing incomplete rows.
-  const prefix = tableLines.slice(0, completePrefixEnd)
-  const suffix = tableLines.slice(completePrefixEnd)
-  const softened = softenIncompleteTable(suffix)
-  return [...lines.slice(0, tableStart), ...prefix, ...softened].join('\n')
+  return result.join('\n')
 }
