@@ -52,6 +52,8 @@ function isCompleteTable(lines: string[]): boolean {
   return true
 }
 
+
+
 /**
  * Convert an incomplete table block to plain text by stripping `|` and `---`.
  */
