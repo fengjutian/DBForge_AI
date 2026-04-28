@@ -62,14 +62,42 @@ function softenIncompleteTable(lines: string[]): string[] {
       if (trimmed === '') return ''
       // Drop pure separator lines
       if (isSeparatorLine(trimmed)) return ''
-      // Split by |, trim cells, filter empties, join with '  '
+      // Split by |, trim cells, filter empties
       const cells = trimmed
         .split('|')
         .map(c => c.trim())
         .filter(c => c !== '')
+      // Skip lines that don't have meaningful cells
+      if (cells.length < 2) return ''
       return cells.join('  ')
     })
     .filter(l => l !== '')
+}
+
+/**
+ * Clean up duplicate consecutive lines in content.
+ * AI sometimes outputs duplicate lines during streaming.
+ */
+function removeDuplicateLines(content: string): string {
+  const lines = content.split('\n')
+  const seen = new Set<string>()
+  const result: string[] = []
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    // For empty lines or table separators, always include them
+    if (trimmed === '' || isSeparatorLine(trimmed)) {
+      result.push(line)
+      continue
+    }
+    // For non-empty lines, skip if we've seen a very similar line recently
+    if (!seen.has(trimmed)) {
+      seen.add(trimmed)
+      result.push(line)
+    }
+  }
+
+  return result.join('\n')
 }
 
 /**
@@ -82,9 +110,12 @@ function softenIncompleteTable(lines: string[]): string[] {
  * 3. Otherwise, find the longest complete prefix (if any) and only soften
  *    the incomplete suffix. This prevents a nearly-finished table from
  *    being entirely flattened just because the last row is still arriving.
+ * 4. Also clean up duplicate consecutive lines.
  */
 export function processStreamingMarkdown(content: string): string {
-  const lines = content.split('\n')
+  // First, clean up duplicate lines
+  const cleaned = removeDuplicateLines(content)
+  const lines = cleaned.split('\n')
 
   // Find the start of a potential table block at the end.
   let tableStart = -1
@@ -96,10 +127,10 @@ export function processStreamingMarkdown(content: string): string {
     }
   }
 
-  if (tableStart === -1) return content
+  if (tableStart === -1) return cleaned
 
   const tableLines = lines.slice(tableStart)
-  if (isCompleteTable(tableLines)) return content
+  if (isCompleteTable(tableLines)) return cleaned
 
   // Find the longest complete prefix so we don't flatten already-complete rows.
   let completePrefixEnd = -1
@@ -117,7 +148,7 @@ export function processStreamingMarkdown(content: string): string {
 
   if (completePrefixEnd === tableLines.length) {
     // Entire block is complete (shouldn't happen given earlier check, but guard anyway).
-    return content
+    return cleaned
   }
 
   // Keep the complete prefix as a real table, soften only the trailing incomplete rows.
