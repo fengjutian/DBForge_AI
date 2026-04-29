@@ -3,7 +3,7 @@ import type { DatabaseInfo, TableInfo } from '../../../shared/types'
 
 interface Props {
   db: DatabaseInfo
-  focusTable: string
+  focusTable?: string
   onClose: () => void
 }
 
@@ -24,31 +24,36 @@ export default function ERDiagram({ db, focusTable, onClose }: Props): React.Rea
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
 
-  // Collect focus table + directly related tables
-  const focusTableInfo = db.tables.find(t => t.name === focusTable)!
+  const isAllTables = !focusTable
+
+  // Collect focus table + directly related tables (or all tables if no focusTable)
   const relatedNames = useMemo(() => {
+    if (isAllTables) {
+      return new Set(db.tables.map(t => t.name))
+    }
+    const focusTableInfo = db.tables.find(t => t.name === focusTable)
     const s = new Set<string>([focusTable])
     focusTableInfo?.foreignKeys.forEach(fk => s.add(fk.referencedTable))
     db.tables.forEach(t => { if (t.foreignKeys.some(fk => fk.referencedTable === focusTable)) s.add(t.name) })
     return s
-  }, [db, focusTable, focusTableInfo])
+  }, [db, focusTable, isAllTables])
+
   const tables = useMemo(() => db.tables.filter(t => relatedNames.has(t.name)), [db, relatedNames])
+
+  const focusTableInfo = db.tables.find(t => t.name === focusTable)
 
   // Initial layout
   const initialPositions = useMemo<Record<string, NodePos>>(() => {
-    const others = tables.filter(t => t.name !== focusTable)
-    const cols = Math.max(1, Math.ceil(Math.sqrt(others.length + 1)))
+    const cols = Math.max(1, Math.ceil(Math.sqrt(tables.length)))
     const pos: Record<string, NodePos> = {}
-    const centerX = Math.floor(cols / 2) * (NODE_W + H_GAP)
-    pos[focusTable] = { x: centerX, y: 0 }
-    others.forEach((t, i) => {
+    tables.forEach((t, i) => {
       pos[t.name] = {
         x: (i % cols) * (NODE_W + H_GAP),
-        y: Math.floor(i / cols + 1) * (tableHeight(focusTableInfo) + V_GAP * 2)
+        y: Math.floor(i / cols) * (180 + V_GAP)
       }
     })
     return pos
-  }, [tables, focusTable, focusTableInfo])
+  }, [tables])
 
   const [positions, setPositions] = useState<Record<string, NodePos>>(initialPositions)
 
@@ -147,8 +152,13 @@ export default function ERDiagram({ db, focusTable, onClose }: Props): React.Rea
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <span className="font-semibold text-sm">
-            ER 图 · <span className="text-blue-500">{focusTable}</span>
-            <span className="ml-2 text-xs text-gray-400 font-normal">及关联表（{tables.length} 张）</span>
+            {isAllTables ? (
+              <>ER 图 · <span className="text-blue-500">{db.name}</span>
+              <span className="ml-2 text-xs text-gray-400 font-normal">所有表（{tables.length} 张）</span></>
+            ) : (
+              <>ER 图 · <span className="text-blue-500">{focusTable}</span>
+              <span className="ml-2 text-xs text-gray-400 font-normal">及关联表（{tables.length} 张）</span></>
+            )}
           </span>
           <div className="flex items-center gap-3">
             <span className="text-xs text-gray-400">滚轮缩放 · 拖拽表节点或画布</span>
@@ -188,7 +198,7 @@ export default function ERDiagram({ db, focusTable, onClose }: Props): React.Rea
               {tables.map(table => {
                 const pos = positions[table.name]
                 const height = tableHeight(table)
-                const isFocus = table.name === focusTable
+                const isFocus = !isAllTables && table.name === focusTable
                 return (
                   <g key={table.name}
                     transform={`translate(${pos.x},${pos.y})`}

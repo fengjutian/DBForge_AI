@@ -7,6 +7,7 @@ import TableAnalysisModal, { type AnalysisType } from '../TableAnalysisModal'
 import JoinBuilder from '../JoinBuilder'
 
 interface ContextMenu { x: number; y: number; type: 'table'; tableId: string; dbName: string; tableName: string }
+interface DbContextMenu { x: number; y: number; dbName: string }
 interface Tooltip { x: number; y: number; text: string }
 
 export default function SchemaBrowser(): React.ReactElement {
@@ -16,8 +17,10 @@ export default function SchemaBrowser(): React.ReactElement {
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [menu, setMenu] = useState<ContextMenu | null>(null)
+  const [dbMenu, setDbMenu] = useState<DbContextMenu | null>(null)
   const [tooltip, setTooltip] = useState<Tooltip | null>(null)
   const [erDiagram, setErDiagram] = useState<{ dbName: string; tableName: string } | null>(null)
+  const [erDiagramAll, setErDiagramAll] = useState<{ dbName: string } | null>(null)
   const [analysis, setAnalysis] = useState<{ dbName: string; tableName: string; type: AnalysisType } | null>(null)
   const [joinBuilder, setJoinBuilder] = useState<{ dbName: string } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -46,6 +49,14 @@ export default function SchemaBrowser(): React.ReactElement {
     e.preventDefault()
     setMenu({ x: e.clientX, y: e.clientY, type: 'table', tableId: `${db.name}.${table.name}`, dbName: db.name, tableName: table.name })
   }
+
+  const handleDbContextMenu = (e: React.MouseEvent, db: DatabaseInfo) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDbMenu({ x: e.clientX, y: e.clientY, dbName: db.name })
+  }
+
+  const closeDbMenu = () => setDbMenu(null)
 
   const closeMenu = () => setMenu(null)
 
@@ -91,6 +102,12 @@ export default function SchemaBrowser(): React.ReactElement {
     closeMenu()
   }
 
+  const handleShowAllER = () => {
+    if (!dbMenu) return
+    setErDiagramAll({ dbName: dbMenu.dbName })
+    closeDbMenu()
+  }
+
   const handleShowJoinBuilder = (dbName: string) => {
     setJoinBuilder({ dbName })
     closeMenu()
@@ -125,7 +142,7 @@ export default function SchemaBrowser(): React.ReactElement {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto text-sm">
+      <div className="flex-1 overflow-y-auto text-sm" onClick={closeMenu} onContextMenu={closeMenu}>
         {!activeConnectionId && (
           <div className="text-center text-gray-400 text-xs mt-8">请先选择一个连接</div>
         )}
@@ -135,6 +152,7 @@ export default function SchemaBrowser(): React.ReactElement {
             <div
               className="flex items-center gap-1 px-2 py-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 font-medium"
               onClick={() => toggle(db.name)}
+              onContextMenu={e => handleDbContextMenu(e, db)}
               onMouseEnter={e => showTooltip(e, db.name)}
               onMouseLeave={closeTooltip}
             >
@@ -150,9 +168,9 @@ export default function SchemaBrowser(): React.ReactElement {
             </div>
             {expanded.has(db.name) && db.tables.map(table => (
               <div key={table.name}>
-                <div className="flex items-center gap-1 pl-5 pr-2 py-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                <div className="flex items-center gap-1 px-2 py-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                   onClick={() => toggle(`${db.name}.${table.name}`)}
-                  onContextMenu={e => handleContextMenu(e, db, table)}>
+                  onContextMenu={e => { e.stopPropagation(); handleContextMenu(e, db, table) }}>
                   <span className="text-gray-400">{expanded.has(`${db.name}.${table.name}`) ? '▾' : '▸'}</span>
                   <span>📋 {table.name}</span>
                   {table.rowCount !== undefined && (
@@ -212,6 +230,24 @@ export default function SchemaBrowser(): React.ReactElement {
         </div>
       )}
 
+      {/* Database context menu */}
+      {dbMenu && (
+        <div className="fixed z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded shadow-lg py-1 text-sm min-w-[180px]"
+          style={{ left: dbMenu.x, top: dbMenu.y }}
+          onClick={e => e.stopPropagation()}>
+          <button onClick={() => dbMenu && handleShowJoinBuilder(dbMenu.dbName)} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
+            🔗 可视化 JOIN 构建器
+          </button>
+          <button onClick={handleShowAllER} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
+            🔀 查看所有表 ER 图
+          </button>
+          <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
+          <button onClick={() => { closeDbMenu(); handleRefresh() }} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
+            ↻ 刷新 Schema
+          </button>
+        </div>
+      )}
+
       {tooltip && (
         <div className="fixed z-50 px-2 py-1 text-xs bg-gray-800 text-white rounded shadow-lg pointer-events-none max-w-[300px] break-all"
           style={{ left: tooltip.x + 10, top: tooltip.y + 10 }}>
@@ -227,6 +263,17 @@ export default function SchemaBrowser(): React.ReactElement {
             db={db}
             focusTable={erDiagram.tableName}
             onClose={() => setErDiagram(null)}
+          />
+        ) : null
+      })()}
+
+      {/* All Tables ER Diagram modal */}
+      {erDiagramAll && schema && (() => {
+        const db = schema.databases.find(d => d.name === erDiagramAll.dbName)
+        return db ? (
+          <ERDiagram
+            db={db}
+            onClose={() => setErDiagramAll(null)}
           />
         ) : null
       })()}

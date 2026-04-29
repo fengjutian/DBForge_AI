@@ -170,7 +170,7 @@ function App(): React.ReactElement {
                     <span className="text-blue-500 text-xs">🗄</span>
                     <select
                       value={activeDatabase ?? ''}
-                      onChange={e => e.target.value && switchDatabase(activeConnectionId!, e.target.value)}
+                      onChange={e => { if (e.target.value) { switchDatabase(activeConnectionId!, e.target.value); document.body.focus() } }}
                       className="text-xs bg-transparent border-none outline-none text-blue-600 dark:text-blue-400 font-mono cursor-pointer max-w-[140px]"
                     >
                       {!activeDatabase && <option value="" disabled>选择数据库</option>}

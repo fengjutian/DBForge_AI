@@ -326,7 +326,7 @@ export default function AIPanel(): React.ReactElement {
             ) : databases.length > 0 ? (
               <select
                 value={selectedDb ?? ''}
-                onChange={e => handleSwitchDb(e.target.value)}
+                onChange={e => { handleSwitchDb(e.target.value); setTimeout(() => e.target.blur(), 0) }}
                 className="flex-1 text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-0"
               >
                 {databases.map(db => (
