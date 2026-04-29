@@ -168,7 +168,7 @@ export default function SchemaBrowser(): React.ReactElement {
             </div>
             {expanded.has(db.name) && db.tables.map(table => (
               <div key={table.name}>
-                <div className="flex items-center gap-1 px-2 py-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                <div className="flex items-center gap-1 pl-5 pr-2 py-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                   onClick={() => toggle(`${db.name}.${table.name}`)}
                   onContextMenu={e => { e.stopPropagation(); handleContextMenu(e, db, table) }}>
                   <span className="text-gray-400">{expanded.has(`${db.name}.${table.name}`) ? '▾' : '▸'}</span>
