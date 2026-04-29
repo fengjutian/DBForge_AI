@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useResultStore, selectDisplayRows, selectTotalRows, selectColumns } from '../../store/resultStore'
+import { useConnectionStore } from '../../store/connectionStore'
 import DataTable from '../DataTable'
 
 export default function ResultPanel(): React.ReactElement {
@@ -8,6 +9,7 @@ export default function ResultPanel(): React.ReactElement {
   const total = selectTotalRows(store)
   const columns = selectColumns(store)
   const { status, error, pagination, sort, search, setPage, setSort, setSearch, setStatus, result, connectionId } = store
+  const { activeDatabase } = useConnectionStore()
 
   const [showSearch, setShowSearch] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
@@ -16,7 +18,6 @@ export default function ResultPanel(): React.ReactElement {
   const [jumpInput, setJumpInput] = useState('')
   const exportMenuRef = useRef<HTMLDivElement>(null)
 
-  // Ctrl+F to open search
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
@@ -28,7 +29,6 @@ export default function ResultPanel(): React.ReactElement {
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
-  // Close export menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
@@ -53,7 +53,6 @@ export default function ResultPanel(): React.ReactElement {
       })
       
       if (exportResult.success && exportResult.filePath) {
-        // File is opened automatically by the main process
       }
     } catch (err: any) {
       alert(`导出失败: ${err.userMessage || err.message}`)
@@ -72,7 +71,6 @@ export default function ResultPanel(): React.ReactElement {
       })
       
       if (exportResult.success && exportResult.filePath) {
-        // File is opened automatically by the main process
       }
     } catch (err: any) {
       alert(`导出失败: ${err.userMessage || err.message}`)
@@ -91,7 +89,6 @@ export default function ResultPanel(): React.ReactElement {
       })
       
       if (exportResult.success && exportResult.filePath) {
-        // File is opened automatically by the main process
       }
     } catch (err: any) {
       alert(`导出失败: ${err.userMessage || err.message}`)
@@ -124,7 +121,6 @@ export default function ResultPanel(): React.ReactElement {
 
   return (
     <div className="h-full flex flex-col min-h-0 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      {/* Toolbar */}
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex-shrink-0">
         {status === 'running' ? (
           <>
@@ -134,9 +130,14 @@ export default function ResultPanel(): React.ReactElement {
         ) : (
           <>
             {result && (
-              <span className="text-xs text-gray-500">
-                {total.toLocaleString()} 行 · {result.executionTime}ms
-              </span>
+              <>
+                {activeDatabase && (
+                  <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">🗄 {activeDatabase}</span>
+                )}
+                <span className="text-xs text-gray-500">
+                  {total.toLocaleString()} 行 · {result.executionTime}ms
+                </span>
+              </>
             )}
             {status === 'error' && <span className="text-xs text-red-500">✗ {error}</span>}
             {status === 'cancelled' && <span className="text-xs text-yellow-500">已取消</span>}
@@ -150,7 +151,6 @@ export default function ResultPanel(): React.ReactElement {
               🔍 搜索
             </button>
             
-            {/* Export dropdown */}
             <div className="relative" ref={exportMenuRef}>
               <button onClick={() => setShowExportMenu(!showExportMenu)}
                 className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-1">
@@ -164,7 +164,6 @@ export default function ResultPanel(): React.ReactElement {
                     导出格式
                   </div>
                   
-                  {/* CSV options */}
                   <div className="py-1">
                     <button onClick={() => handleExportCSV(false)} 
                       className="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 flex justify-between items-center">
@@ -178,7 +177,6 @@ export default function ResultPanel(): React.ReactElement {
                     </button>
                   </div>
                   
-                  {/* JSON options */}
                   <div className="py-1 border-t border-gray-100 dark:border-gray-700">
                     <button onClick={() => handleExportJSON(false)} 
                       className="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 flex justify-between items-center">
@@ -192,7 +190,6 @@ export default function ResultPanel(): React.ReactElement {
                     </button>
                   </div>
                   
-                  {/* Excel options */}
                   <div className="py-1 border-t border-gray-100 dark:border-gray-700">
                     <button onClick={() => handleExportExcel(false)} 
                       className="w-full text-left px-4 py-2 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 flex justify-between items-center">
@@ -212,7 +209,6 @@ export default function ResultPanel(): React.ReactElement {
         )}
       </div>
 
-      {/* Search bar */}
       {showSearch && (
         <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 bg-yellow-50 dark:bg-yellow-900/20">
           <input ref={searchRef} className="flex-1 text-sm px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none"
@@ -221,7 +217,6 @@ export default function ResultPanel(): React.ReactElement {
         </div>
       )}
 
-      {/* Table */}
       <div className="overflow-auto" style={{ flex: '1 1 0', minHeight: 0 }}>
         {!result && status === 'idle' && (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">执行 SQL 查询后结果将显示在这里</div>
@@ -239,9 +234,7 @@ export default function ResultPanel(): React.ReactElement {
         )}
       </div>
 
-      {/* Pagination */}
       <div className="flex items-center gap-2 px-3 py-1.5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex-shrink-0 text-xs flex-wrap min-h-[32px]">
-          {/* Row range info */}
           <span className="text-gray-500 shrink-0">
             {total === 0
               ? '无数据'
@@ -250,7 +243,6 @@ export default function ResultPanel(): React.ReactElement {
 
           <div className="flex-1" />
 
-          {/* Page size selector */}
           <div className="flex items-center gap-1 shrink-0">
             <span className="text-gray-400">每页</span>
             <select
@@ -263,7 +255,6 @@ export default function ResultPanel(): React.ReactElement {
             <span className="text-gray-400">行</span>
           </div>
 
-          {/* Navigation buttons */}
           <div className="flex items-center gap-1 shrink-0">
             <button
               disabled={pagination.page <= 1}
@@ -296,7 +287,6 @@ export default function ResultPanel(): React.ReactElement {
             >»</button>
           </div>
 
-          {/* Jump to page */}
           {totalPages > 1 && (
             <div className="flex items-center gap-1 shrink-0">
               <span className="text-gray-400">跳转</span>
@@ -319,8 +309,4 @@ export default function ResultPanel(): React.ReactElement {
         </div>
     </div>
   )
-}
-
-function download(dataUrl: string, filename: string) {
-  const a = document.createElement('a'); a.href = dataUrl; a.download = filename; a.click()
 }

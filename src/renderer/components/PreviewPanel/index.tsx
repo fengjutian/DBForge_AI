@@ -97,6 +97,12 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
     URL.revokeObjectURL(url)
   }
 
+  const handleRefresh = () => {
+    setPageState(1)
+    setSort({ column: null, direction: 'asc' })
+    fetchPage(1, pageSize, { column: null, direction: 'asc' })
+  }
+
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       {/* Toolbar */}
@@ -119,6 +125,11 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
             <button onClick={handleExportCSV} className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">CSV</button>
             <button onClick={handleExportJSON} className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">JSON</button>
             <button onClick={handleExportExcel} className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">Excel</button>
+            <button onClick={handleRefresh}
+              className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+              title="刷新数据">
+              ↻ 刷新
+            </button>
           </>
         )}
       </div>

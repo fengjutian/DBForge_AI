@@ -172,7 +172,7 @@ export default function SchemaBrowser(): React.ReactElement {
                   onClick={() => toggle(`${db.name}.${table.name}`)}
                   onContextMenu={e => { e.stopPropagation(); handleContextMenu(e, db, table) }}>
                   <span className="text-gray-400">{expanded.has(`${db.name}.${table.name}`) ? '▾' : '▸'}</span>
-                  <span>📋 {table.name}</span>
+                  <span>📋 </span><span className="truncate max-w-[200px]" title={table.name} onMouseEnter={e => showTooltip(e, table.name)} onMouseLeave={closeTooltip}>{table.name}</span>
                   {table.rowCount !== undefined && (
                     <span className="ml-auto text-xs text-gray-400">{table.rowCount.toLocaleString()} 行</span>
                   )}
