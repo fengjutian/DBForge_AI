@@ -203,7 +203,7 @@ export default function JoinBuilder({ db, onClose, onInsertSQL }: Props): React.
   const fkColor = isDark ? '#60a5fa' : '#2563eb'
 
   // Add table to canvas
-  const addTable = useCallback((tableName: string) => {
+  const addTable = useCallback((tableName: string, autoClose = false) => {
     if (selectedTables.find(t => t.name === tableName)) return
     const info = db.tables.find(t => t.name === tableName)!
     const idx = selectedTables.length
