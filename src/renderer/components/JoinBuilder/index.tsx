@@ -249,7 +249,8 @@ export default function JoinBuilder({ db, onClose, onInsertSQL }: Props): React.
       })
     })
     if (newEdges.length > 0) setEdges(prev => [...prev, ...newEdges])
-  }, [selectedTables, db.tables])
+    if (autoClose) onClose()
+  }, [selectedTables, db.tables, onClose])
 
   const removeTable = (name: string) => {
     setSelectedTables(prev => prev.filter(t => t.name !== name))
@@ -382,7 +383,7 @@ export default function JoinBuilder({ db, onClose, onInsertSQL }: Props): React.
                 return (
                   <div
                     key={t.name}
-                    onClick={() => added ? removeTable(t.name) : addTable(t.name)}
+                    onClick={() => added ? removeTable(t.name) : addTable(t.name, true)}
                     className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer text-xs transition-colors ${
                       added
                         ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
