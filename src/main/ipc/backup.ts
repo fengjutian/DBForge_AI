@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain, BrowserWindow, dialog } from 'electron'
 import { IPC } from '../../shared/ipc-channels'
 import type { BackupOptions, BackupProgress, IPCError } from '../../shared/types'
 import backupManager from '../services/BackupManager'
@@ -64,6 +64,42 @@ export function register(): void {
     try {
       await backupManager.openBackupFolder(filePath)
       return { success: true }
+    } catch (err) {
+      throw wrapError(err)
+    }
+  })
+
+  // ── Dialog APIs ──────────────────────────────────────────────
+  ipcMain.handle('dialog:selectSavePath', async (_event, defaultPath?: string) => {
+    try {
+      const result = await dialog.showSaveDialog({
+        title: '选择备份保存位置',
+        defaultPath: defaultPath || undefined,
+        filters: [
+          { name: 'SQL 文件', extensions: ['sql'] },
+          { name: '压缩备份', extensions: ['gz'] },
+          { name: '所有文件', extensions: ['*'] }
+        ]
+      })
+      if (result.canceled) return null
+      return result.filePath
+    } catch (err) {
+      throw wrapError(err)
+    }
+  })
+
+  ipcMain.handle('dialog:selectFile', async (_event, filters?: { name: string; extensions: string[] }[]) => {
+    try {
+      const result = await dialog.showOpenDialog({
+        title: '选择备份文件',
+        properties: ['openFile'],
+        filters: filters || [
+          { name: 'SQL 文件', extensions: ['sql', 'gz'] },
+          { name: '所有文件', extensions: ['*'] }
+        ]
+      })
+      if (result.canceled) return null
+      return result.filePaths[0] || null
     } catch (err) {
       throw wrapError(err)
     }

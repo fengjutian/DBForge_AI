@@ -114,7 +114,18 @@ export default function BackupDialog({ onClose }: Props): React.ReactElement {
 
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">输出路径</label>
-                <input className={inp} value={outputPath} onChange={e => setOutputPath(e.target.value)} placeholder="/path/to/backup" />
+                <div className="flex gap-2">
+                  <input className={inp} value={outputPath} onChange={e => setOutputPath(e.target.value)} placeholder="/path/to/backup" />
+                  <button
+                    onClick={async () => {
+                      const path = await window.electronAPI.backup.selectSavePath()
+                      if (path) setOutputPath(path)
+                    }}
+                    className="text-sm px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    📁 选择
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -141,7 +152,18 @@ export default function BackupDialog({ onClose }: Props): React.ReactElement {
           {tab === 'restore' && (
             <div>
               <label className="text-xs text-gray-500 mb-1 block">备份文件路径</label>
-              <input className={inp} value={restoreFile} onChange={e => setRestoreFile(e.target.value)} placeholder="/path/to/backup.sql" />
+              <div className="flex gap-2">
+                <input className={inp} value={restoreFile} onChange={e => setRestoreFile(e.target.value)} placeholder="/path/to/backup.sql" />
+                <button
+                  onClick={async () => {
+                    const path = await window.electronAPI.backup.selectFile()
+                    if (path) setRestoreFile(path)
+                  }}
+                  className="text-sm px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  📁 选择
+                </button>
+              </div>
             </div>
           )}
 

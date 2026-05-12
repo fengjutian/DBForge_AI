@@ -140,18 +140,22 @@ const electronAPI = {
 
   // ── Backup ─────────────────────────────────────────────────
   backup: {
-    detectTool: (): Promise<string | null> => ipcRenderer.invoke(IPC.BACKUP_DETECT_TOOL),
-    validatePath: (path: string): Promise<boolean> =>
-      ipcRenderer.invoke(IPC.BACKUP_VALIDATE_PATH, path),
-    start: (options: BackupOptions) => ipcRenderer.invoke(IPC.BACKUP_START, options),
-    restore: (connectionId: string, filePath: string) =>
-      ipcRenderer.invoke(IPC.BACKUP_RESTORE, connectionId, filePath),
-    openFolder: (filePath: string) => ipcRenderer.invoke(IPC.BACKUP_OPEN_FOLDER, filePath),
-    onProgress: (callback: (progress: BackupProgress) => void) => {
-      ipcRenderer.on(IPC.BACKUP_PROGRESS, (_event, progress) => callback(progress))
-      return () => ipcRenderer.removeAllListeners(IPC.BACKUP_PROGRESS)
-    }
-  },
+      detectTool: (): Promise<string | null> => ipcRenderer.invoke(IPC.BACKUP_DETECT_TOOL),
+      validatePath: (path: string): Promise<boolean> =>
+        ipcRenderer.invoke(IPC.BACKUP_VALIDATE_PATH, path),
+      start: (options: BackupOptions) => ipcRenderer.invoke(IPC.BACKUP_START, options),
+      restore: (connectionId: string, filePath: string) =>
+        ipcRenderer.invoke(IPC.BACKUP_RESTORE, connectionId, filePath),
+      openFolder: (filePath: string) => ipcRenderer.invoke(IPC.BACKUP_OPEN_FOLDER, filePath),
+      onProgress: (callback: (progress: BackupProgress) => void) => {
+        ipcRenderer.on(IPC.BACKUP_PROGRESS, (_event, progress) => callback(progress))
+        return () => ipcRenderer.removeAllListeners(IPC.BACKUP_PROGRESS)
+      },
+      // Dialog APIs
+      selectSavePath: (defaultPath?: string) => ipcRenderer.invoke('dialog:selectSavePath', defaultPath),
+      selectFile: (filters?: { name: string; extensions: string[] }[]) =>
+        ipcRenderer.invoke('dialog:selectFile', filters)
+    },
 
   // ── History ────────────────────────────────────────────────
   history: {
