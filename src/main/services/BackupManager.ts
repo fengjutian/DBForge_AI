@@ -153,12 +153,14 @@ class BackupManager {
     const outputPath = path.join(options.outputPath, fileName)
 
     // Build mysqldump args
+    // Note: On Windows use CON for stdout, on Unix use /dev/stdout
+    const stdoutTarget = process.platform === 'win32' ? 'CON' : '/dev/stdout'
     const args: string[] = [
       `--host=${conn.host}`,
       `--port=${conn.port}`,
       `--user=${conn.username}`,
       `--password=${conn.password}`,
-      '--result-file=/dev/stdout'
+      `--result-file=${stdoutTarget}`
     ]
 
     if (options.options.singleTransaction) args.push('--single-transaction')
