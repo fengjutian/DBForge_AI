@@ -755,6 +755,7 @@ ${request.sql}
   async generateMigration(request: MigrationRequest): Promise<MigrationResponse> {
     const startTime = Date.now()
     const client = await this.getLLMClient()
+    const dbLabel = request.databaseType === 'postgresql' ? 'PostgreSQL' : 'MySQL'
 
     const sourceDesc = buildSchemaDescription(request.sourceSchema)
     const targetDesc = buildSchemaDescription(request.targetSchema)
@@ -773,7 +774,7 @@ ${targetDesc}
 - warnings: 警告信息（字符串数组，如数据丢失风险等）`
 
     const messages: LLMMessage[] = [
-      { role: 'system', content: '你是一个数据库迁移专家，擅长生成安全可靠的 MySQL 迁移脚本。' },
+      { role: 'system', content: `你是一个数据库迁移专家，擅长生成安全可靠的 ${dbLabel} 迁移脚本。` },
       { role: 'user', content: prompt }
     ]
 

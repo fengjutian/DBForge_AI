@@ -229,6 +229,7 @@ export interface SecurityAuditResponse {
 export interface MigrationRequest {
   sourceSchema: DatabaseSchema
   targetSchema: DatabaseSchema
+  databaseType?: DatabaseType
 }
 
 export interface MigrationResponse {

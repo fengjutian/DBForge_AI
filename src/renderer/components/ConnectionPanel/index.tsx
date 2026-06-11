@@ -189,7 +189,12 @@ export default function ConnectionPanel(): React.ReactElement {
               </div>
               <Field label="用户名"><input className={input} value={form.username} onChange={e => f('username', e.target.value)} /></Field>
               <Field label="密码"><input className={input} type="password" value={form.password} onChange={e => f('password', e.target.value)} /></Field>
-              <Field label="数据库（可选）"><input className={input} value={form.database} onChange={e => f('database', e.target.value)} /></Field>
+              <Field label={form.databaseType === 'postgresql' ? '数据库' : '数据库（可选）'}>
+                <input className={input} value={form.database}
+                  required={form.databaseType === 'postgresql'}
+                  placeholder={form.databaseType === 'postgresql' ? '必填（默认: postgres）' : ''}
+                  onChange={e => f('database', e.target.value)} />
+              </Field>
 
               {/* SSH Tunnel */}
               <div className="border-t border-gray-200 dark:border-gray-600 pt-3">
