@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // MySQLDialect — MySQL / MariaDB implementation
 // ============================================================
 
@@ -92,7 +92,7 @@ export class MySQLDialect implements DatabaseDialect {
 
   isReadOnlySQL(sql: string): boolean {
     const n = sql.trim().toUpperCase().replace(/\/\*[\s\S]*?\*\//g, '').replace(/--[^\r\n]*/g, '').replace(/\s+/g, ' ')
-    return n.startsWith('SELECT') || n.startsWith('SHOW') || n.startsWith('DESCRIBE') || n.startsWith('EXPLAIN')
+    return n.startsWith('SELECT') || n.startsWith('SHOW') || n.startsWith('DESCRIBE') || n.startsWith('EXPLAIN') || n.startsWith('WITH')
   }
 
   formatSQL(sql: string): string {
@@ -101,11 +101,11 @@ export class MySQLDialect implements DatabaseDialect {
   }
 
   getDefaultDumpArgs(params: BackupParams): string[] | null {
-    return [params.dumpPath || 'mysqldump', '-h', params.host, '-P', String(params.port), '-u', params.username, -p, '--single-transaction', '--routines', '--triggers', params.database]
+    return [params.dumpPath || 'mysqldump', '-h', params.host, '-P', String(params.port), '-u', params.username, '-p' + params.password, '--single-transaction', '--routines', '--triggers', params.database]
   }
 
   getDefaultRestoreArgs(params: RestoreParams): string[] | null {
-    return [params.restoreBinPath || 'mysql', '-h', params.host, '-P', String(params.port), '-u', params.username, -p, params.database]
+    return [params.restoreBinPath || 'mysql', '-h', params.host, '-P', String(params.port), '-u', params.username, '-p' + params.password, params.database]
   }
 
   buildErrorSuggestions(errorCode: string): string[] {

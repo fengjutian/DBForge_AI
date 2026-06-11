@@ -1,4 +1,4 @@
-﻿import { BrowserWindow } from 'electron'
+import { BrowserWindow } from 'electron'
 import { v4 as uuidv4 } from 'uuid'
 import type { ConnectionConfig, ConnectionStatus, TestResult } from '../../shared/types'
 import { IPC } from '../../shared/ipc-channels'

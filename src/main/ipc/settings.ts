@@ -1,4 +1,4 @@
-﻿import { ipcMain } from 'electron'
+import { ipcMain } from 'electron'
 import { IPC } from '../../shared/ipc-channels'
 import type { AppConfig, IPCError, SqlSnippet } from '../../shared/types'
 import configStore from '../services/ConfigStore'
