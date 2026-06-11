@@ -117,7 +117,7 @@ class BackupManager {
         if (await this.validateExecutable(c)) return c
       }
     }
-    return this.detectRestoreTool(dbType)
+    return this.detectMysqlClient()
   }
 
   private async validateExecutable(execPath: string): Promise<boolean> {
@@ -404,7 +404,7 @@ class BackupManager {
   // Private helpers
   // ============================================================
 
-  private async detectRestoreTool(dbType): Promise<string | null> {
+  private async detectMysqlClient(): Promise<string | null> {
     for (const candidate of MYSQL_CANDIDATES) {
       try {
         if (path.isAbsolute(candidate)) {

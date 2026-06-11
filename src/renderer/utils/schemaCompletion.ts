@@ -1,52 +1,42 @@
-import type { DatabaseSchema } from '../../shared/types'
+import type { DatabaseSchema, DatabaseType } from '../../shared/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function registerSchemaCompletion(monaco: any, schema: DatabaseSchema): void {
-  monaco.languages.registerCompletionItemProvider('sql', {
+export function registerSchemaCompletion(monaco: any, schema: DatabaseSchema, databaseType?: DatabaseType): void {
+  const isPG = databaseType === 'postgresql'
+  const lang = isPG ? 'pgsql' : 'sql'
+
+  monaco.languages.registerCompletionItemProvider(lang, {
     triggerCharacters: ['.', ' '],
     provideCompletionItems: (
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      model: any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      position: any
+      model: any, position: any
     ) => {
       const word = model.getWordUntilPosition(position)
       const range = {
-        startLineNumber: position.lineNumber,
-        endLineNumber: position.lineNumber,
-        startColumn: word.startColumn,
-        endColumn: word.endColumn
+        startLineNumber: position.lineNumber, endLineNumber: position.lineNumber,
+        startColumn: word.startColumn, endColumn: word.endColumn
       }
 
       const suggestions: unknown[] = []
 
       for (const db of schema.databases) {
-        // Database name suggestions
         suggestions.push({
-          label: db.name,
-          kind: monaco.languages.CompletionItemKind.Module,
-          insertText: db.name,
-          range,
-          detail: 'Database'
+          label: db.name, kind: monaco.languages.CompletionItemKind.Module,
+          insertText: db.name, range, detail: isPG ? 'Schema' : 'Database'
         })
 
         for (const table of db.tables) {
-          // Table name suggestions
+          const tableLabel = isPG ? `${db.name}.${table.name}` : table.name
           suggestions.push({
-            label: table.name,
-            kind: monaco.languages.CompletionItemKind.Class,
-            insertText: table.name,
-            range,
-            detail: `Table in ${db.name}`
+            label: tableLabel, kind: monaco.languages.CompletionItemKind.Class,
+            insertText: tableLabel, range,
+            detail: isPG ? `Table (${db.name})` : `Table in ${db.name}`
           })
 
-          // Column name suggestions
           for (const col of table.columns) {
+            const colLabel = isPG ? `${table.name}.${col.name}` : col.name
             suggestions.push({
-              label: col.name,
-              kind: monaco.languages.CompletionItemKind.Field,
-              insertText: col.name,
-              range,
+              label: colLabel, kind: monaco.languages.CompletionItemKind.Field,
+              insertText: colLabel, range,
               detail: `${col.type} — ${table.name}.${col.name}`
             })
           }
