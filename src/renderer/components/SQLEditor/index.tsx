@@ -99,7 +99,7 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
   const isDark = config?.theme === 'dark' ||
     (config?.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
 
-  // Core runner 鈥?reads from refs so it's safe to call from Monaco closures
+  // Core runner —reads from refs so it's safe to call from Monaco closures
   const runSQLRef = useRef(async (sql: string) => {
     const connectionId = activeConnectionIdRef.current
     if (!connectionId || !sql.trim()) return
@@ -107,9 +107,9 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
     try {
       const check = await window.electronAPI.query.dangerousCheck(sql)
       if (check.isDangerous) {
-        const reasons = check.reasons.join('\n鈥?')
+        const reasons = check.reasons.join('\n—')
         const confirmed = window.confirm(
-          `鈿?鍗遍櫓鎿嶄綔璀﹀憡\n\n妫€娴嬪埌浠ヤ笅椋庨櫓锛歕n鈥?${reasons}\n\n姝ゆ搷浣滃彲鑳戒慨鏀规垨鍒犻櫎鏁版嵁锛屾槸鍚︾户缁墽琛岋紵`
+          `⚠ 危险操作警告\n\n妫€娴嬪埌浠ヤ笅椋庨櫓锛歕n—${reasons}\n\n此操作可能修改或删除数据，是否继续执行？`
         )
         if (!confirmed) return
       }
@@ -162,9 +162,9 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
       try {
         const check = await window.electronAPI.query.dangerousCheck(sql)
         if (check.isDangerous) {
-          const reasons = check.reasons.join('\n鈥?')
+          const reasons = check.reasons.join('\n—')
           const confirmed = window.confirm(
-            `鈿?鍗遍櫓鎿嶄綔璀﹀憡\n\n妫€娴嬪埌浠ヤ笅椋庨櫓锛歕n鈥?${reasons}\n\n姝ゆ搷浣滃彲鑳戒慨鏀规垨鍒犻櫎鏁版嵁锛屾槸鍚︾户缁墽琛岋紵`
+            `⚠ 危险操作警告\n\n妫€娴嬪埌浠ヤ笅椋庨櫓锛歕n—${reasons}\n\n此操作可能修改或删除数据，是否继续执行？`
           )
           if (!confirmed) return
         }
@@ -209,13 +209,13 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
     }
   }, [activeConnectionId])
 
-  /** Execute all SQL in the editor 鈥?used by toolbar button */
+  /** Execute all SQL in the editor —used by toolbar button */
   const executeQuery = useCallback(async () => {
     const sql = editorRef.current?.getModel()?.getValue() ?? ''
     await runSQLRef.current(sql)
   }, [])
 
-  /** Execute selected text 鈥?used by toolbar button */
+  /** Execute selected text —used by toolbar button */
   const executeSelected = useCallback(async () => {
     if (!editorRef.current) return
     const selection = editorRef.current.getSelection()
@@ -253,7 +253,7 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
 
     editor.addAction({
       id: 'execute-selected-sql',
-      label: '鈻?鎵ц閫変腑 SQL',
+      label: '▶ 执行选中 SQL',
       contextMenuGroupId: '1_modification',
       contextMenuOrder: 1,
       precondition: 'editorHasSelection',
@@ -266,7 +266,7 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
 
     editor.addAction({
       id: 'ai-explain-sql',
-      label: '馃 浣跨敤 AI 瑙ｉ噴 SQL',
+      label: '🤖 使用 AI 解释 SQL',
       contextMenuGroupId: 'navigation',
       contextMenuOrder: 1.5,
       precondition: 'editorHasSelection',
@@ -279,7 +279,7 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
     monaco.languages.setLanguageConfiguration('sql', {
       comments: { lineComment: '--', blockComment: ['/*', '*/'] }
     })
-  // handleMount only runs once on mount 鈥?all state access goes through refs
+  // handleMount only runs once on mount —all state access goes through refs
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -290,14 +290,14 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
         <button onClick={executeQuery}
           className="text-xs px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700 font-medium">
-          鈻?鎵ц鍏ㄩ儴 <span className="opacity-60 ml-1">Ctrl+Enter</span>
+          ▶ 执行全部 <span className="opacity-60 ml-1">Ctrl+Enter</span>
         </button>
         <button onClick={formatQuery}
           className="text-xs px-3 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">
-          鏍煎紡鍖?<span className="opacity-60 ml-1">Ctrl+K</span>
+          格式化<span className="opacity-60 ml-1">Ctrl+K</span>
         </button>
         {!activeConnectionId && (
-          <span className="text-xs text-yellow-500 ml-2">鈿?鏈€夋嫨杩炴帴</span>
+          <span className="text-xs text-yellow-500 ml-2">⚠ 未选择连接</span>
         )}
       </div>
       <div className="flex-1">
