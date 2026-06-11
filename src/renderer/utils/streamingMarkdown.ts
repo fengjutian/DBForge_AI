@@ -63,6 +63,9 @@ function hasIncompleteTablePattern(content: string): boolean {
     }
   }
 
+  // Single-row table (header only, no data/separator) → incomplete
+  if (tableLineCount === 1) return true
+
   return brokenLineCount > tableLineCount * 0.3
 }
 
@@ -94,13 +97,42 @@ function cleanMarkdown(content: string): string {
     .replace(/^(#{1,6})\s*$/gm, '')
 }
 
+function hasTablePattern(content: string): boolean {
+  const lines = content.split('\n')
+  let consecutivePipes = 0
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+      consecutivePipes++
+      if (consecutivePipes >= 2) return true
+    } else {
+      consecutivePipes = 0
+    }
+  }
+  return false
+}
+
+function softenTableLines(content: string): string {
+  return content.split('\n').map(line => {
+    const trimmed = line.trim()
+    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+      const cells = trimmed.split('|').filter(c => c.trim() !== '')
+      const isSeparator = cells.every(c => /^:?-{2,}:?$/.test(c.trim()))
+      if (isSeparator) return ''
+      return cells.join('  ')
+    }
+    return line
+  }).filter(l => l !== '').join('\n')
+}
+
 export function processStreamingMarkdown(content: string): string {
   let result = cleanHtml(content)
   result = removeDuplicates(result)
 
   if (hasIncompleteTablePattern(result)) {
     result = extractCompleteRows(result)
-  } else {
+    result = softenTableLines(result)
+  } else if (hasTablePattern(result)) {
     result = repairTable(result)
   }
 

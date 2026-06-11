@@ -24,6 +24,7 @@ export class MySQLDialect implements DatabaseDialect {
     return mysql2.createPool({
       host: config.host, port: config.port, user: config.username,
       password: config.password, database: config.database,
+      charset: 'utf8mb4',
       connectionLimit: 10, connectTimeout: 3000,
       ssl: config.ssl?.enabled ? {
         rejectUnauthorized: config.ssl.rejectUnauthorized ?? true,

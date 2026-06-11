@@ -14,6 +14,19 @@ module.exports = {
       }
     },
     extend: {
+      fontFamily: {
+        sans: [
+          'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont',
+          'Segoe UI', 'Helvetica Neue', 'Microsoft YaHei', 'PingFang SC',
+          'Noto Sans CJK SC', 'Noto Sans SC', 'WenQuanYi Micro Hei',
+          'Arial', 'sans-serif', 'Apple Color Emoji', 'Segoe UI Emoji'
+        ],
+        mono: [
+          'ui-monospace', 'Cascadia Code', 'Source Code Pro', 'Menlo', 'Consolas',
+          'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC',
+          'monospace'
+        ]
+      },
       colors: {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
