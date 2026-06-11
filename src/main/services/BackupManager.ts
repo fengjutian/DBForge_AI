@@ -1,4 +1,4 @@
-import { spawn } from 'child_process'
+﻿import { spawn } from 'child_process'
 import { createWriteStream, createReadStream, statSync } from 'fs'
 import { access, constants } from 'fs/promises'
 import path from 'path'
@@ -40,7 +40,24 @@ const MYSQL_CANDIDATES: string[] =
     : ['/usr/bin/mysql', '/usr/local/bin/mysql', '/opt/homebrew/bin/mysql', 'mysql']
 
 // ============================================================
-// BackupManager — singleton
+// PostgreSQL tool candidate paths
+// ============================================================
+
+const PG_DUMP_CANDIDATES: string[] =
+  process.platform === 'win32'
+    ? ['pg_dump.exe']
+    : [
+        '/usr/bin/pg_dump', '/usr/local/bin/pg_dump',
+        '/opt/homebrew/bin/pg_dump', '/usr/lib/postgresql/17/bin/pg_dump', 'pg_dump'
+      ]
+
+const PG_PSQL_CANDIDATES: string[] =
+  process.platform === 'win32'
+    ? ['psql.exe']
+    : ['/usr/bin/psql', '/usr/local/bin/psql', '/opt/homebrew/bin/psql', 'psql']
+
+// ============================================================
+// BackupManager 鈥?singleton
 // ============================================================
 
 class BackupManager {
@@ -79,6 +96,40 @@ class BackupManager {
     }
 
     return null
+  }
+
+  /**
+   * Detect dump tool based on database type.
+   */
+
+  async detectDumpTool(dbType: string): Promise<string | null> {
+    if (dbType === 'postgresql') {
+      for (const c of PG_DUMP_CANDIDATES) {
+        if (await this.validateExecutable(c)) return c
+      }
+    }
+    return this.detectMysqldump()
+  }
+
+  async detectRestoreTool(dbType: string): Promise<string | null> {
+    if (dbType === 'postgresql') {
+      for (const c of PG_PSQL_CANDIDATES) {
+        if (await this.validateExecutable(c)) return c
+      }
+    }
+    return this.detectRestoreTool(dbType)
+  }
+
+  private async validateExecutable(execPath: string): Promise<boolean> {
+    try {
+      if (path.isAbsolute(execPath)) await access(execPath, constants.X_OK)
+      return new Promise<boolean>((resolve) => {
+        const timeout = setTimeout(() => resolve(false), 3000)
+        const proc = spawn(execPath, ['--version'], { stdio: 'pipe' })
+        proc.on('close', (code) => { clearTimeout(timeout); resolve(code === 0) })
+        proc.on('error', () => { clearTimeout(timeout); resolve(false) })
+      })
+    } catch { return false }
   }
 
   /**
@@ -125,7 +176,7 @@ class BackupManager {
   ): Promise<string> {
     const startTime = Date.now()
 
-    onProgress({ phase: 'preparing', percent: 0, message: '正在准备备份...' })
+    onProgress({ phase: 'preparing', percent: 0, message: '姝ｅ湪鍑嗗澶囦唤...' })
 
     // Resolve mysqldump path
     const mysqldumpPath = await this.detectMysqldump()
@@ -142,7 +193,7 @@ class BackupManager {
     // Resolve connection config
     const conn = connectionManager.getConnection(options.connectionId)
     if (!conn) {
-      throw new Error(`连接不存在: ${options.connectionId}`)
+      throw new Error(`杩炴帴涓嶅瓨鍦? ${options.connectionId}`)
     }
 
     // Build output file path
@@ -174,7 +225,7 @@ class BackupManager {
       args.push('--databases', ...options.databases)
     }
 
-    onProgress({ phase: 'dumping', percent: 10, message: '正在导出数据库...' })
+    onProgress({ phase: 'dumping', percent: 10, message: '姝ｅ湪瀵煎嚭鏁版嵁搴?..' })
 
     return new Promise<string>((resolve, reject) => {
       const proc = spawn(mysqldumpPath, args, { stdio: ['ignore', 'pipe', 'pipe'] })
@@ -204,14 +255,14 @@ class BackupManager {
           onProgress({
             phase: 'dumping',
             percent: Math.min(10 + tableCount * 5, 85),
-            message: `正在导出表: ${tableMatch[1]}`
+            message: `姝ｅ湪瀵煎嚭琛? ${tableMatch[1]}`
           })
         }
       })
 
       proc.on('close', (code) => {
         if (code !== 0) {
-          const errMsg = stderrOutput || `mysqldump 退出码: ${code}`
+          const errMsg = stderrOutput || `mysqldump 閫€鍑虹爜: ${code}`
           onProgress({ phase: 'error', percent: 0, message: errMsg })
           reject(new Error(errMsg))
           return
@@ -224,7 +275,7 @@ class BackupManager {
             onProgress({
               phase: 'done',
               percent: 100,
-              message: '备份完成',
+              message: '澶囦唤瀹屾垚',
               filePath: outputPath,
               fileSize: stat.size,
               duration
@@ -236,7 +287,7 @@ class BackupManager {
         }
 
         if (options.compress && gzip) {
-          onProgress({ phase: 'compressing', percent: 90, message: '正在压缩备份文件...' })
+          onProgress({ phase: 'compressing', percent: 90, message: '姝ｅ湪鍘嬬缉澶囦唤鏂囦欢...' })
           writeStream.on('finish', finalize)
           writeStream.on('error', reject)
         } else {
@@ -265,42 +316,39 @@ class BackupManager {
     filePath: string,
     onProgress: (p: BackupProgress) => void
   ): Promise<void> {
-    onProgress({ phase: 'preparing', percent: 0, message: '正在准备恢复...' })
+    onProgress({ phase: 'preparing', percent: 0, message: '姝ｅ湪鍑嗗鎭㈠...' })
 
     // Resolve mysql client path
-    const mysqlPath = await this.detectMysqlClient()
-    if (!mysqlPath) {
-      const err: BackupProgress = {
-        phase: 'error',
-        percent: 0,
-        message: '未找到 mysql 可执行文件，请确认 MySQL 客户端已安装'
-      }
-      onProgress(err)
-      throw new Error(err.message)
-    }
-
-    const conn = connectionManager.getConnection(connectionId)
-    if (!conn) {
-      throw new Error(`连接不存在: ${connectionId}`)
+    const restorePath = await this.detectRestoreTool(dbType)
+    if (!restorePath) {
+      const tool = dbType === 'postgresql' ? 'psql' : 'mysql'
+      onProgress({ phase: 'error', percent: 0, message: `未找到 ${tool}，请确认客户端已安装` })
+      throw new Error(`未找到 ${tool}`)
     }
 
     const isGzip = filePath.endsWith('.gz')
+    let restoreArgs: string[]
+    const { getDialect } = require('./dialect/DialectInterface')
+    const dialect = getDialect(dbType)
 
-    const args: string[] = [
-      `--host=${conn.host}`,
-      `--port=${conn.port}`,
-      `--user=${conn.username}`,
-      `--password=${conn.password}`
-    ]
-
-    if (conn.database) {
-      args.push(conn.database)
+    if (dialect?.getDefaultRestoreArgs) {
+      restoreArgs = dialect.getDefaultRestoreArgs({
+        host: conn.host, port: conn.port, username: conn.username,
+        password: conn.password, database: conn.database || '',
+        inputPath: filePath, restoreBinPath: restorePath
+      })!
+    } else {
+        restoreArgs = [restorePath, '-h', conn.host, '-P', String(conn.port), '-u', conn.username, `-p${conn.password}`]
+      if (conn.database) restoreArgs.push(conn.database)
     }
+
+    const env = { ...process.env }
+    if (dbType === 'postgresql') env.PGPASSWORD = conn.password
 
     onProgress({ phase: 'dumping', percent: 20, message: '正在导入备份文件...' })
 
     return new Promise<void>((resolve, reject) => {
-      const proc = spawn(mysqlPath, args, { stdio: ['pipe', 'pipe', 'pipe'] })
+      const proc = spawn(restorePath, restoreArgs, { stdio: ['pipe', 'pipe', 'pipe'], env })
 
       // Pipe file (optionally decompressed) into mysql stdin
       const fileStream = createReadStream(filePath)
@@ -319,12 +367,12 @@ class BackupManager {
 
       proc.on('close', (code) => {
         if (code !== 0) {
-          const errMsg = stderrOutput || `mysql 退出码: ${code}`
+          const errMsg = stderrOutput || `mysql 閫€鍑虹爜: ${code}`
           onProgress({ phase: 'error', percent: 0, message: errMsg })
           reject(new Error(errMsg))
           return
         }
-        onProgress({ phase: 'done', percent: 100, message: '恢复完成' })
+        onProgress({ phase: 'done', percent: 100, message: '鎭㈠瀹屾垚' })
         resolve()
       })
 
@@ -356,7 +404,7 @@ class BackupManager {
   // Private helpers
   // ============================================================
 
-  private async detectMysqlClient(): Promise<string | null> {
+  private async detectRestoreTool(dbType): Promise<string | null> {
     for (const candidate of MYSQL_CANDIDATES) {
       try {
         if (path.isAbsolute(candidate)) {

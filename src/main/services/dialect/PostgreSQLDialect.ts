@@ -48,7 +48,7 @@ export class PostgreSQLDialect implements DatabaseDialect {
     try {
       const res = await client.query({ text: sql, rowMode: 'array' })
       const cols: ColumnMeta[] = res.fields.map(f => ({
-        name: f.name, type: String(f.dataTypeID), nullable: true
+        name: f.name, type: (f as any).dataTypeID ? String((f as any).dataTypeID) : 'UNKNOWN', nullable: true
       }))
       const rows: Record<string, unknown>[] = (res.rows as unknown[][]).map((row, ri) => {
         const obj: Record<string, unknown> = {}
@@ -75,6 +75,10 @@ export class PostgreSQLDialect implements DatabaseDialect {
     const fks: any[] = await q(
       `SELECT tc.table_schema, tc.table_name, kcu.column_name, ccu.table_schema AS ref_schema, ccu.table_name AS ref_table, ccu.column_name AS ref_column FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.constraint_name WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema NOT IN ('pg_catalog','information_schema')`
     )
+    // Proper PK detection via information_schema
+    const pks: any[] = await q(
+      `SELECT kcu.table_schema, kcu.table_name, kcu.column_name FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.table_schema NOT IN ('pg_catalog','information_schema')`
+    )
 
     const colMap = new Map<string, any[]>()
     for (const c of cols) {
@@ -87,6 +91,13 @@ export class PostgreSQLDialect implements DatabaseDialect {
       const k = `${f.table_schema}.${f.table_name}`
       if (!fkMap.has(k)) fkMap.set(k, [])
       fkMap.get(k)!.push(f)
+    }
+
+    const pkMap = new Map<string, Set<string>>()
+    for (const pk of pks) {
+      const k = `${pk.table_schema}.${pk.table_name}`
+      if (!pkMap.has(k)) pkMap.set(k, new Set())
+      pkMap.get(k)!.add(pk.column_name)
     }
 
     const tablesBySchema = new Map<string, string[]>()
@@ -109,7 +120,7 @@ export class PostgreSQLDialect implements DatabaseDialect {
             nullable: c.is_nullable === 'YES',
             defaultValue: c.column_default ?? undefined, comment: undefined
           }))
-          const pkCols = cCols.filter(c => c.column_name === 'id').map(c => c.column_name) // simplified PK detection
+          const pkCols = Array.from(pkMap.get(key) ?? [])
           const tableFKs = (fkMap.get(key) ?? []).map(f => ({
             columnName: f.column_name,
             referencedTable: `${f.ref_schema}.${f.ref_table}`,

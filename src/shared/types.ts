@@ -175,6 +175,7 @@ export interface TextToSQLResponse {
 export interface OptimizeQueryRequest {
   sql: string
   schema?: DatabaseSchema
+  databaseType?: DatabaseType
 }
 
 export interface OptimizeQueryResponse {
@@ -188,6 +189,7 @@ export interface DiagnoseErrorRequest {
   sql: string
   errorMessage: string
   schema?: DatabaseSchema
+  databaseType?: DatabaseType
 }
 
 export interface DiagnoseErrorResponse {
