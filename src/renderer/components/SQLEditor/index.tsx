@@ -8,6 +8,7 @@ import { useConnectionStore } from '../../store/connectionStore'
 /** Map database type to Monaco editor language ID */
 function dbTypeToLang(dbType?: string): string {
   if (dbType === 'postgresql') return 'pgsql'
+  if (dbType === 'sqlite') return 'sql'
   if (dbType === 'mysql') return 'mysql'
   return 'sql'
 }

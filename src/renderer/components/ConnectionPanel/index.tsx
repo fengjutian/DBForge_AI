@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+﻿import React, { useEffect, useState } from 'react'
 import { useConnectionStore } from '../../store/connectionStore'
 import type { ConnectionConfig, SSHTunnelConfig } from '../../../shared/types'
 
@@ -90,9 +90,9 @@ export default function ConnectionPanel(): React.ReactElement {
         updatedAt: now
       }
       const result = await window.electronAPI.connection.test(config)
-      setTestMsg(result.success ? `✓ 连接成功 (${result.latency}ms)` : `✗ ${result.error}`)
+      setTestMsg(result.success ? `鉁?杩炴帴鎴愬姛 (${result.latency}ms)` : `鉁?${result.error}`)
     } catch (e) {
-      setTestMsg(`✗ ${(e as Error).message}`)
+      setTestMsg(`鉁?${(e as Error).message}`)
     } finally {
       setTesting(false)
     }
@@ -128,18 +128,18 @@ export default function ConnectionPanel(): React.ReactElement {
     <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
-        <span className="font-semibold text-sm">连接管理</span>
+        <span className="font-semibold text-sm">杩炴帴绠＄悊</span>
         <div className="flex gap-1">
-          <button onClick={handleImport} className="text-xs px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">导入</button>
-          <button onClick={handleExport} className="text-xs px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">导出</button>
-          <button onClick={openNew} className="text-xs px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">+ 新建</button>
+          <button onClick={handleImport} className="text-xs px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">瀵煎叆</button>
+          <button onClick={handleExport} className="text-xs px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">瀵煎嚭</button>
+          <button onClick={openNew} className="text-xs px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">+ 鏂板缓</button>
         </div>
       </div>
 
       {/* Connection list */}
       <div className="flex-1 overflow-y-auto">
         {connections.length === 0 && (
-          <div className="text-center text-gray-400 text-sm mt-8">暂无连接，点击"新建"添加</div>
+          <div className="text-center text-gray-400 text-sm mt-8">鏆傛棤杩炴帴锛岀偣鍑?鏂板缓"娣诲姞</div>
         )}
         {connections.map(c => {
           const status = statuses[c.id]?.state ?? 'disconnected'
@@ -150,15 +150,15 @@ export default function ConnectionPanel(): React.ReactElement {
               onClick={() => isActive ? deactivateConnection(c.id) : activateConnection(c.id)}
             >
               <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_COLORS[status]}`} title={status} />
-              <span className="flex-shrink-0 text-xs" title={c.databaseType === 'postgresql' ? 'PostgreSQL' : 'MySQL'}>
-                {c.databaseType === 'postgresql' ? '🐘' : '🐬'}
+              <span className="flex-shrink-0 text-xs" title={c.databaseType === 'postgresql' === 'postgresql' ? 'PostgreSQL' : c.databaseType === 'sqlite' ? 'SQLite' : 'MySQL'}>
+                {c.databaseType === 'postgresql' ? '馃悩' : '馃惉'}
               </span>
               <span className="flex-1 text-sm truncate">{c.name}</span>
               <span className="text-xs text-gray-400">{c.host}:{c.port}</span>
               <button onClick={e => { e.stopPropagation(); openEdit(c) }}
-                className="text-xs text-gray-400 hover:text-blue-500 px-1">编辑</button>
+                className="text-xs text-gray-400 hover:text-blue-500 px-1">缂栬緫</button>
               <button onClick={e => { e.stopPropagation(); deleteConnection(c.id) }}
-                className="text-xs text-gray-400 hover:text-red-500 px-1">删除</button>
+                className="text-xs text-gray-400 hover:text-red-500 px-1">鍒犻櫎</button>
             </div>
           )
         })}
@@ -168,10 +168,10 @@ export default function ConnectionPanel(): React.ReactElement {
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-[480px] max-h-[90vh] overflow-y-auto p-5">
-            <h2 className="font-semibold text-base mb-4">{editingId ? '编辑连接' : '新建连接'}</h2>
+            <h2 className="font-semibold text-base mb-4">{editingId ? '缂栬緫杩炴帴' : '鏂板缓杩炴帴'}</h2>
             <div className="space-y-3">
-              <Field label="名称"><input className={input} value={form.name} onChange={e => f('name', e.target.value)} /></Field>
-              <Field label="数据库类型">
+              <Field label="鍚嶇О"><input className={input} value={form.name} onChange={e => f('name', e.target.value)} /></Field>
+              <Field label="鏁版嵁搴撶被鍨?>
                 <select className={input} value={form.databaseType || 'mysql'}
                   onChange={e => {
                     const dbType = e.target.value as 'mysql' | 'postgresql'
@@ -181,18 +181,19 @@ export default function ConnectionPanel(): React.ReactElement {
                   }}>
                   <option value="mysql">MySQL / MariaDB</option>
                   <option value="postgresql">PostgreSQL</option>
+                  <option value="sqlite">SQLite</option>
                 </select>
               </Field>
               <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2"><Field label="主机"><input className={input} value={form.host} onChange={e => f('host', e.target.value)} /></Field></div>
-                <Field label="端口"><input className={input} type="number" value={form.port} onChange={e => f('port', +e.target.value)} /></Field>
+                <div className="col-span-2"><Field label="涓绘満"><input className={input} value={form.host} onChange={e => f('host', e.target.value)} /></Field></div>
+                <Field label="绔彛"><input className={input} type="number" value={form.port} onChange={e => f('port', +e.target.value)} /></Field>
               </div>
-              <Field label="用户名"><input className={input} value={form.username} onChange={e => f('username', e.target.value)} /></Field>
-              <Field label="密码"><input className={input} type="password" value={form.password} onChange={e => f('password', e.target.value)} /></Field>
-              <Field label={form.databaseType === 'postgresql' ? '数据库' : '数据库（可选）'}>
+              <Field label="鐢ㄦ埛鍚?><input className={input} value={form.username} onChange={e => f('username', e.target.value)} /></Field>
+              <Field label="瀵嗙爜"><input className={input} type="password" value={form.password} onChange={e => f('password', e.target.value)} /></Field>
+              <Field label={form.databaseType === 'postgresql' ? '鏁版嵁搴? : '鏁版嵁搴擄紙鍙€夛級'}>
                 <input className={input} value={form.database}
                   required={form.databaseType === 'postgresql'}
-                  placeholder={form.databaseType === 'postgresql' ? '必填（默认: postgres）' : ''}
+                  placeholder={form.databaseType === 'postgresql' ? '蹇呭～锛堥粯璁? postgres锛? : ''}
                   onChange={e => f('database', e.target.value)} />
               </Field>
 
@@ -201,24 +202,24 @@ export default function ConnectionPanel(): React.ReactElement {
                 <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
                   <input type="checkbox" checked={form.ssh?.enabled ?? false}
                     onChange={e => fSSH('enabled', e.target.checked)} />
-                  启用 SSH 隧道
+                  鍚敤 SSH 闅ч亾
                 </label>
                 {form.ssh?.enabled && (
                   <div className="mt-2 space-y-2 pl-4">
                     <div className="grid grid-cols-3 gap-2">
-                      <div className="col-span-2"><Field label="SSH 主机"><input className={input} value={form.ssh.host} onChange={e => fSSH('host', e.target.value)} /></Field></div>
-                      <Field label="端口"><input className={input} type="number" value={form.ssh.port} onChange={e => fSSH('port', +e.target.value)} /></Field>
+                      <div className="col-span-2"><Field label="SSH 涓绘満"><input className={input} value={form.ssh.host} onChange={e => fSSH('host', e.target.value)} /></Field></div>
+                      <Field label="绔彛"><input className={input} type="number" value={form.ssh.port} onChange={e => fSSH('port', +e.target.value)} /></Field>
                     </div>
-                    <Field label="SSH 用户名"><input className={input} value={form.ssh.username} onChange={e => fSSH('username', e.target.value)} /></Field>
-                    <Field label="认证方式">
+                    <Field label="SSH 鐢ㄦ埛鍚?><input className={input} value={form.ssh.username} onChange={e => fSSH('username', e.target.value)} /></Field>
+                    <Field label="璁よ瘉鏂瑰紡">
                       <select className={input} value={form.ssh.authType} onChange={e => fSSH('authType', e.target.value)}>
-                        <option value="password">密码</option>
-                        <option value="privateKey">私钥</option>
+                        <option value="password">瀵嗙爜</option>
+                        <option value="privateKey">绉侀挜</option>
                       </select>
                     </Field>
                     {form.ssh.authType === 'password'
-                      ? <Field label="SSH 密码"><input className={input} type="password" value={form.ssh.password ?? ''} onChange={e => fSSH('password', e.target.value)} /></Field>
-                      : <Field label="私钥路径"><input className={input} value={form.ssh.privateKeyPath ?? ''} onChange={e => fSSH('privateKeyPath', e.target.value)} /></Field>
+                      ? <Field label="SSH 瀵嗙爜"><input className={input} type="password" value={form.ssh.password ?? ''} onChange={e => fSSH('password', e.target.value)} /></Field>
+                      : <Field label="绉侀挜璺緞"><input className={input} value={form.ssh.privateKeyPath ?? ''} onChange={e => fSSH('privateKeyPath', e.target.value)} /></Field>
                     }
                   </div>
                 )}
@@ -226,19 +227,19 @@ export default function ConnectionPanel(): React.ReactElement {
             </div>
 
             {testMsg && (
-              <p className={`mt-3 text-sm ${testMsg.startsWith('✓') ? 'text-green-600' : 'text-red-500'}`}>{testMsg}</p>
+              <p className={`mt-3 text-sm ${testMsg.startsWith('鉁?) ? 'text-green-600' : 'text-red-500'}`}>{testMsg}</p>
             )}
 
             <div className="flex justify-between mt-5">
               <button onClick={handleTest} disabled={testing}
                 className="text-sm px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50">
-                {testing ? '测试中...' : '测试连接'}
+                {testing ? '娴嬭瘯涓?..' : '娴嬭瘯杩炴帴'}
               </button>
               <div className="flex gap-2">
                 <button onClick={() => setShowForm(false)}
-                  className="text-sm px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">取消</button>
+                  className="text-sm px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">鍙栨秷</button>
                 <button onClick={handleSave}
-                  className="text-sm px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700">保存</button>
+                  className="text-sm px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700">淇濆瓨</button>
               </div>
             </div>
           </div>

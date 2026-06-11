@@ -2,7 +2,7 @@
 // Database Type
 // ============================================================
 
-export type DatabaseType = 'mysql' | 'postgresql'
+export type DatabaseType = 'mysql' | 'postgresql' | 'sqlite'
 
 export interface DatabaseDialectConfig {
   type: DatabaseType
