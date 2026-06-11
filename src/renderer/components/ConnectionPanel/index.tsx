@@ -150,8 +150,8 @@ export default function ConnectionPanel(): React.ReactElement {
               onClick={() => isActive ? deactivateConnection(c.id) : activateConnection(c.id)}
             >
               <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STATUS_COLORS[status]}`} title={status} />
-              <span className="flex-shrink-0 text-xs" title={c.databaseType === 'postgresql' === 'postgresql' ? 'PostgreSQL' : c.databaseType === 'sqlite' ? 'SQLite' : 'MySQL'}>
-                {c.databaseType === 'postgresql' ? '馃悩' : '馃惉'}
+              <span className="flex-shrink-0 text-xs" title={c.databaseType === 'postgresql' ? 'PostgreSQL' : c.databaseType === 'sqlite' ? 'SQLite' : 'MySQL'}>
+                {c.databaseType === 'postgresql' ? '🐘' : c.databaseType === 'sqlite' ? '🪶' : '🐬'}
               </span>
               <span className="flex-1 text-sm truncate">{c.name}</span>
               <span className="text-xs text-gray-400">{c.host}:{c.port}</span>
