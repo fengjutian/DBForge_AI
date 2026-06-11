@@ -10,7 +10,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      include: ['src/main/**/*.ts', 'src/shared/**/*.ts'],
+      include: ['src/main/**/*.ts', 'src/shared/**/*.ts', 'src/renderer/utils/**/*.ts'],
       exclude: ['src/main/index.ts', 'src/main/preload.ts']
     }
   },
