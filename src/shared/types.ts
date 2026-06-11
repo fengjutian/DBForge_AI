@@ -2,7 +2,7 @@
 // Database Type
 // ============================================================
 
-export type DatabaseType = 'mysql' | 'postgresql' | 'sqlite'
+export type DatabaseType = 'mysql' | 'postgresql' | 'sqlite' | 'mssql' | 'oracle'
 
 export interface DatabaseDialectConfig {
   type: DatabaseType
@@ -203,6 +203,7 @@ export interface SchemaDocRequest {
   schema: DatabaseSchema
   targetDb?: string
   targetTable?: string
+  databaseType?: DatabaseType
 }
 
 export interface SchemaDocResponse {
@@ -212,6 +213,7 @@ export interface SchemaDocResponse {
 
 export interface SecurityAuditRequest {
   sql: string
+  databaseType?: DatabaseType
 }
 
 export interface SecurityAuditResponse {
@@ -241,6 +243,7 @@ export interface MigrationResponse {
 
 export interface DataQualityRequest {
   result: QueryResult
+  databaseType?: DatabaseType
 }
 
 export interface DataQualityResponse {

@@ -8,6 +8,8 @@ export type { BackupParams, RestoreParams } from './DialectInterface'
 export { MySQLDialect } from './MySQLDialect'
 export { PostgreSQLDialect } from './PostgreSQLDialect'
 export { SQLiteDialect } from './SQLiteDialect'
+export { SQLServerDialect } from './SQLServerDialect'
+export { OracleDialect } from './OracleDialect'
 
 import { registerDialect } from './DialectInterface'
 import { MySQLDialect } from './MySQLDialect'

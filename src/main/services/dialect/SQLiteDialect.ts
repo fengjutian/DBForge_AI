@@ -74,7 +74,10 @@ export class SQLiteDialect implements DatabaseDialect {
   }
 
   isReadOnlySQL(sql: string): boolean {
-    const n = sql.trim().toUpperCase().replace(/\s+/g, ' ')
+    const n = sql.trim().toUpperCase()
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/--[^\r\n]*/g, '')
+      .replace(/\s+/g, ' ')
     return n.startsWith('SELECT') || n.startsWith('PRAGMA') ||
            n.startsWith('EXPLAIN') || n.startsWith('WITH')
   }

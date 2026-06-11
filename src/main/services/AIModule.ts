@@ -672,6 +672,7 @@ ${schemaDesc ? `数据库 Schema:\n${schemaDesc}\n` : ''}
   async generateSchemaDoc(request: SchemaDocRequest & { streamId?: string }): Promise<SchemaDocResponse> {
     const startTime = Date.now()
     const schemaDesc = buildSchemaDescription(request.schema)
+    const dbLabel = request.databaseType === 'postgresql' ? 'PostgreSQL' : 'MySQL'
     const scope = request.targetTable
       ? `表 ${request.targetDb}.${request.targetTable}`
       : request.targetDb ? `数据库 ${request.targetDb}` : '整个数据库 Schema'
@@ -690,7 +691,7 @@ ${schemaDesc}
 请用 Markdown 格式输出。`
 
     const messages: LLMMessage[] = [
-      { role: 'system', content: '你是一个技术文档专家，擅长为数据库设计生成清晰易懂的技术文档。' },
+      { role: 'system', content: `你是一个技术文档专家，擅长为 ${dbLabel} 数据库设计生成清晰易懂的技术文档。` },
       { role: 'user', content: prompt }
     ]
 
@@ -708,6 +709,7 @@ ${schemaDesc}
 
   async securityAudit(request: SecurityAuditRequest & { streamId?: string }): Promise<SecurityAuditResponse> {
     const startTime = Date.now()
+    const dbLabel = request.databaseType === 'postgresql' ? 'PostgreSQL' : 'MySQL'
 
     const prompt = `请对以下 SQL 进行安全审计：
 
@@ -723,7 +725,7 @@ ${request.sql}
 重点检查：SQL 注入风险、权限越界、敏感数据暴露、危险操作（无 WHERE 的 DELETE/UPDATE）、DDL 风险等。`
 
     const messages: LLMMessage[] = [
-      { role: 'system', content: '你是一个数据库安全专家，擅长识别 SQL 安全漏洞和风险。' },
+      { role: 'system', content: `你是一个数据库安全专家（${dbLabel}），擅长识别 SQL 安全漏洞和风险。` },
       { role: 'user', content: prompt }
     ]
 
@@ -803,6 +805,7 @@ ${targetDesc}
 
   async analyzeDataQuality(request: DataQualityRequest & { streamId?: string }): Promise<DataQualityResponse> {
     const startTime = Date.now()
+    const dbLabel = request.databaseType === 'postgresql' ? 'PostgreSQL' : 'MySQL'
     const { result } = request
     const rowSample = result.rows.slice(0, 50)
     const colNames = result.columns.map(c => c.name).join(', ')
@@ -824,7 +827,7 @@ ${rowsText}
 重点检查：空值率、重复值、异常值、格式不一致等问题。`
 
     const messages: LLMMessage[] = [
-      { role: 'system', content: '你是一个数据质量分析专家，擅长识别数据集中的质量问题。' },
+      { role: 'system', content: `你是一个 ${dbLabel} 数据质量分析专家，擅长识别数据集中的质量问题。` },
       { role: 'user', content: prompt }
     ]
 
