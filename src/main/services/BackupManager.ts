@@ -193,7 +193,7 @@ class BackupManager {
     // Resolve connection config
     const conn = connectionManager.getConnection(options.connectionId)
     if (!conn) {
-      throw new Error(`杩炴帴涓嶅瓨鍦? ${options.connectionId}`)
+      throw new Error(`连接不存在:  ${options.connectionId}`)
     }
 
     // Build output file path
@@ -262,7 +262,7 @@ class BackupManager {
 
       proc.on('close', (code) => {
         if (code !== 0) {
-          const errMsg = stderrOutput || `mysqldump 閫€鍑虹爜: ${code}`
+          const errMsg = stderrOutput || `mysqldump 退出码: ${code}`
           onProgress({ phase: 'error', percent: 0, message: errMsg })
           reject(new Error(errMsg))
           return
@@ -275,7 +275,7 @@ class BackupManager {
             onProgress({
               phase: 'done',
               percent: 100,
-              message: '澶囦唤瀹屾垚',
+              message: '备份完成',
               filePath: outputPath,
               fileSize: stat.size,
               duration
@@ -367,12 +367,12 @@ class BackupManager {
 
       proc.on('close', (code) => {
         if (code !== 0) {
-          const errMsg = stderrOutput || `mysql 閫€鍑虹爜: ${code}`
+          const errMsg = stderrOutput || `mysql 退出码: ${code}`
           onProgress({ phase: 'error', percent: 0, message: errMsg })
           reject(new Error(errMsg))
           return
         }
-        onProgress({ phase: 'done', percent: 100, message: '鎭㈠瀹屾垚' })
+        onProgress({ phase: 'done', percent: 100, message: '恢复完成' })
         resolve()
       })
 
