@@ -1,4 +1,4 @@
-﻿import React, { useRef, useCallback, useEffect } from 'react'
+import React, { useRef, useCallback, useEffect } from 'react'
 import Editor, { OnMount } from '@monaco-editor/react'
 import { useEditorStore } from '../../store/editorStore'
 import { useSettingsStore } from '../../store/settingsStore'
@@ -107,9 +107,9 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
     try {
       const check = await window.electronAPI.query.dangerousCheck(sql)
       if (check.isDangerous) {
-        const reasons = check.reasons.join('\n—')
+        const reasons = check.reasons.join('\n• ')
         const confirmed = window.confirm(
-          `⚠ 危险操作警告\n\n妫€娴嬪埌浠ヤ笅椋庨櫓锛歕n—${reasons}\n\n此操作可能修改或删除数据，是否继续执行？`
+          `⚠ 危险操作警告\n\n检测到以下风险：\n• ${reasons}\n\n此操作可能修改或删除数据，是否继续执行？`
         )
         if (!confirmed) return
       }
@@ -162,9 +162,9 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
       try {
         const check = await window.electronAPI.query.dangerousCheck(sql)
         if (check.isDangerous) {
-          const reasons = check.reasons.join('\n—')
+          const reasons = check.reasons.join('\n• ')
           const confirmed = window.confirm(
-            `⚠ 危险操作警告\n\n妫€娴嬪埌浠ヤ笅椋庨櫓锛歕n—${reasons}\n\n此操作可能修改或删除数据，是否继续执行？`
+            `⚠ 危险操作警告\n\n检测到以下风险：\n• ${reasons}\n\n此操作可能修改或删除数据，是否继续执行？`
           )
           if (!confirmed) return
         }

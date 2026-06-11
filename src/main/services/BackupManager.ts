@@ -1,4 +1,4 @@
-﻿import { spawn } from 'child_process'
+import { spawn } from 'child_process'
 import { createWriteStream, createReadStream, statSync } from 'fs'
 import { access, constants } from 'fs/promises'
 import path from 'path'
@@ -57,7 +57,7 @@ const PG_PSQL_CANDIDATES: string[] =
     : ['/usr/bin/psql', '/usr/local/bin/psql', '/opt/homebrew/bin/psql', 'psql']
 
 // ============================================================
-// BackupManager 鈥?singleton
+// BackupManager —singleton
 // ============================================================
 
 class BackupManager {
@@ -176,7 +176,7 @@ class BackupManager {
   ): Promise<string> {
     const startTime = Date.now()
 
-    onProgress({ phase: 'preparing', percent: 0, message: '姝ｅ湪鍑嗗澶囦唤...' })
+    onProgress({ phase: 'preparing', percent: 0, message: '正在准备备份...' })
 
     // Resolve mysqldump path
     const mysqldumpPath = await this.detectMysqldump()
@@ -225,7 +225,7 @@ class BackupManager {
       args.push('--databases', ...options.databases)
     }
 
-    onProgress({ phase: 'dumping', percent: 10, message: '姝ｅ湪瀵煎嚭鏁版嵁搴?..' })
+    onProgress({ phase: 'dumping', percent: 10, message: '正在导出数据库...' })
 
     return new Promise<string>((resolve, reject) => {
       const proc = spawn(mysqldumpPath, args, { stdio: ['ignore', 'pipe', 'pipe'] })
@@ -255,7 +255,7 @@ class BackupManager {
           onProgress({
             phase: 'dumping',
             percent: Math.min(10 + tableCount * 5, 85),
-            message: `姝ｅ湪瀵煎嚭琛? ${tableMatch[1]}`
+            message: `正在导出表: ${tableMatch[1]}`
           })
         }
       })
@@ -287,7 +287,7 @@ class BackupManager {
         }
 
         if (options.compress && gzip) {
-          onProgress({ phase: 'compressing', percent: 90, message: '姝ｅ湪鍘嬬缉澶囦唤鏂囦欢...' })
+          onProgress({ phase: 'compressing', percent: 90, message: '正在压缩备份文件...' })
           writeStream.on('finish', finalize)
           writeStream.on('error', reject)
         } else {
@@ -316,7 +316,7 @@ class BackupManager {
     filePath: string,
     onProgress: (p: BackupProgress) => void
   ): Promise<void> {
-    onProgress({ phase: 'preparing', percent: 0, message: '姝ｅ湪鍑嗗鎭㈠...' })
+    onProgress({ phase: 'preparing', percent: 0, message: '正在准备恢复...' })
 
     // Resolve mysql client path
     const restorePath = await this.detectRestoreTool(dbType)
