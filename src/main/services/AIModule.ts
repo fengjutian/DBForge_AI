@@ -458,21 +458,22 @@ class AIModule {
     const config = this.getConfig()
     const schemaDesc = buildSchemaDescription(request.schema)
 
-    const systemPrompt = `你是一个专业的 MySQL SQL 生成助手。根据用户的自然语言描述和提供的数据库 Schema，生成准确的 SQL 查询语句。
+    const dbLabel = request.databaseType === 'postgresql' ? 'PostgreSQL' : 'MySQL'
+    const systemPrompt = `你是一个专业的 ${dbLabel} SQL 生成助手。根据用户的自然语言描述和提供的数据库 Schema，生成准确的 SQL 查询语句。
 
 数据库 Schema:
 ${schemaDesc}
 
 规则：
-1. 只生成 MySQL 兼容的 SQL 语句
+1. 只生成 ${dbLabel} 兼容的 SQL 语句
 2. 返回 JSON 格式，包含 sql、explanation、isDangerous 三个字段
 3. sql 字段为生成的 SQL 语句
 4. explanation 字段为对 SQL 的中文自然语言解释
-5. isDangerous 字段为布尔值，表示该 SQL 是否包含危险操作（DROP、TRUNCATE、无 WHERE 的 DELETE 等）
-${config.mode === 'readonly' ? '6. 只生成 SELECT 查询语句，不生成任何写操作或 DDL 语句' : ''}
+5. isDangerous 字段为布尔值，表示该 SQL 是否包含危险操作（DROP、TRUNCATE、无 WHERE 的 DELETE 等）${request.databaseType === 'postgresql' ? '\n6. PostgreSQL 不使用反引号，使用双引号或不用引号包裹标识符' : ''}
+${config.mode === 'readonly' ? `${request.databaseType === 'postgresql' ? '\n7' : '\n7'}. 只生成 SELECT 查询语句，不生成任何写操作或 DDL 语句` : ''}
 
 Few-shot 示例：
-${FEW_SHOT_EXAMPLES}`
+${request.databaseType === 'postgresql' ? FEW_SHOT_EXAMPLES.split('DATE_SUB(NOW(), INTERVAL 7 DAY)').join("NOW() - INTERVAL '7 days'") : FEW_SHOT_EXAMPLES}`
 
     const messages: LLMMessage[] = [
       { role: 'system', content: systemPrompt },

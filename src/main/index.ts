@@ -13,6 +13,7 @@ import { register as registerExportHandlers } from './ipc/export'
 import { register as registerAIHandlers } from './ipc/ai'
 import { register as registerBackupHandlers } from './ipc/backup'
 import { register as registerSettingsHandlers } from './ipc/settings'
+import { bootstrapDialects } from './services/dialect/index'
 
 // Global uncaught exception handler - prevents white screen
 process.on('uncaughtException', (error) => {
@@ -68,6 +69,7 @@ app.whenReady().then(async () => {
 
   // Initialize services
   await configStore.init()
+  bootstrapDialects()
   historyStore.init()
   auditLog.init()
   snippetStore.init()

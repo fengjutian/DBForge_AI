@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+﻿import { ipcMain } from 'electron'
 import { IPC } from '../../shared/ipc-channels'
 import type { AppConfig, IPCError, SqlSnippet } from '../../shared/types'
 import configStore from '../services/ConfigStore'
@@ -19,7 +19,7 @@ function wrapError(err: unknown): IPCError {
 }
 
 export function register(): void {
-  // ── Settings ─────────────────────────────────────────────────
+  // 鈹€鈹€ Settings 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
   ipcMain.handle(IPC.SETTINGS_GET, () => {
     try {
@@ -41,7 +41,7 @@ export function register(): void {
     }
   })
 
-  // ── History ───────────────────────────────────────────────────
+  // 鈹€鈹€ History 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
   ipcMain.handle(IPC.HISTORY_LIST, (_event, limit?: number) => {
     try {
@@ -80,7 +80,7 @@ export function register(): void {
     }
   })
 
-  // ── Audit ─────────────────────────────────────────────────────
+  // 鈹€鈹€ Audit 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
   ipcMain.handle(IPC.AUDIT_LIST, (_event, options?: { startTime?: number; endTime?: number; connectionId?: string }) => {
     try {
@@ -116,7 +116,7 @@ export function register(): void {
     }
   })
 
-  // ── Snippets ──────────────────────────────────────────────────
+  // 鈹€鈹€ Snippets 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
   ipcMain.handle(IPC.SNIPPET_LIST, () => {
     try {
@@ -153,7 +153,7 @@ export function register(): void {
     }
   })
 
-  // ── Schema ────────────────────────────────────────────────────
+  // 鈹€鈹€ Schema 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
   ipcMain.handle(IPC.SCHEMA_FETCH, async (_event, connectionId: string) => {
     try {
@@ -171,7 +171,7 @@ export function register(): void {
     }
   })
 
-  // ── Session ───────────────────────────────────────────────────
+  // 鈹€鈹€ Session 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
   ipcMain.handle(IPC.SESSION_EXTEND, () => {
     try {
@@ -182,7 +182,7 @@ export function register(): void {
     }
   })
 
-  // ── Auto-updater ──────────────────────────────────────────────
+  // 鈹€鈹€ Auto-updater 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
   ipcMain.handle(IPC.UPDATER_CHECK, async () => {
     try {
@@ -212,101 +212,9 @@ export function register(): void {
   })
 }
 
-// ── Schema fetch helper ───────────────────────────────────────
+// Schema fetch helper
 
 export async function fetchSchema(connectionId: string) {
-  const pool = connectionManager.getPool(connectionId)
-
-  // 1. All databases
-  const [dbRows] = await pool.query<import('mysql2').RowDataPacket[]>(
-    `SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME`
-  )
-  const dbNames: string[] = dbRows.map(r => r['SCHEMA_NAME'])
-  if (dbNames.length === 0) return { connectionId, databases: [], fetchedAt: Date.now() }
-
-  const placeholders = dbNames.map(() => '?').join(',')
-
-  // 2. All tables in one query
-  const [tableRows] = await pool.query<import('mysql2').RowDataPacket[]>(
-    `SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_ROWS
-     FROM INFORMATION_SCHEMA.TABLES
-     WHERE TABLE_SCHEMA IN (${placeholders}) AND TABLE_TYPE = 'BASE TABLE'
-     ORDER BY TABLE_SCHEMA, TABLE_NAME`,
-    dbNames
-  )
-
-  // 3. All columns in one query
-  const [colRows] = await pool.query<import('mysql2').RowDataPacket[]>(
-    `SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE,
-            COLUMN_DEFAULT, COLUMN_COMMENT, COLUMN_KEY
-     FROM INFORMATION_SCHEMA.COLUMNS
-     WHERE TABLE_SCHEMA IN (${placeholders})
-     ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION`,
-    dbNames
-  )
-
-  // 4. All foreign keys in one query
-  const [fkRows] = await pool.query<import('mysql2').RowDataPacket[]>(
-    `SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME,
-            REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
-     FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-     WHERE TABLE_SCHEMA IN (${placeholders})
-       AND REFERENCED_TABLE_NAME IS NOT NULL`,
-    dbNames
-  )
-
-  // Build lookup maps
-  type ColInfo = import('../../shared/types').ColumnInfo & { tableName: string; dbName: string; isPK: boolean }
-  const colMap = new Map<string, ColInfo[]>()
-  for (const col of colRows) {
-    const key = `${col['TABLE_SCHEMA']}.${col['TABLE_NAME']}`
-    if (!colMap.has(key)) colMap.set(key, [])
-    colMap.get(key)!.push({
-      dbName: col['TABLE_SCHEMA'],
-      tableName: col['TABLE_NAME'],
-      name: col['COLUMN_NAME'],
-      type: col['COLUMN_TYPE'],
-      nullable: col['IS_NULLABLE'] === 'YES',
-      defaultValue: col['COLUMN_DEFAULT'] ?? undefined,
-      comment: col['COLUMN_COMMENT'] || undefined,
-      isPK: col['COLUMN_KEY'] === 'PRI'
-    })
-  }
-
-  const fkMap = new Map<string, import('../../shared/types').ForeignKeyInfo[]>()
-  for (const fk of fkRows) {
-    const key = `${fk['TABLE_SCHEMA']}.${fk['TABLE_NAME']}`
-    if (!fkMap.has(key)) fkMap.set(key, [])
-    fkMap.get(key)!.push({
-      columnName: fk['COLUMN_NAME'],
-      referencedTable: fk['REFERENCED_TABLE_NAME'],
-      referencedColumn: fk['REFERENCED_COLUMN_NAME']
-    })
-  }
-
-  // Assemble result
-  const dbMap = new Map<string, import('../../shared/types').DatabaseInfo>()
-  for (const db of dbNames) dbMap.set(db, { name: db, tables: [] })
-
-  for (const tableRow of tableRows) {
-    const dbName: string = tableRow['TABLE_SCHEMA']
-    const tableName: string = tableRow['TABLE_NAME']
-    const key = `${dbName}.${tableName}`
-
-    const cols = colMap.get(key) ?? []
-    const columns: import('../../shared/types').ColumnInfo[] = cols.map(c => ({
-      name: c.name, type: c.type, nullable: c.nullable,
-      defaultValue: c.defaultValue, comment: c.comment
-    }))
-    const primaryKeys = cols.filter(c => c.isPK).map(c => c.name)
-    const foreignKeys = fkMap.get(key) ?? []
-
-    dbMap.get(dbName)?.tables.push({ name: tableName, columns, primaryKeys, foreignKeys, rowCount: tableRow['TABLE_ROWS'] ?? undefined })
-  }
-
-  return {
-    connectionId,
-    databases: dbNames.map(db => dbMap.get(db)!),
-    fetchedAt: Date.now()
-  }
+  const conn = connectionManager.getPool(connectionId)
+  return conn.dialect.fetchSchema(conn.pool, connectionId)
 }

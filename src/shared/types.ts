@@ -1,4 +1,20 @@
 // ============================================================
+// Database Type
+// ============================================================
+
+export type DatabaseType = 'mysql' | 'postgresql'
+
+export interface DatabaseDialectConfig {
+  type: DatabaseType
+  defaultPort: number
+  defaultDatabase?: string
+  supportsSSL: boolean
+  supportsSchema: boolean // PostgreSQL has schemas, MySQL does not
+  driverName: string
+  requiresDatabaseForConnect: boolean // pg requires a database to connect
+}
+
+// ============================================================
 // Connection Types
 // ============================================================
 
@@ -25,6 +41,7 @@ export interface ConnectionConfig {
   id: string
   name: string
   groupId?: string
+  databaseType: DatabaseType
   host: string
   port: number
   username: string
@@ -143,6 +160,7 @@ export interface TextToSQLRequest {
   naturalLanguage: string
   schema: DatabaseSchema
   connectionId: string
+  databaseType?: DatabaseType
 }
 
 export interface TextToSQLResponse {

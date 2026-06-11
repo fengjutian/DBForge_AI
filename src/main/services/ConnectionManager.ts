@@ -1,19 +1,25 @@
-import mysql2 from 'mysql2/promise'
-import { BrowserWindow } from 'electron'
+﻿import { BrowserWindow } from 'electron'
 import { v4 as uuidv4 } from 'uuid'
 import type { ConnectionConfig, ConnectionStatus, TestResult } from '../../shared/types'
 import { IPC } from '../../shared/ipc-channels'
 import configStore from './ConfigStore'
+import { getDialect, type DatabaseDialect } from './dialect/DialectInterface'
 
 // ============================================================
 // ConnectionManager — singleton
 // ============================================================
 
+interface ActiveConnection {
+  config: ConnectionConfig
+  pool: unknown
+  dialect: DatabaseDialect
+}
+
 class ConnectionManager {
   private static instance: ConnectionManager | null = null
 
-  /** Active connection pools, keyed by connection id */
-  private pools: Map<string, mysql2.Pool> = new Map()
+  /** Active connections, keyed by connection id */
+  private connections: Map<string, ActiveConnection> = new Map()
 
   /** Current status for each known connection */
   private statuses: Map<string, ConnectionStatus> = new Map()
@@ -31,41 +37,40 @@ class ConnectionManager {
   // Connection config CRUD (delegates to ConfigStore)
   // ============================================================
 
-  /** Return all saved connection configs (passwords decrypted). */
-  listConnections(): ConnectionConfig[] {
-    return configStore.getConnections()
-  }
+  listConnections(): ConnectionConfig[] { return configStore.getConnections() }
 
-  /** Return a single connection config by id. */
   getConnection(id: string): ConnectionConfig | undefined {
     return configStore.getConnection(id)
   }
 
-  /** Create a new connection config and persist it. */
   createConnection(config: Omit<ConnectionConfig, 'id' | 'createdAt' | 'updatedAt'>): ConnectionConfig {
     const now = Date.now()
+    // Default databaseType to mysql for backward compatibility
     const full: ConnectionConfig = {
       ...config,
+      databaseType: config.databaseType || 'mysql',
       id: uuidv4(),
       createdAt: now,
       updatedAt: now
     }
+    // If port not specified, use dialect default
+    if (!full.port) {
+      const dialect = getDialect(full.databaseType)
+      if (dialect) full.port = dialect.getDefaultPort()
+    }
     configStore.saveConnection(full)
-    // Initialize status as disconnected
     this.statuses.set(full.id, { id: full.id, state: 'disconnected' })
     return full
   }
 
-  /** Update an existing connection config. */
   updateConnection(id: string, updates: Partial<Omit<ConnectionConfig, 'id' | 'createdAt'>>): ConnectionConfig {
     const existing = configStore.getConnection(id)
-    if (!existing) {
-      throw new Error(`Connection not found: ${id}`)
-    }
+    if (!existing) throw new Error(Connection not found: \)
     const updated: ConnectionConfig = {
       ...existing,
       ...updates,
       id,
+      databaseType: updates.databaseType || existing.databaseType || 'mysql',
       createdAt: existing.createdAt,
       updatedAt: Date.now()
     }
@@ -73,7 +78,6 @@ class ConnectionManager {
     return updated
   }
 
-  /** Delete a connection config and close its pool if active. */
   async deleteConnection(id: string): Promise<void> {
     await this.deactivateConnection(id)
     configStore.deleteConnection(id)
@@ -81,220 +85,116 @@ class ConnectionManager {
   }
 
   // ============================================================
-  // Connection pool lifecycle
+  // Connection lifecycle
   // ============================================================
 
-  /**
-   * Activate a connection: create a mysql2 pool and verify connectivity.
-   * Notifies renderer of status changes.
-   */
   async activateConnection(id: string): Promise<void> {
     const config = configStore.getConnection(id)
-    if (!config) {
-      throw new Error(`Connection not found: ${id}`)
-    }
+    if (!config) throw new Error(Connection not found: \)
 
-    // If already connected, do nothing
-    if (this.pools.has(id)) {
-      return
-    }
+    const dialect = getDialect(config.databaseType || 'mysql')
+    if (!dialect) throw new Error(Unsupported database type: \)
 
     this.setStatus(id, { id, state: 'connecting' })
-
     try {
-      const pool = this.createPool(config)
-      // Verify the connection is actually reachable
-      const conn = await pool.getConnection()
-      conn.release()
-
-      this.pools.set(id, pool)
+      const pool = dialect.createPool(config)
+      // Verify connection
+      await dialect.executeQuery(pool, dialect.id === 'postgresql' ? 'SELECT 1' : 'SELECT 1')
+      this.connections.set(id, { config, pool, dialect })
       this.setStatus(id, { id, state: 'connected' })
-
-      // Listen for pool errors (e.g. unexpected disconnects)
-      pool.on('connection', () => {
-        // connection established — no-op
-      })
     } catch (err) {
-      const error = err instanceof Error ? err.message : String(err)
-      this.setStatus(id, { id, state: 'error', error })
+      this.setStatus(id, { id, state: 'error', error: String(err) })
       throw err
     }
   }
 
-  /**
-   * Deactivate a connection: drain and close the pool.
-   */
   async deactivateConnection(id: string): Promise<void> {
-    const pool = this.pools.get(id)
-    if (!pool) {
-      return
-    }
-    this.pools.delete(id)
+    const conn = this.connections.get(id)
+    if (!conn) return
+    this.connections.delete(id)
+    const dialect = conn.dialect
     try {
-      await pool.end()
-    } catch {
-      // Ignore errors during pool shutdown
-    }
+      const pool = conn.pool as any
+      if (pool?.end) await pool.end()
+      else if (pool?.close) await pool.close()
+    } catch { /* ignore */ }
     this.setStatus(id, { id, state: 'disconnected' })
   }
 
-  /**
-   * Test a connection config without persisting it.
-   * Resolves within 3 seconds with success/failure result.
-   */
   async testConnection(config: ConnectionConfig): Promise<TestResult> {
     const start = Date.now()
-    let pool: mysql2.Pool | null = null
+    const dialect = getDialect(config.databaseType || 'mysql')
+    if (!dialect) throw new Error(Unsupported database type: \)
 
-    const timeout = new Promise<TestResult>((resolve) =>
-      setTimeout(
-        () =>
-          resolve({
-            success: false,
-            error: 'Connection timed out after 3 seconds',
-            errorCode: 'ETIMEDOUT',
-            suggestions: [
-              'Check that the host and port are correct',
-              'Ensure the MySQL server is running and reachable',
-              'Check firewall rules'
-            ]
-          }),
-        3000
-      )
-    )
-
-    const attempt = async (): Promise<TestResult> => {
-      try {
-        pool = this.createPool(config)
-        const conn = await pool.getConnection()
-        conn.release()
-        const latency = Date.now() - start
-        return { success: true, latency }
-      } catch (err) {
-        const mysqlErr = err as NodeJS.ErrnoException & { code?: string; errno?: number }
-        const errorCode = mysqlErr.code ?? 'UNKNOWN'
-        const error = mysqlErr.message ?? String(err)
-        return {
-          success: false,
-          error,
-          errorCode,
-          suggestions: this.buildErrorSuggestions(errorCode)
-        }
-      } finally {
-        if (pool) {
-          try {
-            await pool.end()
-          } catch {
-            // ignore
-          }
-        }
-      }
+    try {
+      const pool = dialect.createPool(config)
+      await dialect.executeQuery(pool, dialect.id === 'postgresql' ? 'SELECT 1' : 'SELECT 1')
+      const p = pool as any
+      if (p?.end) await p.end()
+      else if (p?.close) await p.close()
+      return { success: true, latency: Date.now() - start }
+    } catch (err: any) {
+      const msg = err?.message ?? String(err)
+      const code = err?.code ?? ''
+      return { success: false, error: msg, errorCode: code, suggestions: dialect.buildErrorSuggestions(code), latency: Date.now() - start }
     }
+  }
 
-    return Promise.race([attempt(), timeout])
+  getConnectionStatus(id: string): ConnectionStatus | undefined {
+    return this.statuses.get(id)
   }
 
   // ============================================================
-  // Status management
+  // Pool access for query/schema operations
   // ============================================================
 
-  /** Return the current status for a connection. */
-  getConnectionStatus(id: string): ConnectionStatus {
-    return this.statuses.get(id) ?? { id, state: 'disconnected' }
+  getPool(connectionId: string): ActiveConnection {
+    const conn = this.connections.get(connectionId)
+    if (!conn) throw new Error(No active connection pool for id: \)
+    return conn
   }
 
-  /** Return statuses for all known connections. */
-  getAllStatuses(): ConnectionStatus[] {
-    return Array.from(this.statuses.values())
+  getDialect(connectionId: string): DatabaseDialect {
+    return this.getPool(connectionId).dialect
   }
 
-  // ============================================================
-  // Pool accessor (used by QueryExecutor)
-  // ============================================================
-
-  /** Get the active pool for a connection. Throws if not connected. */
-  getPool(connectionId: string): mysql2.Pool {
-    const pool = this.pools.get(connectionId)
-    if (!pool) {
-      throw new Error(`No active connection pool for id: ${connectionId}`)
-    }
-    return pool
+  getConnectionConfig(connectionId: string): ConnectionConfig {
+    return this.getPool(connectionId).config
   }
 
   // ============================================================
   // Export / Import
   // ============================================================
 
-  /**
-   * Export selected connections as a JSON string.
-   * Password fields are redacted (replaced with empty string).
-   */
   exportConnections(ids: string[]): string {
-    const connections = configStore.getConnections()
-    const selected = ids.length > 0 ? connections.filter((c) => ids.includes(c.id)) : connections
-
-    const sanitized = selected.map((c) => {
-      const exported: ConnectionConfig = {
-        ...c,
-        password: '' // redact password
-      }
-      // Redact SSH password as well
-      if (exported.ssh?.password) {
-        exported.ssh = { ...exported.ssh, password: '' }
-      }
-      return exported
-    })
-
-    return JSON.stringify({ version: 1, connections: sanitized }, null, 2)
+    const connections = ids.map(id => configStore.getConnection(id)).filter(Boolean) as ConnectionConfig[]
+    const safeExport = connections.map(c => ({ ...c, password: '', ssl: c.ssl?.enabled ? { enabled: true } : undefined }))
+    return JSON.stringify({ connections: safeExport }, null, 2)
   }
 
-  /**
-   * Import connections from a JSON string.
-   * Assigns new IDs and timestamps to avoid collisions.
-   * Returns the list of imported configs.
-   */
   importConnections(json: string): ConnectionConfig[] {
-    let parsed: unknown
+    let rawList: unknown[] | undefined
     try {
-      parsed = JSON.parse(json)
-    } catch {
-      throw new Error('Invalid JSON format')
-    }
-
-    // Support both { version, connections: [...] } and plain array
-    let rawList: unknown[]
-    if (Array.isArray(parsed)) {
-      rawList = parsed
-    } else if (
-      parsed !== null &&
-      typeof parsed === 'object' &&
-      'connections' in parsed &&
-      Array.isArray((parsed as { connections: unknown }).connections)
-    ) {
-      rawList = (parsed as { connections: unknown[] }).connections
-    } else {
-      throw new Error('Invalid connections format: expected array or { connections: [...] }')
-    }
+      const parsed = JSON.parse(json)
+      if (Array.isArray(parsed)) rawList = parsed
+      else if (Array.isArray((parsed as any)?.connections)) rawList = (parsed as any).connections
+      else throw new Error('Invalid connections format')
+    } catch { throw new Error('Invalid JSON format') }
 
     const now = Date.now()
     const imported: ConnectionConfig[] = []
-
-    for (const raw of rawList) {
-      if (!this.isValidConnectionConfig(raw)) {
-        continue // skip invalid entries
-      }
+    for (const raw of rawList ?? []) {
+      if (!this.isValidConnectionConfig(raw)) continue
       const config: ConnectionConfig = {
         ...(raw as ConnectionConfig),
-        id: uuidv4(), // always assign a new id
-        createdAt: now,
-        updatedAt: now,
-        password: (raw as ConnectionConfig).password ?? '' // keep exported (possibly empty) password
+        databaseType: (raw as any).databaseType || 'mysql',
+        id: uuidv4(), createdAt: now, updatedAt: now,
+        password: (raw as ConnectionConfig).password ?? ''
       }
       configStore.saveConnection(config)
       this.statuses.set(config.id, { id: config.id, state: 'disconnected' })
       imported.push(config)
     }
-
     return imported
   }
 
@@ -302,82 +202,19 @@ class ConnectionManager {
   // Private helpers
   // ============================================================
 
-  private createPool(config: ConnectionConfig): mysql2.Pool {
-    return mysql2.createPool({
-      host: config.host,
-      port: config.port,
-      user: config.username,
-      password: config.password,
-      database: config.database,
-      connectionLimit: 10,
-      connectTimeout: 3000,
-      ssl: config.ssl?.enabled
-        ? {
-            rejectUnauthorized: config.ssl.rejectUnauthorized ?? true,
-            ca: config.ssl.ca,
-            cert: config.ssl.cert,
-            key: config.ssl.key
-          }
-        : undefined
-    })
-  }
-
   private setStatus(id: string, status: ConnectionStatus): void {
     this.statuses.set(id, status)
-    this.notifyRenderer(status)
-  }
-
-  /** Broadcast connection status change to all renderer windows. */
-  private notifyRenderer(status: ConnectionStatus): void {
-    const windows = BrowserWindow.getAllWindows()
-    for (const win of windows) {
-      if (!win.isDestroyed()) {
-        win.webContents.send(IPC.CONNECTION_STATUS_CHANGED, status)
-      }
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) win.webContents.send(IPC.CONNECTION_STATUS_CHANGED, status)
     }
-  }
-
-  private buildErrorSuggestions(errorCode: string): string[] {
-    const suggestions: string[] = []
-    switch (errorCode) {
-      case 'ECONNREFUSED':
-        suggestions.push('Ensure the MySQL server is running on the specified host and port')
-        suggestions.push('Check that the port number is correct (default: 3306)')
-        break
-      case 'ENOTFOUND':
-      case 'EAI_AGAIN':
-        suggestions.push('Check that the hostname is correct and DNS is resolving')
-        break
-      case 'ER_ACCESS_DENIED_ERROR':
-        suggestions.push('Verify the username and password are correct')
-        suggestions.push('Ensure the user has permission to connect from this host')
-        break
-      case 'ER_BAD_DB_ERROR':
-        suggestions.push('The specified database does not exist')
-        suggestions.push('Leave the database field empty to connect without selecting a database')
-        break
-      case 'ETIMEDOUT':
-        suggestions.push('The server did not respond in time — check host, port and firewall rules')
-        break
-      default:
-        suggestions.push('Check the host, port, username and password')
-        suggestions.push('Ensure the MySQL server is running and accessible')
-    }
-    return suggestions
   }
 
   private isValidConnectionConfig(raw: unknown): boolean {
-    if (raw === null || typeof raw !== 'object') return false
+    if (!raw || typeof raw !== 'object') return false
     const c = raw as Record<string, unknown>
-    return (
-      typeof c.name === 'string' &&
-      typeof c.host === 'string' &&
-      typeof c.port === 'number' &&
-      typeof c.username === 'string'
-    )
+    return typeof c.name === 'string' && typeof c.host === 'string' && typeof c.port === 'number' && typeof c.username === 'string'
   }
 }
 
-// Export singleton accessor
 export const connectionManager = ConnectionManager.getInstance()
 export default connectionManager

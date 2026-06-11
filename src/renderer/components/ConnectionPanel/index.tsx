@@ -20,6 +20,7 @@ const emptySSH: SSHTunnelConfig = {
 
 const emptyForm = (): Omit<ConnectionConfig, 'id' | 'createdAt' | 'updatedAt'> => ({
   name: '',
+  databaseType: 'mysql' as const,
   host: 'localhost',
   port: 3306,
   username: 'root',
@@ -43,7 +44,7 @@ export default function ConnectionPanel(): React.ReactElement {
   const openNew = () => { setEditingId(null); setForm(emptyForm()); setTestMsg(null); setShowForm(true) }
   const openEdit = (c: ConnectionConfig) => {
     setEditingId(c.id)
-    setForm({ name: c.name, host: c.host, port: c.port, username: c.username,
+    setForm({ name: c.name, databaseType: c.databaseType || 'mysql', host: c.host, port: c.port, username: c.username,
       password: c.password, database: c.database ?? '', ssh: c.ssh ?? { ...emptySSH } })
     setTestMsg(null)
     setShowForm(true)
@@ -54,6 +55,7 @@ export default function ConnectionPanel(): React.ReactElement {
     const config: ConnectionConfig = {
       id: editingId ?? `conn-${now}`,
       name: form.name,
+      databaseType: form.databaseType || 'mysql',
       host: form.host,
       port: form.port,
       username: form.username,
@@ -166,6 +168,18 @@ export default function ConnectionPanel(): React.ReactElement {
             <h2 className="font-semibold text-base mb-4">{editingId ? '编辑连接' : '新建连接'}</h2>
             <div className="space-y-3">
               <Field label="名称"><input className={input} value={form.name} onChange={e => f('name', e.target.value)} /></Field>
+              <Field label="数据库类型">
+                <select className={input} value={form.databaseType || 'mysql'}
+                  onChange={e => {
+                    const dbType = e.target.value as 'mysql' | 'postgresql'
+                    f('databaseType', dbType)
+                    // Auto-switch default port
+                    f('port', dbType === 'postgresql' ? 5432 : 3306)
+                  }}>
+                  <option value="mysql">MySQL / MariaDB</option>
+                  <option value="postgresql">PostgreSQL</option>
+                </select>
+              </Field>
               <div className="grid grid-cols-3 gap-2">
                 <div className="col-span-2"><Field label="主机"><input className={input} value={form.host} onChange={e => f('host', e.target.value)} /></Field></div>
                 <Field label="端口"><input className={input} type="number" value={form.port} onChange={e => f('port', +e.target.value)} /></Field>
