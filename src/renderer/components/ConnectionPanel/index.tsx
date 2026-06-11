@@ -67,7 +67,7 @@ export default function ConnectionPanel(): React.ReactElement {
   }
 
   return (
-    <div className="flex flex-col h-full border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 w-64">
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
         <span className="font-semibold text-sm">连接管理</span>
         <button onClick={openNew} className="text-xs px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">新建</button>
