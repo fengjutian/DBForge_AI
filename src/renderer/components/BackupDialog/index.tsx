@@ -29,8 +29,13 @@ export default function BackupDialog({ onClose }: Props): React.ReactElement {
     return () => { unsub() }
   }, [])
 
+  const [validationError, setValidationError] = useState('')
+
   const handleBackup = async () => {
-    if (!connectionId || databases.length === 0 || !outputPath) return
+    setValidationError('')
+    if (!connectionId) { setValidationError('请先选择数据库连接'); return }
+    if (databases.length === 0) { setValidationError('请添加至少一个数据库'); return }
+    if (!outputPath) { setValidationError('请选择备份输出路径'); return }
     setRunning(true); setProgress(null)
     try {
       await window.electronAPI.backup.start({
@@ -44,7 +49,9 @@ export default function BackupDialog({ onClose }: Props): React.ReactElement {
   }
 
   const handleRestore = async () => {
-    if (!connectionId || !restoreFile) return
+    setValidationError('')
+    if (!connectionId) { setValidationError('请先选择数据库连接'); return }
+    if (!restoreFile) { setValidationError('请选择备份文件路径'); return }
     setRunning(true); setProgress(null)
     try {
       await window.electronAPI.backup.restore(connectionId, restoreFile)
@@ -164,6 +171,13 @@ export default function BackupDialog({ onClose }: Props): React.ReactElement {
                   📁 选择
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Validation Error */}
+          {validationError && (
+            <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded px-3 py-2">
+              ⚠️ {validationError}
             </div>
           )}
 
