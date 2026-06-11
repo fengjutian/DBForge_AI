@@ -65,26 +65,26 @@ export class PostgreSQLDialect implements DatabaseDialect {
   async fetchSchema(pool: unknown, connectionId: string): Promise<DatabaseSchema> {
     const pgPool = pool as import('pg').Pool
     const q = async (sql: string) => { const r = await pgPool.query(sql); return r.rows }
-    const dbRows: any[] = await q(SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname)
+    const dbRows: any[] = await q(`SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname`)
     const dbNames: string[] = dbRows.map(r => r.datname)
     if (dbNames.length === 0) return { connectionId, databases: [], fetchedAt: Date.now() }
 
     const cols: any[] = await q(
-      SELECT table_schema, table_name, column_name, data_type, is_nullable, column_default, udt_name FROM information_schema.columns WHERE table_schema NOT IN ('pg_catalog','information_schema') ORDER BY table_schema, table_name, ordinal_position
+      `SELECT table_schema, table_name, column_name, data_type, is_nullable, column_default, udt_name FROM information_schema.columns WHERE table_schema NOT IN ('pg_catalog','information_schema') ORDER BY table_schema, table_name, ordinal_position`
     )
     const fks: any[] = await q(
-      SELECT tc.table_schema, tc.table_name, kcu.column_name, ccu.table_schema AS ref_schema, ccu.table_name AS ref_table, ccu.column_name AS ref_column FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.constraint_name WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema NOT IN ('pg_catalog','information_schema')
+      `SELECT tc.table_schema, tc.table_name, kcu.column_name, ccu.table_schema AS ref_schema, ccu.table_name AS ref_table, ccu.column_name AS ref_column FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name = tc.constraint_name WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema NOT IN ('pg_catalog','information_schema')`
     )
 
     const colMap = new Map<string, any[]>()
     for (const c of cols) {
-      const k = ${c.table_schema}.\
+      const k = `${c.table_schema}.${c.table_name}`
       if (!colMap.has(k)) colMap.set(k, [])
       colMap.get(k)!.push(c)
     }
     const fkMap = new Map<string, any[]>()
     for (const f of fks) {
-      const k = ${f.table_schema}.\
+      const k = `${f.table_schema}.${f.table_name}`
       if (!fkMap.has(k)) fkMap.set(k, [])
       fkMap.get(k)!.push(f)
     }
@@ -102,7 +102,7 @@ export class PostgreSQLDialect implements DatabaseDialect {
       databases: Array.from(tablesBySchema.entries()).map(([schema, tableNames]) => ({
         name: schema,
         tables: tableNames.map(tn => {
-          const key = ${schema}.\
+          const key = `${schema}.${tn}`
           const cCols = colMap.get(key) ?? []
           const tableCols = cCols.map(c => ({
             name: c.column_name, type: c.udt_name || c.data_type,
@@ -112,7 +112,7 @@ export class PostgreSQLDialect implements DatabaseDialect {
           const pkCols = cCols.filter(c => c.column_name === 'id').map(c => c.column_name) // simplified PK detection
           const tableFKs = (fkMap.get(key) ?? []).map(f => ({
             columnName: f.column_name,
-            referencedTable: ${f.ref_schema}.\,
+            referencedTable: `${f.ref_schema}.${f.ref_table}`,
             referencedColumn: f.ref_column
           }))
           return { name: tn, columns: tableCols, primaryKeys: pkCols, foreignKeys: tableFKs }

@@ -2,7 +2,8 @@
 // Dialect registry — bootstrap all supported dialects
 // ============================================================
 
-export { DatabaseDialect, registerDialect, getDialect, listDialects } from './DialectInterface'
+export type { DatabaseDialect } from './DialectInterface'
+export { registerDialect, getDialect, listDialects } from './DialectInterface'
 export type { BackupParams, RestoreParams } from './DialectInterface'
 export { MySQLDialect } from './MySQLDialect'
 export { PostgreSQLDialect } from './PostgreSQLDialect'

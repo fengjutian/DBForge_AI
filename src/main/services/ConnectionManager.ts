@@ -65,7 +65,7 @@ class ConnectionManager {
 
   updateConnection(id: string, updates: Partial<Omit<ConnectionConfig, 'id' | 'createdAt'>>): ConnectionConfig {
     const existing = configStore.getConnection(id)
-    if (!existing) throw new Error(Connection not found: \)
+    if (!existing) throw new Error(`Connection not found: ${id}`)
     const updated: ConnectionConfig = {
       ...existing,
       ...updates,
@@ -90,10 +90,10 @@ class ConnectionManager {
 
   async activateConnection(id: string): Promise<void> {
     const config = configStore.getConnection(id)
-    if (!config) throw new Error(Connection not found: \)
+    if (!config) throw new Error(`Connection not found: ${id}`)
 
     const dialect = getDialect(config.databaseType || 'mysql')
-    if (!dialect) throw new Error(Unsupported database type: \)
+    if (!dialect) throw new Error(`Unsupported database type: ${config.databaseType || 'mysql'}`)
 
     this.setStatus(id, { id, state: 'connecting' })
     try {
@@ -124,7 +124,7 @@ class ConnectionManager {
   async testConnection(config: ConnectionConfig): Promise<TestResult> {
     const start = Date.now()
     const dialect = getDialect(config.databaseType || 'mysql')
-    if (!dialect) throw new Error(Unsupported database type: \)
+    if (!dialect) throw new Error(`Unsupported database type: ${config.databaseType || 'mysql'}`)
 
     try {
       const pool = dialect.createPool(config)
@@ -150,7 +150,7 @@ class ConnectionManager {
 
   getPool(connectionId: string): ActiveConnection {
     const conn = this.connections.get(connectionId)
-    if (!conn) throw new Error(No active connection pool for id: \)
+    if (!conn) throw new Error(`No active connection pool for id: ${connectionId}`)
     return conn
   }
 
