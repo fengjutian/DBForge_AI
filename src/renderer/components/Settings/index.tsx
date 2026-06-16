@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useSettingsStore } from '../../store/settingsStore'
+import Modal from '../ui/Modal'
 import type { AIProvider, AuditEntry } from '../../../shared/types'
 
 const PROVIDERS: AIProvider[] = ['openai', 'groq', 'claude', 'deepseek', 'ollama']
@@ -61,32 +62,36 @@ export default function Settings({ onClose }: Props): React.ReactElement {
     if (activeTab === '审计日志') loadAudit()
   }, [activeTab])
 
-  if (!config) return <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-white dark:bg-gray-800 rounded-lg p-8 text-sm">加载中...</div></div>
+  if (!config) return (
+    <Modal open onClose={() => {}} width="w-[680px]">
+      <div className="text-center py-8 text-sm text-gray-400">加载中...</div>
+    </Modal>
+  )
 
   const ai = config.ai
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-[680px] h-[520px] flex overflow-hidden">
+    <Modal open onClose={onClose} width="w-[680px]">
+      <div className="flex h-[480px]">
         {/* Sidebar */}
-        <div className="w-36 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col py-2">
+        <div className="w-36 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col py-2 -ml-5 -my-5 rounded-l-xl">
           {TABS.map(t => (
             <button key={t} onClick={() => setActiveTab(t)}
-              className={`text-left text-sm px-4 py-2 ${activeTab === t ? 'bg-green-50 dark:bg-green-900/30 text-green-600 font-medium' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+              className={`sidebar-btn ${activeTab === t ? 'sidebar-active' : 'sidebar-inactive'}`}>
               {t}
             </button>
           ))}
           <div className="flex-1" />
-          <button onClick={onClose} className="text-sm px-4 py-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">关闭</button>
+          <button onClick={onClose} className="sidebar-btn btn-ghost">关闭</button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto pl-5 pr-1 py-1">
           {activeTab === 'AI 配置' && (
             <div className="space-y-4">
-              <h3 className="font-semibold text-sm">AI 配置</h3>
+              <h3 className="section-title">AI 配置</h3>
               <Field label="提供商">
-                <select className={sel} value={ai.provider} onChange={e => {
+                <select className="select-field" value={ai.provider} onChange={e => {
                   const provider = e.target.value as AIProvider
                   updateAIConfig({ provider, model: DEFAULT_MODEL[provider] })
                   setApiKey('')
@@ -100,14 +105,14 @@ export default function Settings({ onClose }: Props): React.ReactElement {
                 </select>
               </Field>
               <Field label="模型">
-                <select className={sel} value={ai.model} onChange={e => updateAIConfig({ model: e.target.value })}>
+                <select className="select-field" value={ai.model} onChange={e => updateAIConfig({ model: e.target.value })}>
                   {(MODELS[ai.provider] ?? []).map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </Field>
               {ai.provider !== 'ollama' && (
                 <Field label="API Key">
                   <div className="flex gap-2">
-                    <input className={inp} type="password"
+                    <input className="input-field" type="password"
                       placeholder="sk-..."
                       value={apiKey}
                       onChange={e => { setApiKey(e.target.value); setApiKeySaved(false) }}
@@ -120,11 +125,11 @@ export default function Settings({ onClose }: Props): React.ReactElement {
               )}
               {ai.provider === 'ollama' && (
                 <Field label="Base URL">
-                  <input className={inp} value={ai.baseUrl ?? 'http://localhost:11434'} onChange={e => updateAIConfig({ baseUrl: e.target.value })} />
+                  <input className="input-field" value={ai.baseUrl ?? 'http://localhost:11434'} onChange={e => updateAIConfig({ baseUrl: e.target.value })} />
                 </Field>
               )}
               <Field label="模式">
-                <select className={sel} value={ai.mode} onChange={e => updateAIConfig({ mode: e.target.value as 'readonly' | 'full' })}>
+                <select className="select-field" value={ai.mode} onChange={e => updateAIConfig({ mode: e.target.value as 'readonly' | 'full' })}>
                   <option value="readonly">只读（仅生成 SELECT）</option>
                   <option value="full">完整（允许所有 SQL）</option>
                 </select>
@@ -138,16 +143,16 @@ export default function Settings({ onClose }: Props): React.ReactElement {
 
           {activeTab === '外观' && (
             <div className="space-y-4">
-              <h3 className="font-semibold text-sm">外观与语言</h3>
+              <h3 className="section-title">外观与语言</h3>
               <Field label="主题">
-                <select className={sel} value={config.theme} onChange={e => setTheme(e.target.value as 'system' | 'light' | 'dark')}>
+                <select className="select-field" value={config.theme} onChange={e => setTheme(e.target.value as 'system' | 'light' | 'dark')}>
                   <option value="system">跟随系统</option>
                   <option value="light">浅色</option>
                   <option value="dark">深色</option>
                 </select>
               </Field>
               <Field label="语言">
-                <select className={sel} value={config.language} onChange={e => setLanguage(e.target.value as 'zh' | 'en')}>
+                <select className="select-field" value={config.language} onChange={e => setLanguage(e.target.value as 'zh' | 'en')}>
                   <option value="zh">中文</option>
                   <option value="en">English</option>
                 </select>
@@ -157,11 +162,11 @@ export default function Settings({ onClose }: Props): React.ReactElement {
 
           {activeTab === 'mysqldump' && (
             <div className="space-y-4">
-              <h3 className="font-semibold text-sm">mysqldump 配置</h3>
+              <h3 className="section-title">mysqldump 配置</h3>
               <Field label="路径">
                 <div className="flex gap-2">
-                  <input className={inp} value={dumpPath} onChange={e => setDumpPath(e.target.value)} placeholder="/usr/bin/mysqldump" />
-                  <button onClick={detectDump} className="text-sm px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap">自动检测</button>
+                  <input className="input-field" value={dumpPath} onChange={e => setDumpPath(e.target.value)} placeholder="/usr/bin/mysqldump" />
+                  <button onClick={detectDump} className="btn-secondary whitespace-nowrap">自动检测</button>
                 </div>
               </Field>
               {dumpStatus && <p className={`text-xs ${dumpStatus.startsWith('✓') ? 'text-green-600' : 'text-red-500'}`}>{dumpStatus}</p>}
@@ -170,12 +175,12 @@ export default function Settings({ onClose }: Props): React.ReactElement {
 
           {activeTab === '快捷键' && (
             <div className="space-y-3">
-              <h3 className="font-semibold text-sm">快捷键管理</h3>
+              <h3 className="section-title">快捷键管理</h3>
               {Object.entries(config.shortcuts ?? {}).map(([action, shortcut]) => (
                 <div key={action} className="flex items-center justify-between">
                   <span className="text-sm">{action}</span>
                   {editingShortcut === action ? (
-                    <input autoFocus className={`${inp} w-40`} defaultValue={shortcut}
+                    <input autoFocus className="input-field w-40" defaultValue={shortcut}
                       onBlur={e => { updateShortcut(action, e.target.value); setEditingShortcut(null) }}
                       onKeyDown={e => { if (e.key === 'Escape') setEditingShortcut(null) }} />
                   ) : (
@@ -195,8 +200,8 @@ export default function Settings({ onClose }: Props): React.ReactElement {
           {activeTab === '审计日志' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-sm">审计日志</h3>
-                <button onClick={loadAudit} className="text-xs text-green-500 hover:underline">刷新</button>
+                <h3 className="section-title">审计日志</h3>
+                <button onClick={loadAudit} className="link">刷新</button>
               </div>
               <div className="space-y-1 max-h-80 overflow-y-auto">
                 {auditEntries.length === 0 && <p className="text-xs text-gray-400">暂无审计记录</p>}
@@ -215,13 +220,13 @@ export default function Settings({ onClose }: Props): React.ReactElement {
 
           {activeTab === '关于' && (
             <div className="space-y-4">
-              <h3 className="font-semibold text-sm">关于</h3>
+              <h3 className="section-title">关于</h3>
               <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                 <p>DBForge AI v{config.version}</p>
                 <p>跨平台桌面数据库管理工具</p>
               </div>
               <div>
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <label className="checkbox-label">
                   <input type="checkbox" checked={config.crashReportEnabled}
                     onChange={e => window.electronAPI.settings.set({ crashReportEnabled: e.target.checked })} />
                   发送崩溃报告（帮助改进产品）
@@ -231,17 +236,14 @@ export default function Settings({ onClose }: Props): React.ReactElement {
           )}
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
-
-const sel = 'w-full text-sm px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none'
-const inp = 'flex-1 text-sm px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500'
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">{label}</label>
+      <label className="field-label">{label}</label>
       {children}
     </div>
   )

@@ -74,8 +74,8 @@ export default function Onboarding({ onComplete }: Props): React.ReactElement {
             {config && (
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">AI 提供商</label>
-                  <select className={sel} value={config.ai.provider}
+                  <label className="field-label">AI 提供商</label>
+                  <select className="select-field" value={config.ai.provider}
                     onChange={e => updateAIConfig({ provider: e.target.value as AIProvider })}>
                     <option value="openai">OpenAI</option>
                     <option value="groq">Groq</option>
@@ -86,15 +86,15 @@ export default function Onboarding({ onComplete }: Props): React.ReactElement {
                 </div>
                 {config.ai.provider !== 'ollama' && (
                   <div>
-                    <label className="text-xs text-gray-500 mb-1 block">API Key</label>
-                    <input className={inp} type="password" placeholder="输入 API Key..."
+                    <label className="field-label">API Key</label>
+                    <input className="input-field" type="password" placeholder="输入 API Key..."
                       onChange={e => updateAIConfig({ apiKey: e.target.value })} />
                   </div>
                 )}
                 {config.ai.provider === 'ollama' && (
                   <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Ollama 地址</label>
-                    <input className={inp} value={config.ai.baseUrl ?? 'http://localhost:11434'}
+                    <label className="field-label">Ollama 地址</label>
+                    <input className="input-field" value={config.ai.baseUrl ?? 'http://localhost:11434'}
                       onChange={e => updateAIConfig({ baseUrl: e.target.value })} />
                   </div>
                 )}
@@ -130,12 +130,12 @@ export default function Onboarding({ onComplete }: Props): React.ReactElement {
           <div className="flex gap-2">
             {step > 0 && (
               <button onClick={() => setStep((step - 1) as Step)}
-                className="text-sm px-4 py-2 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700">
+                className="btn-secondary">
                 上一步
               </button>
             )}
             <button onClick={handleNext}
-              className="text-sm px-6 py-2 rounded bg-green-600 text-white hover:bg-green-700 font-medium">
+              className="btn-primary">
               {step === 2 ? '完成' : '下一步'}
             </button>
           </div>
@@ -145,5 +145,3 @@ export default function Onboarding({ onComplete }: Props): React.ReactElement {
   )
 }
 
-const sel = 'w-full text-sm px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none'
-const inp = 'w-full text-sm px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500'

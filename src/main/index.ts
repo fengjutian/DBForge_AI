@@ -1,6 +1,6 @@
 import { app, BrowserWindow, shell, ipcMain } from 'electron'
 import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { electronApp, is } from '@electron-toolkit/utils'
 import configStore from './services/ConfigStore'
 import historyStore from './services/HistoryStore'
 import auditLog from './services/AuditLog'
@@ -105,10 +105,10 @@ app.whenReady().then(async () => {
   registerSettingsHandlers()
   registerSessionHandlers()
 
-  // Default open or close DevTools by F12 in development
-  app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
-  })
+  // F12 DevTools shortcut disabled by default
+  // app.on('browser-window-created', (_, window) => {
+  //   optimizer.watchWindowShortcuts(window)
+  // })
 
   createWindow()
 
