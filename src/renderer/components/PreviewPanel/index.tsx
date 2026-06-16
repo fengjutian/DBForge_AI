@@ -183,7 +183,7 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
       )}
 
       {/* Table */}
-      <div className="overflow-auto" style={{ flex: '1 1 0', minHeight: 0 }}>
+      <div style={{ flex: '1 1 0', minHeight: 0 }}>
         {!result && status === 'idle' && (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">加载预览数据...</div>
         )}
@@ -212,7 +212,7 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
           <span className="text-gray-400">每页</span>
           <select className="border border-gray-300 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-700 focus:outline-none"
             value={pageSize} onChange={e => setPageSize(+e.target.value)}>
-            {[20, 50, 100, 200, 500].map(n => <option key={n} value={n}>{n}</option>)}
+            {[20, 50, 100, 200, 500, 1000, 3000, 5000, 10000, 30000, 50000, 100000, 300000, 500000, 1000000, 2000000, 3000000, 5000000, 10000000].map(n => <option key={n} value={n}>{n.toLocaleString()}</option>)}
           </select>
           <span className="text-gray-400">行</span>
         </div>

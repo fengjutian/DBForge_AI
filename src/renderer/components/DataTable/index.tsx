@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { Check, X, ArrowUp, ArrowDown, FileText, Camera, ChevronDown, Copy } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import type { ColumnMeta, FilterRule } from '../../../shared/types'
@@ -279,6 +280,11 @@ export default function DataTable({
   const [editValue, setEditValue] = useState('')
   const [cellCtxMenu, setCellCtxMenu] = useState<CellCtxMenu | null>(null)
   const editInputRef = useRef<HTMLInputElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+  // ── Stable ref to rowHeights for virtualizer estimateSize ──
+  const rowHeightsRef = useRef(rowHeights)
+  rowHeightsRef.current = rowHeights
 
   // ── React to filter changes in server mode ────────────────
   const isFirstRender = useRef(true)
@@ -311,6 +317,17 @@ export default function DataTable({
 
   const filterCount = Object.keys(filters).length
 
+  // ── Virtual scroll ─────────────────────────────────────────
+  const virtualizer = useVirtualizer({
+    count: filteredRows.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: (i: number) => rowHeightsRef.current[i] ?? DEFAULT_ROW_H,
+    overscan: 5,
+    measureElement: (el: Element) => (el as HTMLElement).getBoundingClientRect().height,
+  })
+  const virtualItems = virtualizer.getVirtualItems()
+  const totalVirtualSize = virtualizer.getTotalSize()
+
   // ── Column resize ──────────────────────────────────────────
   const onColResizeStart = useCallback((e: React.MouseEvent, col: string) => {
     e.preventDefault(); e.stopPropagation()
@@ -326,14 +343,15 @@ export default function DataTable({
   // ── Row resize ─────────────────────────────────────────────
   const onRowResizeStart = useCallback((e: React.MouseEvent, rowIdx: number) => {
     e.preventDefault(); e.stopPropagation()
-    rowDrag.current = { row: rowIdx, startY: e.clientY, startH: getRowH(rowIdx) }
+    const startH = rowHeightsRef.current[rowIdx] ?? DEFAULT_ROW_H
+    rowDrag.current = { row: rowIdx, startY: e.clientY, startH }
     const onMove = (ev: MouseEvent) => {
       if (!rowDrag.current) return
       setRowHeights(prev => ({ ...prev, [rowDrag.current!.row]: Math.max(MIN_ROW_H, rowDrag.current!.startH + ev.clientY - rowDrag.current!.startY) }))
     }
     const onUp = () => { rowDrag.current = null; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
     window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp)
-  }, [rowHeights])
+  }, [])
 
   // ── Tooltip ────────────────────────────────────────────────
   const showTooltip = useCallback((e: React.MouseEvent, value: unknown) => {
@@ -407,11 +425,11 @@ export default function DataTable({
   const commitEdit = useCallback(() => {
     if (!editingCell) return
     const { rowIdx, col } = editingCell
-    const oldValue = rows[rowIdx]?.[col]
+    const oldValue = filteredRows[rowIdx]?.[col]
     onCellEdit?.(rowIdx, col, editValue, oldValue)
     setEditingCell(null)
     setEditValue('')
-  }, [editingCell, editValue, rows, onCellEdit])
+  }, [editingCell, editValue, filteredRows, onCellEdit])
 
   const cancelEdit = useCallback(() => {
     setEditingCell(null)
@@ -419,10 +437,10 @@ export default function DataTable({
   }, [])
 
   return (
-    <div ref={internalRef}>
+    <div ref={internalRef} className="h-full flex flex-col">
       {/* Active filter bar */}
       {filterCount > 0 && (
-        <div className="flex items-center gap-2 px-2 py-1 bg-green-50 dark:bg-green-900/20 border-b border-green-200 dark:border-green-800 flex-wrap">
+        <div className="flex items-center gap-2 px-2 py-1 bg-green-50 dark:bg-green-900/20 border-b border-green-200 dark:border-green-800 flex-wrap flex-shrink-0">
           <span className="text-xs text-green-600 dark:text-green-400 shrink-0"><ChevronDown className="w-2.5 h-2.5 inline mr-0.5" />筛选中：</span>
           {Object.entries(filters).map(([col, rule]) => (
             <span key={col} className="inline-flex items-center gap-1 text-xs bg-green-100 dark:bg-green-800/50 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full">
@@ -435,100 +453,125 @@ export default function DataTable({
         </div>
       )}
 
-      <table className="text-xs border-collapse" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
-        <colgroup>
-          <col style={{ width: ROW_NUM_W }} />
-          {columns.map(col => <col key={col.name} style={{ width: getColW(col.name) }} />)}
-        </colgroup>
+      {/* Scrollable virtual table */}
+      <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-auto">
+        <table className="text-xs border-collapse" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
+          <colgroup>
+            <col style={{ width: ROW_NUM_W }} />
+            {columns.map(col => <col key={col.name} style={{ width: getColW(col.name) }} />)}
+          </colgroup>
 
-        <thead className="sticky top-0 bg-green-600 text-white dark:bg-green-700 z-10">
-          <tr>
-            <th className="border-b border-r border-green-500 dark:border-green-600 bg-green-600 dark:bg-green-700 text-white select-none" style={{ width: ROW_NUM_W }} />
-            {columns.map(col => {
-              const isColSel = selectedCol === col.name
-              const hasFilter = !!filters[col.name]
+          <thead className="sticky top-0 bg-green-600 text-white dark:bg-green-700 z-10">
+            <tr>
+              <th className="border-b border-r border-green-500 dark:border-green-600 bg-green-600 dark:bg-green-700 text-white select-none" style={{ width: ROW_NUM_W }} />
+              {columns.map(col => {
+                const isColSel = selectedCol === col.name
+                const hasFilter = !!filters[col.name]
+                return (
+                  <th key={col.name}
+                    style={{ width: getColW(col.name), position: 'relative', overflow: 'hidden' }}
+                    className={`px-2 py-1.5 text-left font-medium border-b border-r border-green-500 dark:border-green-600
+                      select-none whitespace-nowrap transition-colors text-white
+                      ${isColSel ? 'bg-green-700 dark:bg-green-800' : 'hover:bg-green-500 dark:hover:bg-green-600 cursor-pointer'}`}
+                    onClick={() => { setSelectedCol(isColSel ? null : col.name); onSort?.(col.name, sortColumn === col.name && sortDirection === 'asc' ? 'desc' : 'asc') }}
+                    onContextMenu={e => onColContextMenu(e, col.name)}>
+                    <span className="truncate flex items-center gap-1 pr-2">
+                      {hasFilter && <span className="text-orange-400 shrink-0" title={`${filters[col.name].op} '${filters[col.name].value}'`}><ChevronDown className="w-2.5 h-2.5 inline" /></span>}
+                      {col.name}
+                      {sortColumn === col.name && <span className="ml-1">{sortDirection === 'asc' ? <ArrowUp className="w-2.5 h-2.5 inline" /> : <ArrowDown className="w-2.5 h-2.5 inline" />}</span>}
+                    </span>
+                    <div onMouseDown={e => onColResizeStart(e, col.name)}
+                      className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-green-400/60 active:bg-green-500/80 transition-colors"
+                      style={{ zIndex: 1 }} onClick={e => e.stopPropagation()} />
+                  </th>
+                )
+              })}
+            </tr>
+          </thead>
+
+          <tbody>
+            {/* Top spacer for virtual scrolling */}
+            {virtualItems.length > 0 && virtualItems[0].start > 0 && (
+              <tr>
+                <td colSpan={columns.length + 1} style={{ height: virtualItems[0].start, padding: 0, border: 'none' }} />
+              </tr>
+            )}
+            {virtualItems.map(virtualRow => {
+              const i = virtualRow.index
+              const row = filteredRows[i]
+              const isRowSel = selectedRow === i
+              const rowH = getRowH(i)
               return (
-                <th key={col.name}
-                  style={{ width: getColW(col.name), position: 'relative', overflow: 'hidden' }}
-                  className={`px-2 py-1.5 text-left font-medium border-b border-r border-green-500 dark:border-green-600
-                    select-none whitespace-nowrap transition-colors text-white
-                    ${isColSel ? 'bg-green-700 dark:bg-green-800' : 'hover:bg-green-500 dark:hover:bg-green-600 cursor-pointer'}`}
-                  onClick={() => { setSelectedCol(isColSel ? null : col.name); onSort?.(col.name, sortColumn === col.name && sortDirection === 'asc' ? 'desc' : 'asc') }}
-                  onContextMenu={e => onColContextMenu(e, col.name)}>
-                  <span className="truncate flex items-center gap-1 pr-2">
-                    {hasFilter && <span className="text-orange-400 shrink-0" title={`${filters[col.name].op} '${filters[col.name].value}'`}><ChevronDown className="w-2.5 h-2.5 inline" /></span>}
-                    {col.name}
-                    {sortColumn === col.name && <span className="ml-1">{sortDirection === 'asc' ? <ArrowUp className="w-2.5 h-2.5 inline" /> : <ArrowDown className="w-2.5 h-2.5 inline" />}</span>}
-                  </span>
-                  <div onMouseDown={e => onColResizeStart(e, col.name)}
-                    className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-green-400/60 active:bg-green-500/80 transition-colors"
-                    style={{ zIndex: 1 }} onClick={e => e.stopPropagation()} />
-                </th>
+                <tr key={virtualRow.key}
+                  data-index={i}
+                  ref={virtualizer.measureElement}
+                  style={{ height: rowH }}
+                  className="border-b border-gray-100 dark:border-gray-800">
+                  <td style={{ width: ROW_NUM_W, height: rowH, position: 'relative', overflow: 'visible' }}
+                    className={`border-r border-gray-200 dark:border-gray-700 text-right select-none cursor-pointer transition-colors
+                      ${isRowSel ? 'bg-green-500 text-white font-bold' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                    onClick={() => setSelectedRow(isRowSel ? null : i)}>
+                    <span className="px-2">{rowOffset + i + 1}</span>
+                    <div onMouseDown={e => onRowResizeStart(e, i)}
+                      className="absolute bottom-0 left-0 w-full h-1.5 cursor-row-resize hover:bg-green-400/60 active:bg-green-500/80 transition-colors"
+                      style={{ zIndex: 1 }} onClick={e => e.stopPropagation()} />
+                  </td>
+                  {columns.map(col => {
+                    const isColSel = selectedCol === col.name
+                    const isCellHov = hoveredCell?.row === i && hoveredCell?.col === col.name
+                    const bg = isCellHov ? 'bg-yellow-100 dark:bg-yellow-900/40'
+                      : isRowSel && isColSel ? 'bg-green-300 dark:bg-green-700/70'
+                      : isRowSel ? 'bg-green-100 dark:bg-green-900/40'
+                      : isColSel ? 'bg-green-50 dark:bg-green-900/20' : ''
+                    const isEditing = editingCell?.rowIdx === i && editingCell?.col === col.name
+                  const value = row[col.name]
+                  return (
+                    <td key={col.name}
+                      style={{ width: getColW(col.name), height: rowH, maxWidth: getColW(col.name) }}
+                      onMouseEnter={e => { if (!isEditing) { setHoveredCell({ row: i, col: col.name }); showTooltip(e, value) } }}
+                      onMouseLeave={() => { if (!isEditing) { setHoveredCell(null); hideTooltip() } }}
+                      onMouseMove={isEditing ? undefined : updateTooltipPos}
+                      onClick={() => { if (!isEditing) setHoveredCell({ row: i, col: col.name }) }}
+                      onDoubleClick={() => startEditing(i, col.name, value)}
+                      onContextMenu={e => onCellContextMenu(e, i, col.name, value)}
+                      className={`px-2 font-mono border-r border-gray-100 dark:border-gray-800 overflow-hidden cursor-default transition-colors ${bg}`}>
+                        {isEditing ? (
+                          <input
+                            ref={editInputRef}
+                            className="w-full h-full bg-white dark:bg-gray-700 border border-green-500 rounded px-1 outline-none text-xs"
+                            style={{ lineHeight: `${rowH - 4}px` }}
+                            value={editValue}
+                            onChange={e => setEditValue(e.target.value)}
+                            onBlur={commitEdit}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') commitEdit()
+                              else if (e.key === 'Escape') cancelEdit()
+                            }}
+                          />
+                        ) : (
+                          <div className="cell-inner truncate" style={{ lineHeight: `${rowH}px` }}>
+                            {value === null ? <span className="text-gray-400 italic">NULL</span> : valueToString(value)}
+                          </div>
+                        )}
+                      </td>
+                    )
+                  })}
+                </tr>
               )
             })}
-          </tr>
-        </thead>
-
-        <tbody>
-          {filteredRows.map((row, i) => {
-            const isRowSel = selectedRow === i
-            const rowH = getRowH(i)
-            return (
-              <tr key={i} style={{ height: rowH }} className="border-b border-gray-100 dark:border-gray-800">
-                <td style={{ width: ROW_NUM_W, height: rowH, position: 'relative', overflow: 'visible' }}
-                  className={`border-r border-gray-200 dark:border-gray-700 text-right select-none cursor-pointer transition-colors
-                    ${isRowSel ? 'bg-green-500 text-white font-bold' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
-                  onClick={() => setSelectedRow(isRowSel ? null : i)}>
-                  <span className="px-2">{rowOffset + i + 1}</span>
-                  <div onMouseDown={e => onRowResizeStart(e, i)}
-                    className="absolute bottom-0 left-0 w-full h-1.5 cursor-row-resize hover:bg-green-400/60 active:bg-green-500/80 transition-colors"
-                    style={{ zIndex: 1 }} onClick={e => e.stopPropagation()} />
-                </td>
-                {columns.map(col => {
-                  const isColSel = selectedCol === col.name
-                  const isCellHov = hoveredCell?.row === i && hoveredCell?.col === col.name
-                  const bg = isCellHov ? 'bg-yellow-100 dark:bg-yellow-900/40'
-                    : isRowSel && isColSel ? 'bg-green-300 dark:bg-green-700/70'
-                    : isRowSel ? 'bg-green-100 dark:bg-green-900/40'
-                    : isColSel ? 'bg-green-50 dark:bg-green-900/20' : ''
-                  const isEditing = editingCell?.rowIdx === i && editingCell?.col === col.name
-                const value = row[col.name]
-                return (
-                  <td key={col.name}
-                    style={{ width: getColW(col.name), height: rowH, maxWidth: getColW(col.name) }}
-                    onMouseEnter={e => { if (!isEditing) { setHoveredCell({ row: i, col: col.name }); showTooltip(e, value) } }}
-                    onMouseLeave={() => { if (!isEditing) { setHoveredCell(null); hideTooltip() } }}
-                    onMouseMove={isEditing ? undefined : updateTooltipPos}
-                    onClick={() => { if (!isEditing) setHoveredCell({ row: i, col: col.name }) }}
-                    onDoubleClick={() => startEditing(i, col.name, value)}
-                    onContextMenu={e => onCellContextMenu(e, i, col.name, value)}
-                    className={`px-2 font-mono border-r border-gray-100 dark:border-gray-800 overflow-hidden cursor-default transition-colors ${bg}`}>
-                      {isEditing ? (
-                        <input
-                          ref={editInputRef}
-                          className="w-full h-full bg-white dark:bg-gray-700 border border-green-500 rounded px-1 outline-none text-xs"
-                          style={{ lineHeight: `${rowH - 4}px` }}
-                          value={editValue}
-                          onChange={e => setEditValue(e.target.value)}
-                          onBlur={commitEdit}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') commitEdit()
-                            else if (e.key === 'Escape') cancelEdit()
-                          }}
-                        />
-                      ) : (
-                        <div className="cell-inner truncate" style={{ lineHeight: `${rowH}px` }}>
-                          {value === null ? <span className="text-gray-400 italic">NULL</span> : valueToString(value)}
-                        </div>
-                      )}
-                    </td>
-                  )
-                })}
+            {/* Bottom spacer for virtual scrolling */}
+            {virtualItems.length > 0 && totalVirtualSize - (virtualItems[virtualItems.length - 1]?.end ?? 0) > 0 && (
+              <tr>
+                <td colSpan={columns.length + 1} style={{
+                  height: Math.max(0, totalVirtualSize - (virtualItems[virtualItems.length - 1]?.end ?? 0)),
+                  padding: 0,
+                  border: 'none'
+                }} />
               </tr>
-            )
-          })}
-        </tbody>
-      </table>
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {tooltip && <CellTooltip {...tooltip} />}
 

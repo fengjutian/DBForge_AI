@@ -218,7 +218,7 @@ export default function ResultPanel(): React.ReactElement {
         </div>
       )}
 
-      <div className="overflow-auto" style={{ flex: '1 1 0', minHeight: 0 }}>
+      <div style={{ flex: '1 1 0', minHeight: 0 }}>
         {!result && status === 'idle' && (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">执行 SQL 查询后结果将显示在这里</div>
         )}
@@ -250,7 +250,7 @@ export default function ResultPanel(): React.ReactElement {
               value={pagination.pageSize}
               onChange={e => setPage(1, +e.target.value)}
             >
-              {[20, 50, 100, 200, 500].map(n => <option key={n} value={n}>{n}</option>)}
+              {[20, 50, 100, 200, 500, 1000, 3000, 5000, 10000, 30000, 50000, 100000, 300000, 500000, 1000000, 2000000, 3000000, 5000000, 10000000].map(n => <option key={n} value={n}>{n.toLocaleString()}</option>)}
             </select>
             <span className="text-gray-400">行</span>
           </div>
