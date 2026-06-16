@@ -44,7 +44,8 @@ async function exportToCSV(connectionId: string, sql: string, fullExport: boolea
       const values = columns.map(c => {
         const val = row[c.name]
         if (val === null || val === undefined) return ''
-        return `"${String(val).replace(/"/g, '""')}"`;
+        const s = typeof val === 'object' ? JSON.stringify(val) : String(val)
+        return `"${s.replace(/"/g, '""')}"`;
       }).join(',')
       stream.write(values + '\n')
     }

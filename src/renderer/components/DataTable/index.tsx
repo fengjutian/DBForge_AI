@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
-import { Check, X, ArrowUp, ArrowDown, FileText, Camera, ChevronDown } from 'lucide-react'
+import { Check, X, ArrowUp, ArrowDown, FileText, Camera, ChevronDown, Copy } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import type { ColumnMeta, FilterRule } from '../../../shared/types'
 
@@ -16,10 +16,14 @@ interface DataTableProps {
   filterMode?: 'client' | 'server'
   /** Called when filters change in 'server' mode */
   onFiltersChange?: (filters: Record<string, FilterRule>) => void
+  /** Called when a cell is edited via double-click */
+  onCellEdit?: (rowIndex: number, col: string, newValue: string, oldValue: unknown) => void
 }
 
 interface TooltipState { content: string; x: number; y: number }
 interface CtxMenu { col: string; x: number; y: number; cellValue: unknown }
+interface CellCtxMenu { rowIdx: number; col: string; value: unknown; x: number; y: number }
+interface EditingCell { rowIdx: number; col: string }
 
 const DEFAULT_COL_W = 150
 const MIN_COL_W = 40
@@ -28,9 +32,16 @@ const MIN_ROW_H = 18
 const ROW_NUM_W = 40
 const TOOLTIP_DELAY = 600
 
+// ── safely convert any value to display string ───────────────
+function valueToString(v: unknown): string {
+  if (v === null || v === undefined) return ''
+  if (typeof v === 'object') return JSON.stringify(v)
+  return String(v)
+}
+
 // ── apply a single filter rule to a value ─────────────────────
 function matchFilter(value: unknown, rule: FilterRule): boolean {
-  const str = value === null || value === undefined ? '' : String(value)
+  const str = value === null || value === undefined ? '' : valueToString(value)
   const v = rule.value
   switch (rule.op) {
     case '=':    return str === v
@@ -93,7 +104,7 @@ function SQLModal({ sql, onClose }: { sql: string; onClose: () => void }) {
 
 // ── Column Context Menu ────────────────────────────────────────
 function ColContextMenu({
-  menu, onClose, onSort, onFilter, onClearFilter, onViewSQL, onScreenshot, hasSql, activeFilter
+  menu, onClose, onSort, onFilter, onClearFilter, onViewSQL, onScreenshot, onCopy, hasSql, activeFilter
 }: {
   menu: CtxMenu
   onClose: () => void
@@ -102,11 +113,12 @@ function ColContextMenu({
   onClearFilter: (col: string) => void
   onViewSQL: () => void
   onScreenshot: () => void
+  onCopy: (val: unknown) => void
   hasSql: boolean
   activeFilter?: FilterRule
 }) {
   const { col, x, y, cellValue } = menu
-  const val = cellValue !== null && cellValue !== undefined ? String(cellValue) : null
+  const val = cellValue !== null && cellValue !== undefined ? valueToString(cellValue) : null
 
   const menuRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ x, y })
@@ -139,6 +151,11 @@ function ColContextMenu({
         {/* Sort */}
         {item(<ArrowUp className="w-2.5 h-2.5" />, `升序 (${col} ASC)`, () => onSort(col, 'asc'), 'text-green-600 dark:text-green-400')}
         {item(<ArrowDown className="w-2.5 h-2.5" />, `降序 (${col} DESC)`, () => onSort(col, 'desc'), 'text-green-600 dark:text-green-400')}
+
+        <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
+
+        {/* Copy */}
+        {item(<Copy className="w-2.5 h-2.5" />, '复制', () => onCopy(menu.cellValue))}
 
         <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
 
@@ -199,6 +216,43 @@ function ColContextMenu({
   )
 }
 
+// ── Cell Context Menu (right-click on a cell) ────────────────
+function CellContextMenu({
+  menu, onClose, onCopy
+}: {
+  menu: CellCtxMenu
+  onClose: () => void
+  onCopy: (val: unknown) => void
+}) {
+  const { x, y } = menu
+  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ x, y })
+  useEffect(() => {
+    if (!ref.current) return
+    const { width, height } = ref.current.getBoundingClientRect()
+    setPos({
+      x: x + width > window.innerWidth - 8 ? x - width : x,
+      y: y + height > window.innerHeight - 8 ? y - height : y
+    })
+  }, [x, y])
+
+  return createPortal(
+    <div className="fixed inset-0 z-[200]" onClick={onClose}>
+      <div ref={ref}
+        className="fixed bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl py-1 w-40 text-gray-900 dark:text-gray-100"
+        style={{ left: pos.x, top: pos.y }}
+        onClick={e => e.stopPropagation()}>
+        <button onClick={() => { onCopy(menu.value); onClose() }}
+          className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700">
+          <Copy className="w-3 h-3 shrink-0" />
+          <span>复制</span>
+        </button>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
 // ── Main DataTable ─────────────────────────────────────────────
 export default function DataTable({
   columns, rows, rowOffset = 0,
@@ -215,6 +269,10 @@ export default function DataTable({
   const [ctxMenu, setCtxMenu] = useState<CtxMenu | null>(null)
   const [showSQL, setShowSQL] = useState(false)
   const [filters, setFilters] = useState<Record<string, FilterRule>>({})
+  const [editingCell, setEditingCell] = useState<EditingCell | null>(null)
+  const [editValue, setEditValue] = useState('')
+  const [cellCtxMenu, setCellCtxMenu] = useState<CellCtxMenu | null>(null)
+  const editInputRef = useRef<HTMLInputElement>(null)
 
   // ── React to filter changes in server mode ────────────────
   const isFirstRender = useRef(true)
@@ -277,7 +335,7 @@ export default function DataTable({
     const inner = (e.currentTarget as HTMLElement).querySelector('.cell-inner') as HTMLElement | null
     if (inner && inner.scrollWidth <= inner.clientWidth) return
     const { clientX, clientY } = e
-    tooltipTimer.current = setTimeout(() => setTooltip({ content: String(value), x: clientX, y: clientY }), TOOLTIP_DELAY)
+    tooltipTimer.current = setTimeout(() => setTooltip({ content: valueToString(value), x: clientX, y: clientY }), TOOLTIP_DELAY)
   }, [])
   const hideTooltip = useCallback(() => { if (tooltipTimer.current) clearTimeout(tooltipTimer.current); setTooltip(null) }, [])
   const updateTooltipPos = useCallback((e: React.MouseEvent) => {
@@ -308,6 +366,41 @@ export default function DataTable({
       const a = document.createElement('a'); a.href = dataUrl; a.download = `table-${Date.now()}.png`; a.click()
     } catch (e) { console.error('截图失败', e) }
   }, [containerRef])
+
+  // ── Copy cell value to clipboard ─────────────────────────
+  const copyToClipboard = useCallback(async (value: unknown) => {
+    try {
+      await navigator.clipboard.writeText(valueToString(value))
+    } catch { /* clipboard not available */ }
+  }, [])
+
+  // ── Cell context menu ────────────────────────────────────
+  const onCellContextMenu = useCallback((e: React.MouseEvent, rowIdx: number, col: string, value: unknown) => {
+    e.preventDefault()
+    setCellCtxMenu({ rowIdx, col, value, x: e.clientX, y: e.clientY })
+  }, [])
+
+  // ── Double-click editing ─────────────────────────────────
+  const startEditing = useCallback((rowIdx: number, col: string, value: unknown) => {
+    setEditingCell({ rowIdx, col })
+    setEditValue(valueToString(value))
+    // Focus the input on next render
+    setTimeout(() => editInputRef.current?.focus(), 0)
+  }, [])
+
+  const commitEdit = useCallback(() => {
+    if (!editingCell) return
+    const { rowIdx, col } = editingCell
+    const oldValue = rows[rowIdx]?.[col]
+    onCellEdit?.(rowIdx, col, editValue, oldValue)
+    setEditingCell(null)
+    setEditValue('')
+  }, [editingCell, editValue, rows, onCellEdit])
+
+  const cancelEdit = useCallback(() => {
+    setEditingCell(null)
+    setEditValue('')
+  }, [])
 
   return (
     <div ref={internalRef}>
@@ -382,18 +475,36 @@ export default function DataTable({
                     : isRowSel && isColSel ? 'bg-green-300 dark:bg-green-700/70'
                     : isRowSel ? 'bg-green-100 dark:bg-green-900/40'
                     : isColSel ? 'bg-green-50 dark:bg-green-900/20' : ''
-                  const value = row[col.name]
-                  return (
-                    <td key={col.name}
-                      style={{ width: getColW(col.name), height: rowH, maxWidth: getColW(col.name) }}
-                      onMouseEnter={e => { setHoveredCell({ row: i, col: col.name }); showTooltip(e, value) }}
-                      onMouseLeave={() => { setHoveredCell(null); hideTooltip() }}
-                      onMouseMove={updateTooltipPos}
-                      onClick={() => setHoveredCell({ row: i, col: col.name })}
-                      className={`px-2 font-mono border-r border-gray-100 dark:border-gray-800 overflow-hidden cursor-default transition-colors ${bg}`}>
-                      <div className="cell-inner truncate" style={{ lineHeight: `${rowH}px` }}>
-                        {value === null ? <span className="text-gray-400 italic">NULL</span> : String(value ?? '')}
-                      </div>
+                  const isEditing = editingCell?.rowIdx === i && editingCell?.col === col.name
+                const value = row[col.name]
+                return (
+                  <td key={col.name}
+                    style={{ width: getColW(col.name), height: rowH, maxWidth: getColW(col.name) }}
+                    onMouseEnter={e => { if (!isEditing) { setHoveredCell({ row: i, col: col.name }); showTooltip(e, value) } }}
+                    onMouseLeave={() => { if (!isEditing) { setHoveredCell(null); hideTooltip() } }}
+                    onMouseMove={isEditing ? undefined : updateTooltipPos}
+                    onClick={() => { if (!isEditing) setHoveredCell({ row: i, col: col.name }) }}
+                    onDoubleClick={() => startEditing(i, col.name, value)}
+                    onContextMenu={e => onCellContextMenu(e, i, col.name, value)}
+                    className={`px-2 font-mono border-r border-gray-100 dark:border-gray-800 overflow-hidden cursor-default transition-colors ${bg}`}>
+                      {isEditing ? (
+                        <input
+                          ref={editInputRef}
+                          className="w-full h-full bg-white dark:bg-gray-700 border border-green-500 rounded px-1 outline-none text-xs"
+                          style={{ lineHeight: `${rowH - 4}px` }}
+                          value={editValue}
+                          onChange={e => setEditValue(e.target.value)}
+                          onBlur={commitEdit}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') commitEdit()
+                            else if (e.key === 'Escape') cancelEdit()
+                          }}
+                        />
+                      ) : (
+                        <div className="cell-inner truncate" style={{ lineHeight: `${rowH}px` }}>
+                          {value === null ? <span className="text-gray-400 italic">NULL</span> : valueToString(value)}
+                        </div>
+                      )}
                     </td>
                   )
                 })}
@@ -405,6 +516,14 @@ export default function DataTable({
 
       {tooltip && <CellTooltip {...tooltip} />}
 
+      {cellCtxMenu && (
+        <CellContextMenu
+          menu={cellCtxMenu}
+          onClose={() => setCellCtxMenu(null)}
+          onCopy={copyToClipboard}
+        />
+      )}
+
       {ctxMenu && (
         <ColContextMenu
           menu={ctxMenu}
@@ -414,6 +533,7 @@ export default function DataTable({
           onClearFilter={handleClearFilter}
           onViewSQL={() => setShowSQL(true)}
           onScreenshot={handleScreenshot}
+          onCopy={copyToClipboard}
           hasSql={!!sql}
           activeFilter={filters[ctxMenu.col]}
         />

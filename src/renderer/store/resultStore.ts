@@ -96,7 +96,10 @@ export const selectDisplayRows = (state: ResultState): Record<string, unknown>[]
   if (state.search) {
     const lower = state.search.toLowerCase()
     rows = rows.filter((row) =>
-      Object.values(row).some((v) => String(v ?? '').toLowerCase().includes(lower))
+      Object.values(row).some((v) => {
+        const s = v !== null && v !== undefined && typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')
+        return s.toLowerCase().includes(lower)
+      })
     )
   }
 
@@ -107,7 +110,8 @@ export const selectDisplayRows = (state: ResultState): Record<string, unknown>[]
     rows = [...rows].sort((a, b) => {
       const av = a[col] ?? ''
       const bv = b[col] ?? ''
-      return String(av).localeCompare(String(bv)) * dir
+      const safeStr = (v: unknown): string => v !== null && v !== undefined && typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')
+      return safeStr(av).localeCompare(safeStr(bv)) * dir
     })
   }
 
@@ -123,8 +127,10 @@ export const selectTotalRows = (state: ResultState): number => {
 
   const lower = state.search.toLowerCase()
   return state.result.rows.filter((row) =>
-    Object.values(row).some((v) => String(v ?? '').toLowerCase().includes(lower))
-  ).length
+    Object.values(row).some((v) => {
+      const s = v !== null && v !== undefined && typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')
+      return s.toLowerCase().includes(lower)
+    }).length
 }
 
 export const selectColumns = (state: ResultState): ColumnMeta[] => {

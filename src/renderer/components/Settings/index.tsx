@@ -82,7 +82,7 @@ export default function Settings({ onClose }: Props): React.ReactElement {
             </button>
           ))}
           <div className="flex-1" />
-          <button onClick={onClose} className="sidebar-btn btn-ghost">关闭</button>
+          <button onClick={onClose} className="btn-primary w-full">关闭</button>
         </div>
 
         {/* Content */}

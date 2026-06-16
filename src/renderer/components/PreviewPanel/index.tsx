@@ -190,7 +190,10 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
         {result && columns.length > 0 && (
           <DataTable
             columns={columns}
-            rows={rows.filter(row => !search || Object.values(row).some(v => String(v ?? '').toLowerCase().includes(search.toLowerCase())))}
+            rows={rows.filter(row => !search || Object.values(row).some(v => {
+              const s = v !== null && v !== undefined && typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')
+              return s.toLowerCase().includes(search.toLowerCase())
+            }))}
             rowOffset={(page - 1) * pageSize}
             sortColumn={sort.column}
             sortDirection={sort.direction}
