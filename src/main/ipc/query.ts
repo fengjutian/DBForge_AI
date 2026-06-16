@@ -29,74 +29,83 @@ export function register(): void {
     const startTime = Date.now()
     let success = false
     let result
+    let caughtError: unknown = null
 
     try {
       result = await queryExecutor.execute({ ...rest, abortSignal: controller.signal })
       success = true
-
-      // Record history
-      const connConfig = connectionManager.getConnection(rest.connectionId)
-      const limit = configStore.get('historyLimit') ?? 1000
-      historyStore.add(
-        {
-          connectionId: rest.connectionId,
-          connectionName: connConfig?.name ?? rest.connectionId,
-          sql: rest.sql,
-          executedAt: startTime,
-          duration: result.executionTime,
-          rowCount: result.rows.length,
-          success: true
-        },
-        limit
-      )
-
-      // Audit log for write operations
-      if (result.affectedRows !== undefined) {
-        auditLog.add({
-          connectionId: rest.connectionId,
-          connectionName: connConfig?.name ?? rest.connectionId,
-          sql: rest.sql,
-          executedAt: startTime,
-          result: 'success',
-          affectedRows: result.affectedRows ?? 0
-        })
-      }
-
+      // Fall through to finally for history/audit recording
       return result
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-
-      // Record failed audit entry for write operations
-      const connConfig = connectionManager.getConnection(rest.connectionId)
-      auditLog.add({
-        connectionId: rest.connectionId,
-        connectionName: connConfig?.name ?? rest.connectionId,
-        sql: rest.sql,
-        executedAt: startTime,
-        result: 'failure',
-        affectedRows: 0,
-        errorMessage: message
-      })
-
-      if (!success) {
+      caughtError = err
+      // Fall through to finally for history/audit recording
+    } finally {
+      // Record history and audit — best-effort, never fail the query
+      try {
+        const connConfig = connectionManager.getConnection(rest.connectionId)
         const limit = configStore.get('historyLimit') ?? 1000
-        historyStore.add(
-          {
+
+        if (success && result) {
+          historyStore.add(
+            {
+              connectionId: rest.connectionId,
+              connectionName: connConfig?.name ?? rest.connectionId,
+              sql: rest.sql,
+              executedAt: startTime,
+              duration: result.executionTime,
+              rowCount: result.rows?.length ?? 0,
+              success: true
+            },
+            limit
+          )
+
+          // Audit log for write operations
+          if (result.affectedRows !== undefined) {
+            auditLog.add({
+              connectionId: rest.connectionId,
+              connectionName: connConfig?.name ?? rest.connectionId,
+              sql: rest.sql,
+              executedAt: startTime,
+              result: 'success',
+              affectedRows: result.affectedRows ?? 0
+            })
+          }
+        } else {
+          historyStore.add(
+            {
+              connectionId: rest.connectionId,
+              connectionName: connConfig?.name ?? rest.connectionId,
+              sql: rest.sql,
+              executedAt: startTime,
+              duration: Date.now() - startTime,
+              rowCount: 0,
+              success: false
+            },
+            limit
+          )
+
+          // Audit all failed queries
+          auditLog.add({
             connectionId: rest.connectionId,
             connectionName: connConfig?.name ?? rest.connectionId,
             sql: rest.sql,
             executedAt: startTime,
-            duration: Date.now() - startTime,
-            rowCount: 0,
-            success: false
-          },
-          limit
-        )
+            result: 'failure',
+            affectedRows: 0,
+            errorMessage: undefined
+          })
+        }
+      } catch (recordErr) {
+        // History/audit recording failure must never affect query execution
+        console.error('[Query] Failed to record history/audit:', recordErr)
       }
 
-      throw wrapError(err)
-    } finally {
       activeQueries.delete(id)
+
+      // If the query failed, throw the error after recording history
+      if (!success && caughtError) {
+        throw wrapError(caughtError)
+      }
     }
   })
 

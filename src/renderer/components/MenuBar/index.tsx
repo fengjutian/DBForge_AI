@@ -18,8 +18,6 @@ interface MenuBarProps {
   onNewQuery?: () => void
   onOpenSettings?: () => void
   onToggleAI?: () => void
-  onToggleConnectionPanel?: () => void
-  onToggleSchemaPanel?: () => void
   aiPanelOpen?: boolean
 }
 
@@ -28,8 +26,6 @@ function MenuBar({
   onNewQuery,
   onOpenSettings,
   onToggleAI,
-  onToggleConnectionPanel,
-  onToggleSchemaPanel,
   aiPanelOpen
 }: MenuBarProps): React.ReactElement {
   const [openMenu, setOpenMenu] = useState<string | null>(null)
@@ -82,9 +78,6 @@ function MenuBar({
     {
       label: '查看',
       items: [
-        { label: '连接面板', action: onToggleConnectionPanel },
-        { label: 'Schema 面板', action: onToggleSchemaPanel },
-        { label: '', separator: true },
         {
           label: 'AI 面板',
           shortcut: aiPanelOpen ? '✓ 已开启' : '',

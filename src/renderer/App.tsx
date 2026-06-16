@@ -3,8 +3,7 @@ import { AlertTriangle, Lock } from 'lucide-react'
 import TitleBar from './components/TitleBar'
 import MenuBar from './components/MenuBar'
 import StatusBar from './components/StatusBar'
-import ConnectionPanel from './components/ConnectionPanel'
-import SchemaBrowser from './components/SchemaBrowser'
+import ConnectionTree from './components/ConnectionTree'
 import SQLEditor from './components/SQLEditor'
 import TabManager from './components/TabManager'
 import ResultPanel from './components/ResultPanel'
@@ -13,6 +12,7 @@ import AIPanel from './components/AIPanel'
 import BackupDialog from './components/BackupDialog'
 import Settings from './components/Settings'
 import Onboarding from './components/Onboarding'
+import WelcomePage from './components/WelcomePage'
 import LiquidGlassOrb from './components/LiquidGlassOrb'
 import { useSettingsStore } from './store/settingsStore'
 import { useEditorStore } from './store/editorStore'
@@ -89,12 +89,11 @@ function App(): React.ReactElement {
   const [showBackup, setShowBackup] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
-  const [leftPanel, setLeftPanel] = useState<'connections' | 'schema'>('connections')
   const [rightPanel, setRightPanel] = useState<'ai' | null>(null)
   const [databases, setDatabases] = useState<string[]>([])
 
   // Resizable panels
-  const [leftWidth, leftDragProps] = useResize({ direction: 'horizontal', initialSize: 224, min: 300, max: 500 })
+  const [leftWidth, leftDragProps] = useResize({ direction: 'horizontal', initialSize: 300, min: 300, max: 500 })
   const [rightWidth, rightDragProps] = useResize({ direction: 'horizontal', initialSize: 288, min: 160, max: 600, reverse: true })
   const [resultHeight, resultDragProps] = useResize({ direction: 'vertical', initialSize: 320, min: 120, max: 800, reverse: true })
 
@@ -168,8 +167,7 @@ function App(): React.ReactElement {
           onOpenSettings={() => setShowSettings(true)}
           onToggleAI={() => setRightPanel(p => p === 'ai' ? null : 'ai')}
           aiPanelOpen={rightPanel === 'ai'}
-          onToggleConnectionPanel={() => setLeftPanel('connections')}
-          onToggleSchemaPanel={() => setLeftPanel('schema')}
+
         />
 
         {/* Main layout */}
@@ -177,18 +175,8 @@ function App(): React.ReactElement {
           {/* Left sidebar */}
           <div className="flex flex-col border-r border-gray-200 dark:border-gray-700 flex-shrink-0 overflow-hidden"
             style={{ width: leftWidth }}>
-            <div className="flex border-b border-gray-200 dark:border-gray-700">
-              <button onClick={() => setLeftPanel('connections')}
-                className={`flex-1 text-xs py-1.5 font-medium ${leftPanel === 'connections' ? 'bg-white dark:bg-gray-900 text-green-600 border-b-2 border-green-500' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
-                连接
-              </button>
-              <button onClick={() => setLeftPanel('schema')}
-                className={`flex-1 text-xs py-1.5 font-medium ${leftPanel === 'schema' ? 'bg-white dark:bg-gray-900 text-green-600 border-b-2 border-green-500' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
-                Schema
-              </button>
-            </div>
             <div className="flex-1 overflow-hidden">
-              {leftPanel === 'connections' ? <ConnectionPanel /> : <SchemaBrowser />}
+              <ConnectionTree />
             </div>
           </div>
 
@@ -213,9 +201,10 @@ function App(): React.ReactElement {
                   {/* Editor area */}
                   <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
                     {activeTab ? <SQLEditor tabId={activeTab.id} /> : (
-                      <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-                        点击 + 新建查询标签页
-                      </div>
+                      <WelcomePage
+                        onOpenSettings={() => setShowSettings(true)}
+                        onToggleAI={() => setRightPanel(p => p === 'ai' ? null : 'ai')}
+                      />
                     )}
                   </div>
 
