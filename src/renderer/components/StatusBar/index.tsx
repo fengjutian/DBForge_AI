@@ -73,7 +73,7 @@ function StatusBar(): React.ReactElement {
 
   return (
     <div className="flex items-center h-[22px] flex-shrink-0 select-none
-      bg-[#007acc] text-white text-[11px] px-2 gap-1"
+      bg-green-700 text-white text-[11px] px-2 gap-1"
     >
       {/* ── Left section ──────────────────────────────────── */}
       <div className="flex items-center gap-1 flex-1 min-w-0">

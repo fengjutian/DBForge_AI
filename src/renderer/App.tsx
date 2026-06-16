@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { AlertTriangle, Lock } from 'lucide-react'
 import TitleBar from './components/TitleBar'
+import MenuBar from './components/MenuBar'
 import StatusBar from './components/StatusBar'
 import ConnectionPanel from './components/ConnectionPanel'
 import SchemaBrowser from './components/SchemaBrowser'
@@ -159,6 +160,15 @@ function App(): React.ReactElement {
           aiPanelOpen={rightPanel === 'ai'}
           onOpenBackup={() => setShowBackup(true)}
           databases={databases}
+        />
+
+        {/* Menu bar */}
+        <MenuBar
+          onOpenSettings={() => setShowSettings(true)}
+          onToggleAI={() => setRightPanel(p => p === 'ai' ? null : 'ai')}
+          aiPanelOpen={rightPanel === 'ai'}
+          onToggleConnectionPanel={() => setLeftPanel('connections')}
+          onToggleSchemaPanel={() => setLeftPanel('schema')}
         />
 
         {/* Main layout */}
