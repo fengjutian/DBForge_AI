@@ -71,7 +71,9 @@
     "electron-vite": "^2.1.0",
     "fast-check": "^3.18.0",
     "postcss": "^8.4.38",
+    "sharp": "^0.35.1",
     "tailwindcss": "^3.4.3",
+    "to-ico": "^1.1.5",
     "typescript": "^5.4.5",
     "vite": "^5.2.10",
     "vitest": "^1.5.0"
