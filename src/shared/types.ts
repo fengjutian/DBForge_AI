@@ -102,9 +102,48 @@ export interface TableInfo {
   dataSize?: number
 }
 
+export interface ViewInfo {
+  name: string
+  definition?: string // the SELECT statement
+}
+
+export interface IndexInfo {
+  name: string
+  tableName: string
+  columns: string[]
+  unique: boolean
+  type?: string // BTREE, HASH, etc.
+}
+
+export interface ProcedureInfo {
+  name: string
+  definition?: string
+  parameters?: string // simplified param signature
+}
+
+export interface TriggerInfo {
+  name: string
+  tableName?: string
+  timing: string // BEFORE, AFTER, INSTEAD OF
+  event: string // INSERT, UPDATE, DELETE
+  definition?: string
+}
+
+export interface EventInfo {
+  name: string
+  schedule?: string
+  definition?: string
+  status?: string
+}
+
 export interface DatabaseInfo {
   name: string
   tables: TableInfo[]
+  views?: ViewInfo[]
+  indexes?: IndexInfo[]
+  procedures?: ProcedureInfo[]
+  triggers?: TriggerInfo[]
+  events?: EventInfo[]
 }
 
 export interface DatabaseSchema {
@@ -377,6 +416,8 @@ export interface AppConfig {
   crashReportEnabled: boolean
   onboardingCompleted: boolean
   version: string
+  /** All SQL query execution records persisted in settings */
+  queryHistory: QueryHistory[]
 }
 
 // ============================================================

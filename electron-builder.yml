@@ -78,7 +78,7 @@ publish:
   releaseType: release
 
 # Native modules rebuild
-npmRebuild: true
+npmRebuild: false
 nodeGypRebuild: false
 
 # Exclude optional native modules that require a C++ compiler

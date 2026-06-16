@@ -46,18 +46,18 @@ export function register(): void {
         const limit = configStore.get('historyLimit') ?? 1000
 
         if (success && result) {
-          historyStore.add(
-            {
-              connectionId: rest.connectionId,
-              connectionName: connConfig?.name ?? rest.connectionId,
-              sql: rest.sql,
-              executedAt: startTime,
-              duration: result.executionTime,
-              rowCount: result.rows?.length ?? 0,
-              success: true
-            },
-            limit
-          )
+          const historyEntry = {
+            connectionId: rest.connectionId,
+            connectionName: connConfig?.name ?? rest.connectionId,
+            sql: rest.sql,
+            executedAt: startTime,
+            duration: result.executionTime,
+            rowCount: result.rows?.length ?? 0,
+            success: true
+          }
+
+          historyStore.add(historyEntry, limit)
+          configStore.addQueryHistory(historyEntry)
 
           // Audit log for write operations
           if (result.affectedRows !== undefined) {
@@ -71,18 +71,18 @@ export function register(): void {
             })
           }
         } else {
-          historyStore.add(
-            {
-              connectionId: rest.connectionId,
-              connectionName: connConfig?.name ?? rest.connectionId,
-              sql: rest.sql,
-              executedAt: startTime,
-              duration: Date.now() - startTime,
-              rowCount: 0,
-              success: false
-            },
-            limit
-          )
+          const historyEntry = {
+            connectionId: rest.connectionId,
+            connectionName: connConfig?.name ?? rest.connectionId,
+            sql: rest.sql,
+            executedAt: startTime,
+            duration: Date.now() - startTime,
+            rowCount: 0,
+            success: false
+          }
+
+          historyStore.add(historyEntry, limit)
+          configStore.addQueryHistory(historyEntry)
 
           // Audit all failed queries
           auditLog.add({

@@ -3,7 +3,7 @@
 // ============================================================
 
 import type { DatabaseDialect, BackupParams, RestoreParams } from './DialectInterface'
-import type { DatabaseSchema, ColumnMeta, QueryResult, ConnectionConfig } from '../../../shared/types'
+import type { DatabaseSchema, ColumnMeta, QueryResult, ConnectionConfig, ViewInfo, IndexInfo, ProcedureInfo, TriggerInfo } from '../../../shared/types'
 
 function stripComments(sql: string): string {
   return sql.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/--[^\r\n]*/g, ' ')
@@ -116,6 +116,71 @@ export class PostgreSQLDialect implements DatabaseDialect {
       pkMap.get(k)!.add(pk.column_name)
     }
 
+    // ── Views ──
+    const vRows: any[] = await q(
+      `SELECT table_schema, table_name, view_definition FROM information_schema.views WHERE table_schema NOT IN ('pg_catalog','information_schema') ORDER BY table_schema, table_name`
+    )
+    const dbViews = new Map<string, ViewInfo[]>()
+    for (const v of vRows) {
+      if (!dbViews.has(v.table_schema)) dbViews.set(v.table_schema, [])
+      dbViews.get(v.table_schema)!.push({ name: v.table_name, definition: v.view_definition ?? undefined })
+    }
+
+    // ── Indexes ──
+    const iRows: any[] = await q(
+      `SELECT schemaname, tablename, indexname, indexdef FROM pg_indexes WHERE schemaname NOT IN ('pg_catalog','information_schema') ORDER BY schemaname, tablename, indexname`
+    )
+    const dbIndexes = new Map<string, IndexInfo[]>()
+    for (const ix of iRows) {
+      if (!dbIndexes.has(ix.schemaname)) dbIndexes.set(ix.schemaname, [])
+      // Parse columns from indexdef: CREATE [UNIQUE] INDEX name ON table USING btree (col1, col2)
+      const isUnique = /\bUNIQUE\b/i.test(ix.indexdef)
+      const usingMatch = ix.indexdef.match(/USING\s+(\w+)/i)
+      const idxType = usingMatch ? usingMatch[1] : undefined
+      const colMatch = ix.indexdef.match(/\(([^)]+)\)/)
+      const columns = colMatch ? colMatch[1].split(',').map((s: string) => s.trim()) : []
+      dbIndexes.get(ix.schemaname)!.push({ name: ix.indexname, tableName: ix.tablename, columns, unique: isUnique, type: idxType })
+    }
+
+    // ── Stored Procedures & Functions ──
+    const pRows: any[] = await q(
+      `SELECT r.routine_schema, r.routine_name, r.routine_type, r.routine_definition, r.data_type,
+              pg_get_function_identity_arguments(p.oid) AS args
+       FROM information_schema.routines r
+       JOIN pg_catalog.pg_namespace n ON n.nspname = r.routine_schema
+       JOIN pg_catalog.pg_proc p ON p.proname = r.routine_name AND p.pronamespace = n.oid
+       WHERE r.routine_schema NOT IN ('pg_catalog','information_schema')
+       ORDER BY r.routine_schema, r.routine_name`
+    )
+    const seenProc = new Set<string>()
+    const dbProcs = new Map<string, ProcedureInfo[]>()
+    for (const p of pRows) {
+      const key = `${p.routine_schema}.${p.routine_name}.${p.routine_type}`
+      if (seenProc.has(key)) continue
+      seenProc.add(key)
+      if (!dbProcs.has(p.routine_schema)) dbProcs.set(p.routine_schema, [])
+      dbProcs.get(p.routine_schema)!.push({ name: p.routine_name, definition: p.routine_definition ?? undefined, parameters: p.args ?? undefined })
+    }
+
+    // ── Triggers ──
+    const tRows: any[] = await q(
+      `SELECT trigger_schema, trigger_name, event_object_table, action_timing, event_manipulation, action_statement
+       FROM information_schema.triggers
+       WHERE trigger_schema NOT IN ('pg_catalog','information_schema')
+       ORDER BY trigger_schema, event_object_table, trigger_name`
+    )
+    const dbTriggers = new Map<string, TriggerInfo[]>()
+    for (const t of tRows) {
+      if (!dbTriggers.has(t.trigger_schema)) dbTriggers.set(t.trigger_schema, [])
+      dbTriggers.get(t.trigger_schema)!.push({
+        name: t.trigger_name,
+        tableName: t.event_object_table,
+        timing: t.action_timing,
+        event: t.event_manipulation,
+        definition: t.action_statement ?? undefined
+      })
+    }
+
     const tablesBySchema = new Map<string, string[]>()
     for (const c of cols) {
       const k = c.table_schema
@@ -143,7 +208,11 @@ export class PostgreSQLDialect implements DatabaseDialect {
             referencedColumn: f.ref_column
           }))
           return { name: tn, columns: tableCols, primaryKeys: pkCols, foreignKeys: tableFKs, rowCount: rowEstMap.get(key), dataSize: sizeMap.get(key) }
-        })
+        }),
+        views: dbViews.get(schema) ?? [],
+        indexes: dbIndexes.get(schema) ?? [],
+        procedures: dbProcs.get(schema) ?? [],
+        triggers: dbTriggers.get(schema) ?? []
       })),
       fetchedAt: Date.now()
     }

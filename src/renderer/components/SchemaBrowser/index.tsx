@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { ChevronRight, Database, Table2, Key, Circle, Link2, RefreshCw, FileText, GitFork, Clipboard, BookOpen, Zap, BarChart3, HardDrive } from 'lucide-react'
+import { ChevronRight, Database, Table2, Key, Circle, Link2, RefreshCw, FileText, GitFork, Clipboard, BookOpen, Zap, BarChart3, HardDrive, Eye, Layers, Code2, Play, Clock } from 'lucide-react'
 import type { DatabaseSchema, DatabaseInfo, TableInfo } from '../../../shared/types'
 import { useConnectionStore } from '../../store/connectionStore'
 import { useSessionStore } from '../../store/sessionStore'
@@ -42,8 +42,18 @@ export default function SchemaBrowser(): React.ReactElement {
   // Schema comes from the global session — no local fetch needed
   const schema: DatabaseSchema | null = activeConnectionId ? getSchema(activeConnectionId) : null
 
-  const toggle = (key: string) =>
-    setExpanded(prev => { const s = new Set(prev); s.has(key) ? s.delete(key) : s.add(key); return s })
+  const handleDbToggle = (dbName: string) => {
+    setExpanded(prev => {
+      const s = new Set(prev)
+      if (s.has(dbName)) {
+        s.delete(dbName)
+      } else {
+        s.add(dbName)
+        s.add(`${dbName}__tables`) // auto-expand tables section
+      }
+      return s
+    })
+  }
 
   const handleContextMenu = (e: React.MouseEvent, db: DatabaseInfo, table: TableInfo) => {
     e.preventDefault()
@@ -177,7 +187,7 @@ export default function SchemaBrowser(): React.ReactElement {
           <div key={db.name}>
             <div
               className="flex items-center gap-1 px-2 py-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 font-medium"
-              onClick={() => toggle(db.name)}
+              onClick={() => handleDbToggle(db.name)}
               onContextMenu={e => handleDbContextMenu(e, db)}
               onMouseEnter={e => showTooltip(e, db.name)}
               onMouseLeave={closeTooltip}
@@ -185,14 +195,26 @@ export default function SchemaBrowser(): React.ReactElement {
               <ChevronRight size={14} className={`text-gray-400 transition-transform ${expanded.has(db.name) ? 'rotate-90' : ''}`} />
               <Database size={16} className="text-green-600 dark:text-green-400 shrink-0" />
               <span className="text-green-600 dark:text-green-400 truncate max-w-[150px]" title={db.name}>{db.name}</span>
-              <span className="ml-auto text-xs text-gray-400">{db.tables.length}</span>
+              <span className="ml-auto text-xs text-gray-400">{db.tables.length + (db.views?.length ?? 0) + (db.indexes?.length ?? 0) + (db.procedures?.length ?? 0) + (db.triggers?.length ?? 0) + (db.events?.length ?? 0)}</span>
               <button
                 onClick={e => { e.stopPropagation(); handleShowJoinBuilder(db.name) }}
                 title="可视化 JOIN 构建器"
                 className="ml-1 text-gray-400 hover:text-green-500 p-0.5"
               ><Link2 size={12} /></button>
             </div>
-            {expanded.has(db.name) && db.tables.map(table => (
+            {expanded.has(db.name) && (
+              <>
+                {/* ── Tables ── */}
+                {db.tables.length > 0 && (
+                  <>
+                    <div className="flex items-center gap-1 pl-5 pr-2 py-0.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 text-xs text-gray-400 font-medium"
+                      onClick={() => toggle(`${db.name}__tables`)}>
+                      <ChevronRight size={12} className={`transition-transform ${expanded.has(`${db.name}__tables`) ? 'rotate-90' : ''}`} />
+                      <Table2 size={12} className="text-blue-500 shrink-0" />
+                      <span className="text-blue-500">表</span>
+                      <span className="ml-auto">{db.tables.length}</span>
+                    </div>
+                    {expanded.has(`${db.name}__tables`) && db.tables.map(table => (
               <div key={table.name}>
                 <div className="flex items-center gap-1 pl-5 pr-2 py-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                   onClick={() => toggle(`${db.name}.${table.name}`)}
@@ -221,7 +243,118 @@ export default function SchemaBrowser(): React.ReactElement {
                   </div>
                 )}
               </div>
-            ))}
+                ))}
+                    </>
+                )}
+
+                {/* ── Views ── */}
+                {db.views && db.views.length > 0 && (
+                  <>
+                    <div className="flex items-center gap-1 pl-5 pr-2 py-0.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 text-xs text-gray-400 font-medium"
+                      onClick={() => toggle(`${db.name}__views`)}>
+                      <ChevronRight size={12} className={`transition-transform ${expanded.has(`${db.name}__views`) ? 'rotate-90' : ''}`} />
+                      <Eye size={12} className="text-purple-500 shrink-0" />
+                      <span className="text-purple-500">视图</span>
+                      <span className="ml-auto">{db.views.length}</span>
+                    </div>
+                    {expanded.has(`${db.name}__views`) && db.views.map(v => (
+                      <div key={`view-${v.name}`} className="flex items-center gap-2 pl-10 py-0.5 px-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <Eye size={11} className="text-purple-400 shrink-0" />
+                        <span className="font-mono">{v.name}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {/* ── Indexes ── */}
+                {db.indexes && db.indexes.length > 0 && (
+                  <>
+                    <div className="flex items-center gap-1 pl-5 pr-2 py-0.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 text-xs text-gray-400 font-medium"
+                      onClick={() => toggle(`${db.name}__indexes`)}>
+                      <ChevronRight size={12} className={`transition-transform ${expanded.has(`${db.name}__indexes`) ? 'rotate-90' : ''}`} />
+                      <Layers size={12} className="text-amber-500 shrink-0" />
+                      <span className="text-amber-500">索引</span>
+                      <span className="ml-auto">{db.indexes.length}</span>
+                    </div>
+                    {expanded.has(`${db.name}__indexes`) && db.indexes.map(idx => (
+                      <div key={`idx-${idx.name}`} className="flex items-center gap-2 pl-10 py-0.5 px-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                        onMouseEnter={e => showTooltip(e, `${idx.name} (${idx.tableName})`)}
+                        onMouseLeave={closeTooltip}>
+                        <Layers size={11} className={`shrink-0 ${idx.unique ? 'text-amber-500' : 'text-gray-400'}`} />
+                        <span className="font-mono truncate max-w-[130px]">{idx.name}</span>
+                        <span className="text-gray-400 ml-auto truncate max-w-[80px]">{idx.columns.join(', ')}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {/* ── Stored Procedures ── */}
+                {db.procedures && db.procedures.length > 0 && (
+                  <>
+                    <div className="flex items-center gap-1 pl-5 pr-2 py-0.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 text-xs text-gray-400 font-medium"
+                      onClick={() => toggle(`${db.name}__procedures`)}>
+                      <ChevronRight size={12} className={`transition-transform ${expanded.has(`${db.name}__procedures`) ? 'rotate-90' : ''}`} />
+                      <Code2 size={12} className="text-blue-500 shrink-0" />
+                      <span className="text-blue-500">存储过程</span>
+                      <span className="ml-auto">{db.procedures.length}</span>
+                    </div>
+                    {expanded.has(`${db.name}__procedures`) && db.procedures.map(proc => (
+                      <div key={`proc-${proc.name}`} className="flex items-center gap-2 pl-10 py-0.5 px-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                        onMouseEnter={e => showTooltip(e, proc.parameters ?? proc.name)}
+                        onMouseLeave={closeTooltip}>
+                        <Code2 size={11} className="text-blue-400 shrink-0" />
+                        <span className="font-mono">{proc.name}</span>
+                        {proc.parameters && <span className="text-gray-400">({proc.parameters})</span>}
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {/* ── Triggers ── */}
+                {db.triggers && db.triggers.length > 0 && (
+                  <>
+                    <div className="flex items-center gap-1 pl-5 pr-2 py-0.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 text-xs text-gray-400 font-medium"
+                      onClick={() => toggle(`${db.name}__triggers`)}>
+                      <ChevronRight size={12} className={`transition-transform ${expanded.has(`${db.name}__triggers`) ? 'rotate-90' : ''}`} />
+                      <Play size={12} className="text-green-500 shrink-0" />
+                      <span className="text-green-500">触发器</span>
+                      <span className="ml-auto">{db.triggers.length}</span>
+                    </div>
+                    {expanded.has(`${db.name}__triggers`) && db.triggers.map(trig => (
+                      <div key={`trig-${trig.name}`} className="flex items-center gap-2 pl-10 py-0.5 px-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                        onMouseEnter={e => showTooltip(e, `${trig.timing} ${trig.event}${trig.tableName ? ' ON ' + trig.tableName : ''}`)}
+                        onMouseLeave={closeTooltip}>
+                        <Play size={11} className="text-green-400 shrink-0" />
+                        <span className="font-mono truncate max-w-[120px]">{trig.name}</span>
+                        <span className="text-gray-400 ml-auto text-[10px]">{trig.timing} {trig.event}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {/* ── Events ── */}
+                {db.events && db.events.length > 0 && (
+                  <>
+                    <div className="flex items-center gap-1 pl-5 pr-2 py-0.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 text-xs text-gray-400 font-medium"
+                      onClick={() => toggle(`${db.name}__events`)}>
+                      <ChevronRight size={12} className={`transition-transform ${expanded.has(`${db.name}__events`) ? 'rotate-90' : ''}`} />
+                      <Clock size={12} className="text-cyan-500 shrink-0" />
+                      <span className="text-cyan-500">事件</span>
+                      <span className="ml-auto">{db.events.length}</span>
+                    </div>
+                    {expanded.has(`${db.name}__events`) && db.events.map(evt => (
+                      <div key={`evt-${evt.name}`} className="flex items-center gap-2 pl-10 py-0.5 px-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                        onMouseEnter={e => showTooltip(e, evt.schedule ?? evt.name)}
+                        onMouseLeave={closeTooltip}>
+                        <Clock size={11} className="text-cyan-400 shrink-0" />
+                        <span className="font-mono truncate max-w-[140px]">{evt.name}</span>
+                        {evt.status && <span className={`ml-auto text-[10px] ${evt.status === 'ENABLED' ? 'text-green-500' : 'text-gray-400'}`}>{evt.status}</span>}
+                      </div>
+                    ))}
+                  </>
+                )}
+              </>
+            )}
           </div>
         ))}
       </div>

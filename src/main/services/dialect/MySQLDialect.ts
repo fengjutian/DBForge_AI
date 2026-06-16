@@ -4,7 +4,7 @@
 
 import mysql2 from 'mysql2/promise'
 import type { DatabaseDialect, BackupParams, RestoreParams } from './DialectInterface'
-import type { DatabaseSchema, ColumnMeta, QueryResult, ConnectionConfig } from '../../../shared/types'
+import type { DatabaseSchema, ColumnMeta, QueryResult, ConnectionConfig, ViewInfo, IndexInfo, ProcedureInfo, TriggerInfo, EventInfo } from '../../../shared/types'
 
 export class MySQLDialect implements DatabaseDialect {
   readonly id = 'mysql'
@@ -76,8 +76,73 @@ export class MySQLDialect implements DatabaseDialect {
       fkMap.get(k)!.push({ c: f.COLUMN_NAME, rt: f.REFERENCED_TABLE_NAME, rc: f.REFERENCED_COLUMN_NAME })
     }
 
+    // ── Views ──
+    const viewRows = await q("SELECT TABLE_SCHEMA, TABLE_NAME, VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA IN (" + ph + ") ORDER BY TABLE_SCHEMA, TABLE_NAME", dbNames)
+    // ── Indexes ──
+    const idxRows = await q("SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_TYPE FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA IN (" + ph + ") ORDER BY TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX", dbNames)
+    // ── Stored Procedures & Functions ──
+    const procRows = await q("SELECT ROUTINE_SCHEMA, ROUTINE_NAME, ROUTINE_TYPE, ROUTINE_DEFINITION, DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA IN (" + ph + ") ORDER BY ROUTINE_SCHEMA, ROUTINE_NAME", dbNames)
+    // ── Triggers ──
+    const trigRows = await q("SELECT TRIGGER_SCHEMA, TRIGGER_NAME, EVENT_OBJECT_TABLE, ACTION_TIMING, EVENT_MANIPULATION, ACTION_STATEMENT FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA IN (" + ph + ") ORDER BY TRIGGER_SCHEMA, TRIGGER_NAME", dbNames)
+    // ── Events ──
+    let eventRows: any[] = []
+    try {
+      eventRows = await q("SELECT EVENT_SCHEMA, EVENT_NAME, EVENT_DEFINITION, STATUS, INTERVAL_VALUE, INTERVAL_FIELD FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA IN (" + ph + ") ORDER BY EVENT_SCHEMA, EVENT_NAME", dbNames)
+    } catch { /* EVENTS table may not be accessible */ }
+
+    // ── Index map ──
+    const idxMap = new Map<string, { name: string; columns: string[]; unique: boolean; type: string }[]>()
+    for (const ix of idxRows) {
+      const k = ix.TABLE_SCHEMA + '.' + ix.TABLE_NAME
+      if (!idxMap.has(k)) idxMap.set(k, [])
+      const arr = idxMap.get(k)!
+      let entry = arr.find(e => e.name === ix.INDEX_NAME)
+      if (!entry) {
+        entry = { name: ix.INDEX_NAME, columns: [], unique: ix.NON_UNIQUE === 0, type: ix.INDEX_TYPE }
+        arr.push(entry)
+      }
+      entry.columns.push(ix.COLUMN_NAME)
+    }
+    // Flatten per-database indexes
+    const dbIndexes = new Map<string, IndexInfo[]>()
+    for (const [k, arr] of idxMap) {
+      const schema = k.split('.')[0]
+      if (!dbIndexes.has(schema)) dbIndexes.set(schema, [])
+      for (const e of arr) {
+        dbIndexes.get(schema)!.push({ name: e.name, tableName: k.split('.')[1], columns: e.columns, unique: e.unique, type: e.type })
+      }
+    }
+
+    // ── Views per database ──
+    const dbViews = new Map<string, ViewInfo[]>()
+    for (const v of viewRows) {
+      if (!dbViews.has(v.TABLE_SCHEMA)) dbViews.set(v.TABLE_SCHEMA, [])
+      dbViews.get(v.TABLE_SCHEMA)!.push({ name: v.TABLE_NAME, definition: v.VIEW_DEFINITION ?? undefined })
+    }
+
+    // ── Procedures per database ──
+    const dbProcs = new Map<string, ProcedureInfo[]>()
+    for (const p of procRows) {
+      if (!dbProcs.has(p.ROUTINE_SCHEMA)) dbProcs.set(p.ROUTINE_SCHEMA, [])
+      dbProcs.get(p.ROUTINE_SCHEMA)!.push({ name: p.ROUTINE_NAME, definition: p.ROUTINE_DEFINITION ?? undefined, parameters: p.DTD_IDENTIFIER ?? undefined })
+    }
+
+    // ── Triggers per database ──
+    const dbTriggers = new Map<string, TriggerInfo[]>()
+    for (const t of trigRows) {
+      if (!dbTriggers.has(t.TRIGGER_SCHEMA)) dbTriggers.set(t.TRIGGER_SCHEMA, [])
+      dbTriggers.get(t.TRIGGER_SCHEMA)!.push({ name: t.TRIGGER_NAME, tableName: t.EVENT_OBJECT_TABLE, timing: t.ACTION_TIMING, event: t.EVENT_MANIPULATION, definition: t.ACTION_STATEMENT ?? undefined })
+    }
+
+    // ── Events per database ──
+    const dbEvents = new Map<string, EventInfo[]>()
+    for (const e of eventRows) {
+      if (!dbEvents.has(e.EVENT_SCHEMA)) dbEvents.set(e.EVENT_SCHEMA, [])
+      dbEvents.get(e.EVENT_SCHEMA)!.push({ name: e.EVENT_NAME, definition: e.EVENT_DEFINITION ?? undefined, status: e.STATUS, schedule: e.INTERVAL_VALUE ? `EVERY ${e.INTERVAL_VALUE} ${e.INTERVAL_FIELD}` : undefined })
+    }
+
     const dbMap = new Map<string, any>()
-    for (const d of dbNames) dbMap.set(d, { name: d, tables: [] as any[] })
+    for (const d of dbNames) dbMap.set(d, { name: d, tables: [] as any[], views: dbViews.get(d) ?? [], indexes: dbIndexes.get(d) ?? [], procedures: dbProcs.get(d) ?? [], triggers: dbTriggers.get(d) ?? [], events: dbEvents.get(d) ?? [] })
 
     for (const t of tables) {
       const key = t.TABLE_SCHEMA + '.' + t.TABLE_NAME

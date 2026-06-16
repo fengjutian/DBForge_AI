@@ -77,7 +77,8 @@ describe('Shared Types', () => {
       auditRetentionDays: 90,
       crashReportEnabled: false,
       onboardingCompleted: false,
-      version: '1.0.0'
+      version: '1.0.0',
+      queryHistory: []
     }
     expect(config.historyLimit).toBe(1000)
     expect(config.auditRetentionDays).toBe(90)

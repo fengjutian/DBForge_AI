@@ -2,7 +2,8 @@ import React, { useEffect, useState, useCallback, useRef } from 'react'
 import {
   ChevronRight, Database, Table2, Key, Circle, Link2, RefreshCw,
   FileText, GitFork, Clipboard, BookOpen, Zap, BarChart3,
-  Plus, Pencil, Trash2, Plug, Unplug, HardDrive
+  Plus, Pencil, Trash2, Plug, Unplug, HardDrive, Search,
+  Eye, Layers, Code2, Play, Clock
 } from 'lucide-react'
 import type {
   ConnectionConfig, SSHTunnelConfig,
@@ -95,10 +96,34 @@ export default function ConnectionTree(): React.ReactElement {
   // ── Row count / storage size toggle ──
   const [showStorage, setShowStorage] = useState(false)
 
+  // ── Table search ──
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedSearchIndex, setSelectedSearchIndex] = useState(0)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
   const containerRef = useRef<HTMLDivElement>(null)
   const [loadingRef, setLoadingRef] = useState<Set<string>>(new Set())
 
   useEffect(() => { loadConnections() }, [loadConnections])
+
+  // ── Ctrl+Shift+F table search shortcut ──
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'F' || e.key === 'f')) {
+        e.preventDefault()
+        setSearchOpen(true)
+        setSearchQuery('')
+        setSelectedSearchIndex(0)
+        setTimeout(() => searchInputRef.current?.focus(), 50)
+      }
+      if (e.key === 'Escape' && searchOpen) {
+        setSearchOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [searchOpen])
 
   // ── Helpers ──────────────────────────────────────────────
   const dbKey = (connId: string, dbName: string) => `${connId}/${dbName}`
@@ -109,6 +134,79 @@ export default function ConnectionTree(): React.ReactElement {
   const isTblExpanded = (connId: string, dbName: string, tblName: string) => expandedTables.has(tblKey(connId, dbName, tblName))
 
   const closeAllMenus = () => { setTableMenu(null); setDbMenu(null); setConnMenu(null) }
+
+  // ── Table search ─────────────────────────────────────────
+  /** Score how well a query matches a target string. Higher = better. */
+  const scoreMatch = (query: string, target: string): number => {
+    const q = query.toLowerCase()
+    const t = target.toLowerCase()
+    if (q.length === 0) return 0
+    if (t === q) return 100                        // exact match
+    if (t.startsWith(q)) return 80                 // prefix match
+    // word-boundary prefix (e.g. "user" matches "user_profile")
+    const words = t.split(/[_\-\s]/)
+    if (words.some(w => w.startsWith(q))) return 70
+    if (t.includes(q)) return 60                   // substring match
+    // character-order fuzzy: consecutive matches score higher
+    let qi = 0, score = 0, consecutive = 0
+    for (let ti = 0; ti < t.length && qi < q.length; ti++) {
+      if (t[ti] === q[qi]) {
+        qi++
+        consecutive++
+        score += consecutive * 5                   // consecutive chars boost
+      } else {
+        consecutive = 0
+      }
+    }
+    return qi === q.length ? Math.min(score, 40) : 0  // fuzzy match capped at 40
+  }
+
+  /** Flatten all tables across all connections into a searchable list */
+  const searchableTables = (() => {
+    const result: { connName: string; connId: string; dbName: string; tableName: string; score: number }[] = []
+    for (const conn of connections) {
+      const schema = getSchema(conn.id)
+      if (!schema?.databases) continue
+      for (const db of schema.databases) {
+        for (const table of db.tables) {
+          result.push({ connName: conn.name, connId: conn.id, dbName: db.name, tableName: table.name, score: 0 })
+        }
+      }
+    }
+    return result
+  })()
+
+  /** Filter and rank tables by search query. Requires ≥2 chars. */
+  const filteredTables = (() => {
+    const q = searchQuery.trim()
+    if (q.length < 2) return []   // require at least 2 characters
+    const scored = searchableTables
+      .map(t => {
+        const tableScore = scoreMatch(q, t.tableName)
+        const dbScore = scoreMatch(q, t.dbName)
+        const connScore = scoreMatch(q, t.connName)
+        const fullScore = scoreMatch(q, `${t.dbName}.${t.tableName}`)
+        t.score = Math.max(tableScore * 2, dbScore, connScore, fullScore)  // tableName weight ×2
+        return t
+      })
+      .filter(t => t.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 30)   // top 30
+    return scored
+  })()
+
+  /** Select a table result: expand tree nodes and close search */
+  const handleSelectSearchResult = async (connId: string, dbName: string, tableName: string) => {
+    // Expand connection (activate if needed)
+    if (!isConnExpanded(connId) && !hasSession(connId)) {
+      try { await activate(connId) } catch { /* ignore */ }
+    }
+    setExpandedConns(prev => new Set(prev).add(connId))
+    setExpandedDbs(prev => new Set(prev).add(dbKey(connId, dbName)))
+    setExpandedTables(prev => new Set(prev).add(tblKey(connId, dbName, tableName)))
+    setSearchOpen(false)
+    setSearchQuery('')
+  }
 
   // ── Connection expand/collapse ───────────────────────────
   const handleConnectionToggle = async (conn: ConnectionConfig) => {
@@ -327,7 +425,12 @@ export default function ConnectionTree(): React.ReactElement {
             setExpandedDbs(prev => {
               const s = new Set(prev)
               const k = dbKey(connId, db.name)
-              s.has(k) ? s.delete(k) : s.add(k)
+              if (s.has(k)) {
+                s.delete(k)
+              } else {
+                s.add(k)
+                s.add(k + '__tables') // auto-expand tables section
+              }
               return s
             })
           }}
@@ -338,7 +441,7 @@ export default function ConnectionTree(): React.ReactElement {
           <ChevronRight size={14} className={`text-gray-400 transition-transform shrink-0 ${isDbExpanded(connId, db.name) ? 'rotate-90' : ''}`} />
           <Database size={16} className="text-green-600 dark:text-green-400 shrink-0" />
           <span className="text-green-600 dark:text-green-400 truncate max-w-[120px]" title={db.name}>{db.name}</span>
-          <span className="ml-auto text-xs text-gray-400">{db.tables.length}</span>
+          <span className="ml-auto text-xs text-gray-400">{db.tables.length + (db.views?.length ?? 0) + (db.indexes?.length ?? 0) + (db.procedures?.length ?? 0) + (db.triggers?.length ?? 0) + (db.events?.length ?? 0)}</span>
           <button
             onClick={e => { e.stopPropagation(); handleShowJoinBuilder(connId, db.name) }}
             title="可视化 JOIN 构建器"
@@ -347,7 +450,28 @@ export default function ConnectionTree(): React.ReactElement {
         </div>
 
         {/* ── Tables ── */}
-        {isDbExpanded(connId, db.name) && db.tables.map(table => (
+        {isDbExpanded(connId, db.name) && (
+          <>
+            {db.tables.length > 0 && (
+              <>
+                <div
+                  className="flex items-center gap-1 pl-10 pr-2 py-0.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 text-xs text-gray-400 font-medium"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setExpandedDbs(prev => {
+                      const s = new Set(prev)
+                      const k = dbKey(connId, db.name) + '__tables'
+                      s.has(k) ? s.delete(k) : s.add(k)
+                      return s
+                    })
+                  }}
+                >
+                  <ChevronRight size={12} className={`transition-transform ${isDbExpanded(connId, db.name + '__tables') ? 'rotate-90' : ''}`} />
+                  <Table2 size={12} className="text-blue-500 shrink-0" />
+                  <span className="text-blue-500">表</span>
+                  <span className="ml-auto">{db.tables.length}</span>
+                </div>
+                {isDbExpanded(connId, db.name + '__tables') && db.tables.map(table => (
           <div key={tblKey(connId, db.name, table.name)}>
             <div
               className="flex items-center gap-1 pl-10 pr-2 py-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -396,7 +520,168 @@ export default function ConnectionTree(): React.ReactElement {
               </div>
             )}
           </div>
-        ))}
+            ))}
+                </>
+            )}
+
+            {/* ── Views ── */}
+            {db.views && db.views.length > 0 && (
+              <>
+                <div
+                  className="flex items-center gap-1 pl-10 pr-2 py-0.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 text-xs text-gray-400 font-medium"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setExpandedDbs(prev => {
+                      const s = new Set(prev)
+                      const k = dbKey(connId, db.name) + '__views'
+                      s.has(k) ? s.delete(k) : s.add(k)
+                      return s
+                    })
+                  }}
+                >
+                  <ChevronRight size={12} className={`transition-transform ${isDbExpanded(connId, db.name + '__views') ? 'rotate-90' : ''}`} />
+                  <Eye size={12} className="text-purple-500 shrink-0" />
+                  <span className="text-purple-500">视图</span>
+                  <span className="ml-auto">{db.views.length}</span>
+                </div>
+                {isDbExpanded(connId, db.name + '__views') && db.views.map(v => (
+                  <div key={`view-${v.name}`} className="flex items-center gap-2 pl-14 py-0.5 px-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <Eye size={11} className="text-purple-400 shrink-0" />
+                    <span className="font-mono">{v.name}</span>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* ── Indexes ── */}
+            {db.indexes && db.indexes.length > 0 && (
+              <>
+                <div
+                  className="flex items-center gap-1 pl-10 pr-2 py-0.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 text-xs text-gray-400 font-medium"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setExpandedDbs(prev => {
+                      const s = new Set(prev)
+                      const k = dbKey(connId, db.name) + '__indexes'
+                      s.has(k) ? s.delete(k) : s.add(k)
+                      return s
+                    })
+                  }}
+                >
+                  <ChevronRight size={12} className={`transition-transform ${isDbExpanded(connId, db.name + '__indexes') ? 'rotate-90' : ''}`} />
+                  <Layers size={12} className="text-amber-500 shrink-0" />
+                  <span className="text-amber-500">索引</span>
+                  <span className="ml-auto">{db.indexes.length}</span>
+                </div>
+                {isDbExpanded(connId, db.name + '__indexes') && db.indexes.map(idx => (
+                  <div key={`idx-${idx.name}`} className="flex items-center gap-2 pl-14 py-0.5 px-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                    onMouseEnter={e => showTooltip(e, `${idx.name} (${idx.tableName})`)}
+                    onMouseLeave={closeTooltip}>
+                    <Layers size={11} className={`shrink-0 ${idx.unique ? 'text-amber-500' : 'text-gray-400'}`} />
+                    <span className="font-mono truncate max-w-[110px]">{idx.name}</span>
+                    <span className="text-gray-400 ml-auto truncate max-w-[70px]">{idx.columns.join(', ')}</span>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* ── Stored Procedures ── */}
+            {db.procedures && db.procedures.length > 0 && (
+              <>
+                <div
+                  className="flex items-center gap-1 pl-10 pr-2 py-0.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 text-xs text-gray-400 font-medium"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setExpandedDbs(prev => {
+                      const s = new Set(prev)
+                      const k = dbKey(connId, db.name) + '__procedures'
+                      s.has(k) ? s.delete(k) : s.add(k)
+                      return s
+                    })
+                  }}
+                >
+                  <ChevronRight size={12} className={`transition-transform ${isDbExpanded(connId, db.name + '__procedures') ? 'rotate-90' : ''}`} />
+                  <Code2 size={12} className="text-blue-500 shrink-0" />
+                  <span className="text-blue-500">存储过程</span>
+                  <span className="ml-auto">{db.procedures.length}</span>
+                </div>
+                {isDbExpanded(connId, db.name + '__procedures') && db.procedures.map(proc => (
+                  <div key={`proc-${proc.name}`} className="flex items-center gap-2 pl-14 py-0.5 px-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                    onMouseEnter={e => showTooltip(e, proc.parameters ?? proc.name)}
+                    onMouseLeave={closeTooltip}>
+                    <Code2 size={11} className="text-blue-400 shrink-0" />
+                    <span className="font-mono">{proc.name}</span>
+                    {proc.parameters && <span className="text-gray-400">({proc.parameters})</span>}
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* ── Triggers ── */}
+            {db.triggers && db.triggers.length > 0 && (
+              <>
+                <div
+                  className="flex items-center gap-1 pl-10 pr-2 py-0.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 text-xs text-gray-400 font-medium"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setExpandedDbs(prev => {
+                      const s = new Set(prev)
+                      const k = dbKey(connId, db.name) + '__triggers'
+                      s.has(k) ? s.delete(k) : s.add(k)
+                      return s
+                    })
+                  }}
+                >
+                  <ChevronRight size={12} className={`transition-transform ${isDbExpanded(connId, db.name + '__triggers') ? 'rotate-90' : ''}`} />
+                  <Play size={12} className="text-green-500 shrink-0" />
+                  <span className="text-green-500">触发器</span>
+                  <span className="ml-auto">{db.triggers.length}</span>
+                </div>
+                {isDbExpanded(connId, db.name + '__triggers') && db.triggers.map(trig => (
+                  <div key={`trig-${trig.name}`} className="flex items-center gap-2 pl-14 py-0.5 px-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                    onMouseEnter={e => showTooltip(e, `${trig.timing} ${trig.event}${trig.tableName ? ' ON ' + trig.tableName : ''}`)}
+                    onMouseLeave={closeTooltip}>
+                    <Play size={11} className="text-green-400 shrink-0" />
+                    <span className="font-mono truncate max-w-[100px]">{trig.name}</span>
+                    <span className="text-gray-400 ml-auto text-[10px]">{trig.timing} {trig.event}</span>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* ── Events ── */}
+            {db.events && db.events.length > 0 && (
+              <>
+                <div
+                  className="flex items-center gap-1 pl-10 pr-2 py-0.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 text-xs text-gray-400 font-medium"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setExpandedDbs(prev => {
+                      const s = new Set(prev)
+                      const k = dbKey(connId, db.name) + '__events'
+                      s.has(k) ? s.delete(k) : s.add(k)
+                      return s
+                    })
+                  }}
+                >
+                  <ChevronRight size={12} className={`transition-transform ${isDbExpanded(connId, db.name + '__events') ? 'rotate-90' : ''}`} />
+                  <Clock size={12} className="text-cyan-500 shrink-0" />
+                  <span className="text-cyan-500">事件</span>
+                  <span className="ml-auto">{db.events.length}</span>
+                </div>
+                {isDbExpanded(connId, db.name + '__events') && db.events.map(evt => (
+                  <div key={`evt-${evt.name}`} className="flex items-center gap-2 pl-14 py-0.5 px-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                    onMouseEnter={e => showTooltip(e, evt.schedule ?? evt.name)}
+                    onMouseLeave={closeTooltip}>
+                    <Clock size={11} className="text-cyan-400 shrink-0" />
+                    <span className="font-mono truncate max-w-[130px]">{evt.name}</span>
+                    {evt.status && <span className={`ml-auto text-[10px] ${evt.status === 'ENABLED' ? 'text-green-500' : 'text-gray-400'}`}>{evt.status}</span>}
+                  </div>
+                ))}
+              </>
+            )}
+          </>
+        )}
       </div>
     ))
   }
@@ -562,6 +847,102 @@ export default function ConnectionTree(): React.ReactElement {
         <div className="fixed z-50 px-2 py-1 text-xs bg-gray-800 text-white rounded shadow-lg pointer-events-none max-w-[300px] break-all"
           style={{ left: tooltip.x + 10, top: tooltip.y + 10 }}>
           {tooltip.text}
+        </div>
+      )}
+
+      {/* ── Table search modal ── */}
+      {searchOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-start justify-center z-50 pt-[15vh]"
+          onClick={() => setSearchOpen(false)}>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-[520px] max-h-[60vh] flex flex-col"
+            onClick={e => e.stopPropagation()}>
+            {/* Search input */}
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+              <Search size={18} className="text-gray-400 shrink-0" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                className="flex-1 bg-transparent text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 outline-none"
+                placeholder="模糊搜索数据表名、数据库名或连接名..."
+                value={searchQuery}
+                onChange={e => { setSearchQuery(e.target.value); setSelectedSearchIndex(0) }}
+                onKeyDown={e => {
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault()
+                    setSelectedSearchIndex(i => Math.min(i + 1, filteredTables.length - 1))
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault()
+                    setSelectedSearchIndex(i => Math.max(i - 1, 0))
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault()
+                    const t = filteredTables[selectedSearchIndex]
+                    if (t) handleSelectSearchResult(t.connId, t.dbName, t.tableName)
+                  } else if (e.key === 'Escape') {
+                    setSearchOpen(false)
+                  }
+                }}
+              />
+              <button onClick={() => setSearchOpen(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-0.5">
+                <span className="text-xs bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded">Esc</span>
+              </button>
+            </div>
+
+            {/* Results */}
+            <div className="overflow-y-auto flex-1">
+              {searchQuery.trim().length < 2 ? (
+                <div className="px-4 py-8 text-center text-sm text-gray-400">
+                  输入至少 2 个字符开始搜索...
+                </div>
+              ) : filteredTables.length === 0 ? (
+                <div className="px-4 py-8 text-center text-sm text-gray-400">
+                  未找到匹配 "{searchQuery}" 的数据表
+                </div>
+              ) : (
+                <div className="py-1">
+                  {filteredTables.map((t, i) => (
+                    <div
+                      key={`${t.connId}/${t.dbName}/${t.tableName}`}
+                      className={`flex items-center gap-3 px-4 py-2 cursor-pointer text-sm ${
+                        i === selectedSearchIndex
+                          ? 'bg-blue-50 dark:bg-blue-900/30'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                      }`}
+                      onClick={() => handleSelectSearchResult(t.connId, t.dbName, t.tableName)}
+                      onMouseEnter={() => setSelectedSearchIndex(i)}
+                    >
+                      <Table2 size={16} className="text-blue-500 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                          {t.tableName}
+                        </div>
+                        <div className="text-xs text-gray-400 truncate">
+                          {t.dbName} · {t.connName}
+                        </div>
+                      </div>
+                      <span className="text-xs text-gray-400 shrink-0">
+                        <Database size={12} className="inline mr-1" />
+                        {t.dbName}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            {filteredTables.length > 0 && (
+              <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-400 flex items-center gap-4">
+                <span>共 {filteredTables.length} 个结果</span>
+                <span className="flex items-center gap-1">
+                  <span className="bg-gray-200 dark:bg-gray-600 px-1 rounded">↑↓</span> 导航
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="bg-gray-200 dark:bg-gray-600 px-1 rounded">Enter</span> 跳转
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

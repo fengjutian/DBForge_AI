@@ -41,6 +41,30 @@ export function registerSchemaCompletion(monaco: any, schema: DatabaseSchema, da
             })
           }
         }
+
+        // ── Views ──
+        if (db.views) {
+          for (const v of db.views) {
+            const vLabel = isPG ? `${db.name}.${v.name}` : v.name
+            suggestions.push({
+              label: vLabel, kind: monaco.languages.CompletionItemKind.Class,
+              insertText: vLabel, range,
+              detail: isPG ? `View (${db.name})` : `View in ${db.name}`
+            })
+          }
+        }
+
+        // ── Stored Procedures ──
+        if (db.procedures) {
+          for (const proc of db.procedures) {
+            const pLabel = isPG ? `${db.name}.${proc.name}` : proc.name
+            suggestions.push({
+              label: pLabel, kind: monaco.languages.CompletionItemKind.Function,
+              insertText: pLabel, range,
+              detail: isPG ? `Procedure (${db.name})` : `Procedure in ${db.name}`
+            })
+          }
+        }
       }
 
       return { suggestions }

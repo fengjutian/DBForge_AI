@@ -1,6 +1,6 @@
 import { safeStorage, app } from 'electron'
 import path from 'path'
-import type { AppConfig, ConnectionConfig, ConnectionGroup } from '../../shared/types'
+import type { AppConfig, ConnectionConfig, ConnectionGroup, QueryHistory } from '../../shared/types'
 
 // Valid models per provider — kept in sync with the renderer Settings UI
 const VALID_MODELS: Record<string, string[]> = {
@@ -45,7 +45,8 @@ const DEFAULT_CONFIG: AppConfig = {
   auditRetentionDays: 90,
   crashReportEnabled: false,
   onboardingCompleted: false,
-  version: '1.0.0'
+  version: '1.0.0',
+  queryHistory: []
 }
 
 // ============================================================
@@ -161,6 +162,61 @@ class ConfigStore {
       return this.store.store as AppConfig
     }
     return { ...this.config }
+  }
+
+  // ============================================================
+  // Query history (persisted in config)
+  // ============================================================
+
+  /** Auto-increment counter for generating history entry IDs */
+  private historySeq = 0
+
+  /**
+   * Append a query execution record to the persisted history array.
+   * Enforces historyLimit to keep the array bounded.
+   */
+  addQueryHistory(entry: Omit<QueryHistory, 'id'>): void {
+    const history = this.getQueryHistory()
+    const limit = this.get('historyLimit') ?? 1000
+
+    // Generate a monotonic ID; seed from current max + 1 on first call
+    if (this.historySeq === 0 && history.length > 0) {
+      this.historySeq = Math.max(...history.map((h) => h.id), 0)
+    }
+    this.historySeq += 1
+
+    const record: QueryHistory = { id: this.historySeq, ...entry }
+    history.unshift(record)
+
+    // Trim to limit
+    if (history.length > limit) {
+      history.length = limit
+    }
+
+    this.set('queryHistory', history)
+  }
+
+  /**
+   * Return all query history records, newest first.
+   */
+  getQueryHistory(): QueryHistory[] {
+    return this.get('queryHistory') ?? []
+  }
+
+  /**
+   * Delete a single history entry by id.
+   */
+  deleteQueryHistoryById(id: number): void {
+    const history = this.getQueryHistory()
+    this.set('queryHistory', history.filter((h) => h.id !== id))
+  }
+
+  /**
+   * Clear all query history.
+   */
+  clearQueryHistory(): void {
+    this.set('queryHistory', [])
+    this.historySeq = 0
   }
 
   // ============================================================

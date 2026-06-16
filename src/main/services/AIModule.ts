@@ -106,6 +106,36 @@ export function buildSchemaDescription(schema: DatabaseSchema): string {
         }
       }
     }
+    // ── Views ──
+    if (db.views && db.views.length > 0) {
+      for (const v of db.views) {
+        lines.push(`  View: ${v.name}`)
+      }
+    }
+    // ── Indexes ──
+    if (db.indexes && db.indexes.length > 0) {
+      for (const idx of db.indexes) {
+        lines.push(`  Index: ${idx.name} ON ${idx.tableName} (${idx.columns.join(', ')})${idx.unique ? ' UNIQUE' : ''}`)
+      }
+    }
+    // ── Stored Procedures ──
+    if (db.procedures && db.procedures.length > 0) {
+      for (const proc of db.procedures) {
+        lines.push(`  Procedure: ${proc.name}${proc.parameters ? '(' + proc.parameters + ')' : ''}`)
+      }
+    }
+    // ── Triggers ──
+    if (db.triggers && db.triggers.length > 0) {
+      for (const trig of db.triggers) {
+        lines.push(`  Trigger: ${trig.name} ${trig.timing} ${trig.event}${trig.tableName ? ' ON ' + trig.tableName : ''}`)
+      }
+    }
+    // ── Events ──
+    if (db.events && db.events.length > 0) {
+      for (const evt of db.events) {
+        lines.push(`  Event: ${evt.name}${evt.schedule ? ' (' + evt.schedule + ')' : ''}`)
+      }
+    }
   }
   return lines.join('\n')
 }

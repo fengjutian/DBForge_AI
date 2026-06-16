@@ -3,7 +3,7 @@
 // ============================================================
 
 import type { DatabaseDialect, BackupParams, RestoreParams } from './DialectInterface'
-import type { DatabaseSchema, ColumnMeta, QueryResult, ConnectionConfig } from '../../../shared/types'
+import type { DatabaseSchema, ColumnMeta, QueryResult, ConnectionConfig, ViewInfo, IndexInfo, TriggerInfo } from '../../../shared/types'
 
 export class SQLiteDialect implements DatabaseDialect {
   readonly id = 'sqlite'
@@ -47,7 +47,37 @@ export class SQLiteDialect implements DatabaseDialect {
       "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
     ).all() as { name: string }[]
 
-    const result = { name: 'main', tables: [] as any[] }
+    // ── Views ──
+    const viewRows = db.prepare(
+      "SELECT name, sql FROM sqlite_master WHERE type='view' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+    ).all() as { name: string; sql: string }[]
+    const views: ViewInfo[] = viewRows.map(v => ({ name: v.name, definition: v.sql ?? undefined }))
+
+    // ── Indexes ──
+    const idxRows = db.prepare(
+      "SELECT name, tbl_name, sql FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+    ).all() as { name: string; tbl_name: string; sql: string }[]
+    const indexes: IndexInfo[] = idxRows.map(ix => {
+      const isUnique = /\bUNIQUE\b/i.test(ix.sql ?? '')
+      // Parse columns from: CREATE [UNIQUE] INDEX name ON table (col1, col2)
+      const colMatch = (ix.sql ?? '').match(/\(([^)]+)\)/)
+      const columns = colMatch ? colMatch[1].split(',').map(s => s.trim()) : []
+      return { name: ix.name, tableName: ix.tbl_name, columns, unique: isUnique }
+    })
+
+    // ── Triggers ──
+    const trigRows = db.prepare(
+      "SELECT name, tbl_name, sql FROM sqlite_master WHERE type='trigger' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+    ).all() as { name: string; tbl_name: string; sql: string }[]
+    const triggers: TriggerInfo[] = trigRows.map(tr => ({
+      name: tr.name,
+      tableName: tr.tbl_name,
+      timing: /\bBEFORE\b/i.test(tr.sql ?? '') ? 'BEFORE' : (/\bINSTEAD OF\b/i.test(tr.sql ?? '') ? 'INSTEAD OF' : 'AFTER'),
+      event: /\bINSERT\b/i.test(tr.sql ?? '') ? 'INSERT' : (/\bDELETE\b/i.test(tr.sql ?? '') ? 'DELETE' : 'UPDATE'),
+      definition: tr.sql ?? undefined
+    }))
+
+    const result = { name: 'main', tables: [] as any[], views, indexes, triggers }
 
     // Try dbstat virtual table for per-table storage sizes
     let sizeMap = new Map<string, number>()

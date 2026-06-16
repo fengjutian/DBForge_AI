@@ -2,7 +2,6 @@
 import { IPC } from '../../shared/ipc-channels'
 import type { AppConfig, IPCError, SqlSnippet } from '../../shared/types'
 import configStore from '../services/ConfigStore'
-import historyStore from '../services/HistoryStore'
 import auditLog from '../services/AuditLog'
 import snippetStore from '../services/SnippetStore'
 import sessionManager from '../services/SessionManager'
@@ -44,7 +43,8 @@ export function register(): void {
 
   ipcMain.handle(IPC.HISTORY_LIST, (_event, limit?: number) => {
     try {
-      return historyStore.list(limit)
+      const history = configStore.getQueryHistory()
+      return limit != null ? history.slice(0, limit) : history
     } catch (err) {
       throw wrapError(err)
     }
@@ -52,10 +52,19 @@ export function register(): void {
 
   ipcMain.handle(IPC.HISTORY_SEARCH, (_event, keyword: string, connectionId?: string) => {
     try {
+      let history = configStore.getQueryHistory()
       if (connectionId) {
-        return historyStore.listByConnection(connectionId)
+        history = history.filter((h) => h.connectionId === connectionId)
       }
-      return historyStore.search(keyword)
+      if (keyword) {
+        const kw = keyword.toLowerCase()
+        history = history.filter(
+          (h) =>
+            h.sql.toLowerCase().includes(kw) ||
+            h.connectionName.toLowerCase().includes(kw)
+        )
+      }
+      return history
     } catch (err) {
       throw wrapError(err)
     }
@@ -63,7 +72,7 @@ export function register(): void {
 
   ipcMain.handle(IPC.HISTORY_CLEAR, () => {
     try {
-      historyStore.clear()
+      configStore.clearQueryHistory()
       return { success: true }
     } catch (err) {
       throw wrapError(err)
@@ -72,7 +81,7 @@ export function register(): void {
 
   ipcMain.handle(IPC.HISTORY_DELETE, (_event, id: number) => {
     try {
-      historyStore.deleteById(id)
+      configStore.deleteQueryHistoryById(id)
       return { success: true }
     } catch (err) {
       throw wrapError(err)
