@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { Check, X, ArrowUp, ArrowDown, FileText, Camera, ChevronDown } from 'lucide-react'
 import { createPortal } from 'react-dom'
-import type { ColumnMeta } from '../../../shared/types'
+import type { ColumnMeta, FilterRule } from '../../../shared/types'
 
 interface DataTableProps {
   columns: ColumnMeta[]
@@ -12,10 +12,11 @@ interface DataTableProps {
   onSort?: (col: string, dir: 'asc' | 'desc') => void
   sql?: string
   tableRef?: React.RefObject<HTMLDivElement>
+  /** 'client' (default) — local filtering only; 'server' — also calls onFiltersChange for parent to re-query DB */
+  filterMode?: 'client' | 'server'
+  /** Called when filters change in 'server' mode */
+  onFiltersChange?: (filters: Record<string, FilterRule>) => void
 }
-
-// col => { op, value }
-interface FilterRule { op: '=' | '<>' | '>' | '<' | 'LIKE'; value: string }
 
 interface TooltipState { content: string; x: number; y: number }
 interface CtxMenu { col: string; x: number; y: number; cellValue: unknown }
@@ -202,7 +203,8 @@ function ColContextMenu({
 export default function DataTable({
   columns, rows, rowOffset = 0,
   sortColumn, sortDirection, onSort,
-  sql, tableRef
+  sql, tableRef,
+  filterMode = 'client', onFiltersChange
 }: DataTableProps): React.ReactElement {
   const [colWidths, setColWidths] = useState<Record<string, number>>({})
   const [rowHeights, setRowHeights] = useState<Record<number, number>>({})
@@ -213,6 +215,17 @@ export default function DataTable({
   const [ctxMenu, setCtxMenu] = useState<CtxMenu | null>(null)
   const [showSQL, setShowSQL] = useState(false)
   const [filters, setFilters] = useState<Record<string, FilterRule>>({})
+
+  // ── React to filter changes in server mode ────────────────
+  const isFirstRender = useRef(true)
+  useEffect(() => {
+    if (filterMode !== 'server' || !onFiltersChange) return
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
+    onFiltersChange(filters)
+  }, [filters, filterMode, onFiltersChange])
 
   const colDrag = useRef<{ col: string; startX: number; startW: number } | null>(null)
   const rowDrag = useRef<{ row: number; startY: number; startH: number } | null>(null)

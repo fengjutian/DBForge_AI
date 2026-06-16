@@ -115,6 +115,11 @@ export interface DatabaseSchema {
 // Query Types
 // ============================================================
 
+export interface FilterRule {
+  op: '=' | '<>' | '>' | '<' | 'LIKE'
+  value: string
+}
+
 export interface QueryOptions {
   connectionId: string
   sql: string

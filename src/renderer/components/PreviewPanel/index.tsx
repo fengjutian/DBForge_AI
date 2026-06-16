@@ -2,6 +2,8 @@ import React, { useState, useCallback } from 'react'
 import { X, Search, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { Tab } from '../../store/editorStore'
 import { useEditorStore } from '../../store/editorStore'
+import type { FilterRule } from '../../../shared/types'
+import { buildWhereClause } from '../../../shared/sqlFilter'
 import DataTable from '../DataTable'
 
 interface PreviewPanelProps {
@@ -16,6 +18,7 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
   const [showSearch, setShowSearch] = useState(false)
   const [search, setSearch] = useState('')
   const [jumpInput, setJumpInput] = useState('')
+  const [filters, setFilters] = useState<Record<string, FilterRule>>({})
 
   const result = tab.previewResult
   const status = tab.previewStatus ?? 'idle'
@@ -24,8 +27,9 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
   const columns = result?.columns ?? []
   const rows = result?.rows ?? []
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const whereClause = buildWhereClause(filters)
 
-  const fetchPage = useCallback(async (newPage: number, newPageSize: number, newSort: typeof sort) => {
+  const fetchPage = useCallback(async (newPage: number, newPageSize: number, newSort: typeof sort, whereClause = '') => {
     if (!tab.connectionId || !tab.previewTable) return
     const { dbName, tableName } = tab.previewTable
     const offset = (newPage - 1) * newPageSize
@@ -34,9 +38,10 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
       : ''
     updatePreviewTab(tab.id, { previewStatus: 'running', previewError: null })
     try {
+      const sql = `SELECT * FROM \`${dbName}\`.\`${tableName}\`${whereClause}${orderClause} LIMIT ${newPageSize} OFFSET ${offset}`
       const dataResult = await window.electronAPI.query.execute({
         connectionId: tab.connectionId,
-        sql: `SELECT * FROM \`${dbName}\`.\`${tableName}\`${orderClause} LIMIT ${newPageSize} OFFSET ${offset}`,
+        sql,
         queryId: `preview_${tab.id}_${newPage}`
       })
       updatePreviewTab(tab.id, { previewResult: dataResult, previewStatus: 'idle' })
@@ -47,13 +52,13 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
 
   const setPage = (newPage: number) => {
     setPageState(newPage)
-    fetchPage(newPage, pageSize, sort)
+    fetchPage(newPage, pageSize, sort, whereClause)
   }
 
   const setPageSize = (newSize: number) => {
     setPageSizeState(newSize)
     setPageState(1)
-    fetchPage(1, newSize, sort)
+    fetchPage(1, newSize, sort, whereClause)
   }
 
   const handleSort = (col: string, dir?: 'asc' | 'desc') => {
@@ -63,8 +68,28 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
       ? { column: col, direction: sort.direction === 'asc' ? 'desc' as const : 'asc' as const }
       : { column: col, direction: 'asc' as const }
     setSort(newSort)
-    fetchPage(page, pageSize, newSort)
+    fetchPage(page, pageSize, newSort, whereClause)
   }
+
+  const handleFiltersChange = useCallback(async (newFilters: Record<string, FilterRule>) => {
+    setFilters(newFilters)
+    if (!tab.connectionId || !tab.previewTable) return
+    const { dbName, tableName } = tab.previewTable
+    const wc = buildWhereClause(newFilters)
+    try {
+      const countResult = await window.electronAPI.query.execute({
+        connectionId: tab.connectionId,
+        sql: `SELECT COUNT(*) AS cnt FROM \`${dbName}\`.\`${tableName}\`${wc}`,
+        queryId: `preview_count_${tab.id}`
+      })
+      const newTotal = (countResult.rows[0]?.cnt as number) ?? 0
+      updatePreviewTab(tab.id, { previewTotal: newTotal })
+      setPageState(1)
+      fetchPage(1, pageSize, sort, wc)
+    } catch (e) {
+      updatePreviewTab(tab.id, { previewError: (e as Error).message })
+    }
+  }, [tab.id, tab.connectionId, tab.previewTable, pageSize, sort, updatePreviewTab])
 
   const handleJump = () => {
     const n = parseInt(jumpInput, 10)
@@ -99,9 +124,22 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
   }
 
   const handleRefresh = () => {
+    setFilters({})
     setPageState(1)
     setSort({ column: null, direction: 'asc' })
     fetchPage(1, pageSize, { column: null, direction: 'asc' })
+    // Re-count without filters
+    if (tab.connectionId && tab.previewTable) {
+      const { dbName, tableName } = tab.previewTable
+      window.electronAPI.query.execute({
+        connectionId: tab.connectionId,
+        sql: `SELECT COUNT(*) AS cnt FROM \`${dbName}\`.\`${tableName}\``,
+        queryId: `preview_count_refresh_${tab.id}`
+      }).then(countResult => {
+        const newTotal = (countResult.rows[0]?.cnt as number) ?? 0
+        updatePreviewTab(tab.id, { previewTotal: newTotal })
+      }).catch(() => {})
+    }
   }
 
   return (
@@ -158,6 +196,8 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
             sortDirection={sort.direction}
             onSort={handleSort}
             sql={result?.sql}
+            filterMode="server"
+            onFiltersChange={handleFiltersChange}
           />
         )}
       </div>
