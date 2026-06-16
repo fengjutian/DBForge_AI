@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
+import { ChevronRight, Database, Table2, Key, Circle, Link2, RefreshCw, FileText, GitFork, Clipboard, BookOpen, Zap, BarChart3 } from 'lucide-react'
 import type { DatabaseSchema, DatabaseInfo, TableInfo } from '../../../shared/types'
 import { useConnectionStore } from '../../store/connectionStore'
 import { useSessionStore } from '../../store/sessionStore'
@@ -100,6 +101,20 @@ export default function SchemaBrowser(): React.ReactElement {
     closeMenu()
   }
 
+  const handleCopyStructure = () => {
+    if (!menu || !schema) return
+    const db = schema.databases.find(d => d.name === menu.dbName)
+    const table = db?.tables.find(t => t.name === menu.tableName)
+    if (!table) return
+    const header = '列名\t类型\t允许NULL\t默认值\t注释'
+    const rows = table.columns.map(c =>
+      `${c.name}\t${c.type}\t${c.nullable ? 'YES' : 'NO'}\t${c.defaultValue ?? ''}\t${c.comment ?? ''}`
+    )
+    const text = [header, ...rows].join('\n')
+    navigator.clipboard.writeText(text).catch(() => {})
+    closeMenu()
+  }
+
   const handleAnalysis = (type: AnalysisType) => {
     if (!menu) return
     setAnalysis({ dbName: menu.dbName, tableName: menu.tableName, type })
@@ -142,23 +157,23 @@ export default function SchemaBrowser(): React.ReactElement {
               onMouseEnter={e => showTooltip(e, db.name)}
               onMouseLeave={closeTooltip}
             >
-              <span className="text-gray-400">{expanded.has(db.name) ? '▾' : '▸'}</span>
-              <span className="text-green-600 dark:text-green-400">🗄 </span>
+              <ChevronRight size={14} className={`text-gray-400 transition-transform ${expanded.has(db.name) ? 'rotate-90' : ''}`} />
+              <Database size={16} className="text-green-600 dark:text-green-400 shrink-0" />
               <span className="text-green-600 dark:text-green-400 truncate max-w-[150px]" title={db.name}>{db.name}</span>
               <span className="ml-auto text-xs text-gray-400">{db.tables.length}</span>
               <button
                 onClick={e => { e.stopPropagation(); handleShowJoinBuilder(db.name) }}
                 title="可视化 JOIN 构建器"
-                className="ml-1 text-gray-400 hover:text-green-500 text-xs px-0.5"
-              >🔗</button>
+                className="ml-1 text-gray-400 hover:text-green-500 p-0.5"
+              ><Link2 size={12} /></button>
             </div>
             {expanded.has(db.name) && db.tables.map(table => (
               <div key={table.name}>
                 <div className="flex items-center gap-1 pl-5 pr-2 py-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                   onClick={() => toggle(`${db.name}.${table.name}`)}
                   onContextMenu={e => { e.stopPropagation(); handleContextMenu(e, db, table) }}>
-                  <span className="text-gray-400">{expanded.has(`${db.name}.${table.name}`) ? '▾' : '▸'}</span>
-                  <span>📋 </span><span className="truncate max-w-[200px]" title={table.name} onMouseEnter={e => showTooltip(e, table.name)} onMouseLeave={closeTooltip}>{table.name}</span>
+                  <ChevronRight size={14} className={`text-gray-400 transition-transform shrink-0 ${expanded.has(`${db.name}.${table.name}`) ? 'rotate-90' : ''}`} />
+                  <Table2 size={14} className="text-blue-500 shrink-0" /><span className="truncate max-w-[200px]" title={table.name} onMouseEnter={e => showTooltip(e, table.name)} onMouseLeave={closeTooltip}>{table.name}</span>
                   {table.rowCount !== undefined && (
                     <span className="ml-auto text-xs text-gray-400">{table.rowCount.toLocaleString()} 行</span>
                   )}
@@ -167,7 +182,7 @@ export default function SchemaBrowser(): React.ReactElement {
                   <div className="pl-10">
                     {table.columns.map(col => (
                       <div key={col.name} className="flex items-center gap-2 py-0.5 px-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
-                        {table.primaryKeys.includes(col.name) ? '🔑' : '○'}
+                        {table.primaryKeys.includes(col.name) ? <Key size={11} className="text-amber-500 shrink-0" /> : <Circle size={11} className="text-gray-400 shrink-0" />}
                         <span className="font-mono">{col.name}</span>
                         <span className="text-gray-400">{col.type}</span>
                         {!col.nullable && <span className="text-red-400 text-xs">NOT NULL</span>}
@@ -187,31 +202,34 @@ export default function SchemaBrowser(): React.ReactElement {
           style={{ left: menu.x, top: menu.y }}
           onClick={e => e.stopPropagation()}>
           <button onClick={handlePreview} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
-            ⊞ 预览数据
+            <FileText size={14} className="inline mr-1.5" />预览数据
           </button>
           <button onClick={handleShowER} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
-            🔀 查看 ER 图
+            <GitFork size={14} className="inline mr-1.5" />查看 ER 图
           </button>
           <button onClick={() => menu && handleShowJoinBuilder(menu.dbName)} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
-            🔗 可视化 JOIN 构建器
+            <Link2 size={14} className="inline mr-1.5" />可视化 JOIN 构建器
+          </button>
+          <button onClick={handleCopyStructure} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
+            <Clipboard size={14} className="inline mr-1.5" />复制表结构
           </button>
           <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
           <div className="px-4 py-1 text-xs text-gray-400 font-medium">AI 分析</div>
           <button onClick={() => handleAnalysis('dependencies')} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
-            🔗 依赖关系图
+            <Link2 size={14} className="inline mr-1.5" />依赖关系图
           </button>
           <button onClick={() => handleAnalysis('data-dict')} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
-            📖 数据字典
+            <BookOpen size={14} className="inline mr-1.5" />数据字典
           </button>
           <button onClick={() => handleAnalysis('indexes')} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
-            ⚡ 索引分析
+            <Zap size={14} className="inline mr-1.5" />索引分析
           </button>
           <button onClick={() => handleAnalysis('query-perf')} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
-            📊 查询性能分析
+            <BarChart3 size={14} className="inline mr-1.5" />查询性能分析
           </button>
           <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
           <button onClick={handleRefresh} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
-            ↻ 刷新 Schema
+            <RefreshCw size={14} className="inline mr-1.5" />刷新 Schema
           </button>
         </div>
       )}
@@ -222,14 +240,14 @@ export default function SchemaBrowser(): React.ReactElement {
           style={{ left: dbMenu.x, top: dbMenu.y }}
           onClick={e => e.stopPropagation()}>
           <button onClick={() => dbMenu && handleShowJoinBuilder(dbMenu.dbName)} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
-            🔗 可视化 JOIN 构建器
+            <Link2 size={14} className="inline mr-1.5" />可视化 JOIN 构建器
           </button>
           <button onClick={handleShowAllER} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
-            🔀 查看所有表 ER 图
+            <GitFork size={14} className="inline mr-1.5" />查看所有表 ER 图
           </button>
           <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
           <button onClick={() => { closeDbMenu(); handleRefresh() }} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
-            ↻ 刷新 Schema
+            <RefreshCw size={14} className="inline mr-1.5" />刷新 Schema
           </button>
         </div>
       )}

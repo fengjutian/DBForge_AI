@@ -104,7 +104,7 @@ function SQLModal({ sql, onClose }: { sql: string; onClose: () => void }) {
 
 // ── Column Context Menu ────────────────────────────────────────
 function ColContextMenu({
-  menu, onClose, onSort, onFilter, onClearFilter, onViewSQL, onScreenshot, onCopy, hasSql, activeFilter
+  menu, onClose, onSort, onFilter, onClearFilter, onViewSQL, onScreenshot, onCopy, onCopyStructure, hasSql, activeFilter
 }: {
   menu: CtxMenu
   onClose: () => void
@@ -114,6 +114,7 @@ function ColContextMenu({
   onViewSQL: () => void
   onScreenshot: () => void
   onCopy: (val: unknown) => void
+  onCopyStructure: () => void
   hasSql: boolean
   activeFilter?: FilterRule
 }) {
@@ -156,6 +157,11 @@ function ColContextMenu({
 
         {/* Copy */}
         {item(<Copy className="w-2.5 h-2.5" />, '复制', () => onCopy(menu.cellValue))}
+
+        <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
+
+        {/* Copy table structure */}
+        {item(<FileText className="w-2.5 h-2.5" />, '复制表结构', onCopyStructure)}
 
         <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
 
@@ -258,7 +264,7 @@ export default function DataTable({
   columns, rows, rowOffset = 0,
   sortColumn, sortDirection, onSort,
   sql, tableRef,
-  filterMode = 'client', onFiltersChange
+  filterMode = 'client', onFiltersChange, onCellEdit
 }: DataTableProps): React.ReactElement {
   const [colWidths, setColWidths] = useState<Record<string, number>>({})
   const [rowHeights, setRowHeights] = useState<Record<number, number>>({})
@@ -373,6 +379,16 @@ export default function DataTable({
       await navigator.clipboard.writeText(valueToString(value))
     } catch { /* clipboard not available */ }
   }, [])
+
+  // ── Copy table structure to clipboard ────────────────────
+  const copyTableStructure = useCallback(async () => {
+    const header = '列名\t类型\t允许NULL'
+    const rows = columns.map(c => `${c.name}\t${c.type}\t${c.nullable ? 'YES' : 'NO'}`)
+    const text = [header, ...rows].join('\n')
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch { /* clipboard not available */ }
+  }, [columns])
 
   // ── Cell context menu ────────────────────────────────────
   const onCellContextMenu = useCallback((e: React.MouseEvent, rowIdx: number, col: string, value: unknown) => {
@@ -534,6 +550,7 @@ export default function DataTable({
           onViewSQL={() => setShowSQL(true)}
           onScreenshot={handleScreenshot}
           onCopy={copyToClipboard}
+          onCopyStructure={copyTableStructure}
           hasSql={!!sql}
           activeFilter={filters[ctxMenu.col]}
         />

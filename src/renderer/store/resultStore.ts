@@ -130,7 +130,8 @@ export const selectTotalRows = (state: ResultState): number => {
     Object.values(row).some((v) => {
       const s = v !== null && v !== undefined && typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')
       return s.toLowerCase().includes(lower)
-    }).length
+    })
+  ).length
 }
 
 export const selectColumns = (state: ResultState): ColumnMeta[] => {
