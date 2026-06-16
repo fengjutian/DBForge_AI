@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react'
 import {
   ChevronRight, Database, Table2, Key, Circle, Link2, RefreshCw,
   FileText, GitFork, Clipboard, BookOpen, Zap, BarChart3,
-  Plus, Pencil, Trash2, Plug, Unplug
+  Plus, Pencil, Trash2, Plug, Unplug, HardDrive
 } from 'lucide-react'
 import type {
   ConnectionConfig, SSHTunnelConfig,
@@ -14,6 +14,7 @@ import { useEditorStore } from '../../store/editorStore'
 import ERDiagram from '../ERDiagram'
 import TableAnalysisModal, { type AnalysisType } from '../TableAnalysisModal'
 import JoinBuilder from '../JoinBuilder'
+import StorageDashboard from '../StorageDashboard'
 
 // ── Types ─────────────────────────────────────────────────────
 interface TableContextMenu {
@@ -39,6 +40,14 @@ const STATUS_COLORS: Record<string, string> = {
 
 const emptySSH: SSHTunnelConfig = {
   enabled: false, host: '', port: 22, username: '', authType: 'password', password: ''
+}
+
+/** Format bytes to human-readable string */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
 }
 
 const emptyForm = (): Omit<ConnectionConfig, 'id' | 'createdAt' | 'updatedAt'> => ({
@@ -81,6 +90,10 @@ export default function ConnectionTree(): React.ReactElement {
   const [erDiagramAll, setErDiagramAll] = useState<{ dbName: string } | null>(null)
   const [analysis, setAnalysis] = useState<{ dbName: string; tableName: string; type: AnalysisType } | null>(null)
   const [joinBuilder, setJoinBuilder] = useState<{ dbName: string } | null>(null)
+  const [storageDashboard, setStorageDashboard] = useState<{ dbName: string } | null>(null)
+
+  // ── Row count / storage size toggle ──
+  const [showStorage, setShowStorage] = useState(false)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const [loadingRef, setLoadingRef] = useState<Set<string>>(new Set())
@@ -355,9 +368,14 @@ export default function ConnectionTree(): React.ReactElement {
                 onMouseEnter={e => showTooltip(e, table.name)}
                 onMouseLeave={closeTooltip}
               >{table.name}</span>
-              {table.rowCount !== undefined && (
-                <span className="ml-auto text-xs text-gray-400">{table.rowCount.toLocaleString()} 行</span>
-              )}
+              {showStorage
+                ? (table.dataSize !== undefined && (
+                    <span className="ml-auto text-xs text-amber-500">{formatBytes(table.dataSize)}</span>
+                  ))
+                : (table.rowCount !== undefined && (
+                    <span className="ml-auto text-xs text-gray-400">{table.rowCount.toLocaleString()} 行</span>
+                  ))
+              }
             </div>
 
             {/* ── Columns ── */}
@@ -390,11 +408,24 @@ export default function ConnectionTree(): React.ReactElement {
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
         <span className="font-semibold text-sm">数据库浏览器</span>
-        <button onClick={openNew}
-          className="text-xs px-2 py-1 rounded bg-green-600 text-white hover:bg-green-700 flex items-center gap-1"
-        >
-          <Plus size={12} />新建
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowStorage(s => !s)}
+            title={showStorage ? '切换为行数显示' : '切换为存储占用显示'}
+            className={`text-xs px-1.5 py-0.5 rounded border transition-colors ${
+              showStorage
+                ? 'border-amber-400 text-amber-600 bg-amber-50 dark:bg-amber-900/20'
+                : 'border-gray-300 text-gray-400 hover:text-gray-600 dark:border-gray-600'
+            }`}
+          >
+            {showStorage ? '📦 占用' : '📊 行数'}
+          </button>
+          <button onClick={openNew}
+            className="text-xs px-2 py-1 rounded bg-green-600 text-white hover:bg-green-700 flex items-center gap-1"
+          >
+            <Plus size={12} />新建
+          </button>
+        </div>
       </div>
 
       {/* Tree */}
@@ -513,6 +544,10 @@ export default function ConnectionTree(): React.ReactElement {
           </button>
           <button onClick={handleShowAllER} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
             <GitFork size={14} className="inline mr-1.5" />查看所有表 ER 图
+          </button>
+          <button onClick={() => { const d = dbMenu; closeAllMenus(); setStorageDashboard({ dbName: d.dbName }) }}
+            className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
+            <HardDrive size={14} className="inline mr-1.5" />存储分析
           </button>
           <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
           <button onClick={() => { closeAllMenus(); handleRefresh(dbMenu.connectionId) }}
@@ -638,6 +673,18 @@ export default function ConnectionTree(): React.ReactElement {
               addTab({ connectionId: activeConnectionId, title: 'JOIN 查询', content: sql, isDirty: true })
               setJoinBuilder(null)
             }}
+          />
+        ) : null
+      })()}
+
+      {/* Storage dashboard */}
+      {storageDashboard && (() => {
+        const schema = getSchema(activeConnectionId!)
+        return schema ? (
+          <StorageDashboard
+            dbName={storageDashboard.dbName}
+            schema={schema}
+            onClose={() => setStorageDashboard(null)}
           />
         ) : null
       })()}

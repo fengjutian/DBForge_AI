@@ -105,6 +105,7 @@ export const IPC = {
   WINDOW_CLOSE: 'window:close',
   WINDOW_IS_MAXIMIZED: 'window:is-maximized',
   WINDOW_MAXIMIZED_CHANGED: 'window:maximized-changed', // main -> renderer push
+  WINDOW_OPEN_TERMINAL: 'window:open-terminal',
 
   // Auto-updater
   UPDATER_CHECK: 'updater:check',

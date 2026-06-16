@@ -98,6 +98,8 @@ export interface TableInfo {
   primaryKeys: string[]
   foreignKeys: ForeignKeyInfo[]
   rowCount?: number
+  /** 数据+索引占用字节数，用于存储占用显示 */
+  dataSize?: number
 }
 
 export interface DatabaseInfo {

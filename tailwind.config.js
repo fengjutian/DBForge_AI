@@ -75,11 +75,50 @@ module.exports = {
         'accordion-up': {
           from: { height: 'var(--radix-accordion-content-height)' },
           to: { height: '0' }
+        },
+        'float': {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-8px)' }
+        },
+        'glow-pulse': {
+          '0%, 100%': { boxShadow: '0 8px 32px -8px rgba(16,185,129,0.4)' },
+          '50%': { boxShadow: '0 8px 48px -4px rgba(16,185,129,0.7)' }
+        },
+        'glow-pulse-dark': {
+          '0%, 100%': { boxShadow: '0 8px 32px -8px rgba(16,185,129,0.5)' },
+          '50%': { boxShadow: '0 8px 56px -4px rgba(16,185,129,0.8)' }
+        },
+        'ring-pulse': {
+          '0%, 100%': { 
+            boxShadow: '0 0 0 0px rgba(16,185,129,0.5), 0 8px 32px -8px rgba(16,185,129,0.4)'
+          },
+          '50%': { 
+            boxShadow: '0 0 0 8px rgba(16,185,129,0), 0 8px 48px -4px rgba(16,185,129,0.6)'
+          }
+        },
+        'ring-pulse-dark': {
+          '0%, 100%': { 
+            boxShadow: '0 0 0 0px rgba(16,185,129,0.6), 0 8px 32px -8px rgba(16,185,129,0.5)'
+          },
+          '50%': { 
+            boxShadow: '0 0 0 8px rgba(16,185,129,0), 0 8px 56px -4px rgba(16,185,129,0.7)'
+          }
+        },
+        'subtle-bounce': {
+          '0%, 100%': { transform: 'translateY(0px) scale(1)' },
+          '30%': { transform: 'translateY(-3px) scale(1.03)' },
+          '60%': { transform: 'translateY(1px) scale(0.98)' }
         }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
-        'accordion-up': 'accordion-up 0.2s ease-out'
+        'accordion-up': 'accordion-up 0.2s ease-out',
+        'float': 'float 4s ease-in-out infinite',
+        'glow-pulse': 'glow-pulse 3s ease-in-out infinite',
+        'glow-pulse-dark': 'glow-pulse-dark 3s ease-in-out infinite',
+        'ring-pulse': 'ring-pulse 3s ease-in-out infinite',
+        'ring-pulse-dark': 'ring-pulse-dark 3s ease-in-out infinite',
+        'subtle-bounce': 'subtle-bounce 5s ease-in-out infinite'
       }
     }
   },

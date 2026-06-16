@@ -80,6 +80,22 @@ export class PostgreSQLDialect implements DatabaseDialect {
       `SELECT kcu.table_schema, kcu.table_name, kcu.column_name FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.table_schema NOT IN ('pg_catalog','information_schema')`
     )
 
+    // Table sizes and row estimates
+    const sizes: any[] = await q(
+      `SELECT schemaname, tablename,
+              pg_total_relation_size('"'||schemaname||'"."'||tablename||'"')::bigint AS size_bytes,
+              COALESCE(c.reltuples, 0)::bigint AS row_estimate
+       FROM pg_tables t
+       LEFT JOIN pg_class c ON c.oid = ('"'||t.schemaname||'"."'||t.tablename||'"')::regclass
+       WHERE t.schemaname NOT IN ('pg_catalog','information_schema')`
+    )
+    const sizeMap = new Map<string, number>()
+    const rowEstMap = new Map<string, number>()
+    for (const s of sizes) {
+      sizeMap.set(`${s.schemaname}.${s.tablename}`, Number(s.size_bytes))
+      if (s.row_estimate > 0) rowEstMap.set(`${s.schemaname}.${s.tablename}`, Number(s.row_estimate))
+    }
+
     const colMap = new Map<string, any[]>()
     for (const c of cols) {
       const k = `${c.table_schema}.${c.table_name}`
@@ -126,7 +142,7 @@ export class PostgreSQLDialect implements DatabaseDialect {
             referencedTable: `${f.ref_schema}.${f.ref_table}`,
             referencedColumn: f.ref_column
           }))
-          return { name: tn, columns: tableCols, primaryKeys: pkCols, foreignKeys: tableFKs }
+          return { name: tn, columns: tableCols, primaryKeys: pkCols, foreignKeys: tableFKs, rowCount: rowEstMap.get(key), dataSize: sizeMap.get(key) }
         })
       })),
       fetchedAt: Date.now()

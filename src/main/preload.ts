@@ -240,6 +240,7 @@ const electronAPI = {
     unmaximize: () => ipcRenderer.invoke(IPC.WINDOW_UNMAXIMIZE),
     close: () => ipcRenderer.invoke(IPC.WINDOW_CLOSE),
     isMaximized: (): Promise<boolean> => ipcRenderer.invoke(IPC.WINDOW_IS_MAXIMIZED),
+    openTerminal: () => ipcRenderer.invoke(IPC.WINDOW_OPEN_TERMINAL),
     onMaximizedChanged: (callback: (maximized: boolean) => void) => {
       ipcRenderer.on(IPC.WINDOW_MAXIMIZED_CHANGED, (_event, maximized) => callback(maximized))
       return () => ipcRenderer.removeAllListeners(IPC.WINDOW_MAXIMIZED_CHANGED)

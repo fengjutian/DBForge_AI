@@ -59,7 +59,7 @@ export class MySQLDialect implements DatabaseDialect {
     if (dbNames.length === 0) return { connectionId, databases: [], fetchedAt: Date.now() }
 
     const ph = dbNames.map(() => '?').join(',')
-    const tables = await q("SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA IN (" + ph + ") AND TABLE_TYPE='BASE TABLE' ORDER BY TABLE_SCHEMA, TABLE_NAME", dbNames)
+    const tables = await q("SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_ROWS, DATA_LENGTH, INDEX_LENGTH FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA IN (" + ph + ") AND TABLE_TYPE='BASE TABLE' ORDER BY TABLE_SCHEMA, TABLE_NAME", dbNames)
     const cols = await q("SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, COLUMN_COMMENT, COLUMN_KEY FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA IN (" + ph + ") ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION", dbNames)
     const fks = await q("SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA IN (" + ph + ") AND REFERENCED_TABLE_NAME IS NOT NULL", dbNames)
 
@@ -85,7 +85,10 @@ export class MySQLDialect implements DatabaseDialect {
       const tCols = cCols.map(c => ({ name: c.COLUMN_NAME, type: c.COLUMN_TYPE, nullable: c.IS_NULLABLE === 'YES', defaultValue: c.COLUMN_DEFAULT ?? undefined, comment: c.COLUMN_COMMENT || undefined }))
       const pks = cCols.filter(c => c.COLUMN_KEY === 'PRI').map(c => c.COLUMN_NAME)
       const tFks = (fkMap.get(key) ?? []).map(f => ({ columnName: f.c, referencedTable: f.rt, referencedColumn: f.rc }))
-      dbMap.get(t.TABLE_SCHEMA)!.tables.push({ name: t.TABLE_NAME, columns: tCols, primaryKeys: pks, foreignKeys: tFks, rowCount: t.TABLE_ROWS ?? undefined })
+      const dataSize = (t.DATA_LENGTH != null || t.INDEX_LENGTH != null)
+        ? ((t.DATA_LENGTH ?? 0) + (t.INDEX_LENGTH ?? 0)) || undefined
+        : undefined
+      dbMap.get(t.TABLE_SCHEMA)!.tables.push({ name: t.TABLE_NAME, columns: tCols, primaryKeys: pks, foreignKeys: tFks, rowCount: t.TABLE_ROWS ?? undefined, dataSize })
     }
 
     return { connectionId, databases: dbNames.map(d => dbMap.get(d)!), fetchedAt: Date.now() }

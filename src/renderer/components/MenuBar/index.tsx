@@ -82,6 +82,12 @@ function MenuBar({
           label: 'AI 面板',
           shortcut: aiPanelOpen ? '✓ 已开启' : '',
           action: onToggleAI
+        },
+        { label: '', separator: true },
+        {
+          label: '打开控制台',
+          shortcut: 'Ctrl+`',
+          action: () => window.electronAPI.window.openTerminal()
         }
       ]
     },

@@ -49,11 +49,27 @@ export class SQLiteDialect implements DatabaseDialect {
 
     const result = { name: 'main', tables: [] as any[] }
 
+    // Try dbstat virtual table for per-table storage sizes
+    let sizeMap = new Map<string, number>()
+    try {
+      // dbstat requires SQLITE_ENABLE_DBSTAT_VTAB compile option
+      const sr = db.prepare(
+        "SELECT name, SUM(pgsize) AS total_size FROM dbstat WHERE name NOT LIKE 'sqlite_%' GROUP BY name"
+      ).all() as { name: string; total_size: number }[]
+      for (const r of sr) sizeMap.set(r.name, r.total_size)
+    } catch { /* dbstat not available */ }
+
     for (const t of tables) {
       const colQuery = 'PRAGMA table_info(' + JSON.stringify(t.name) + ')'
       const fkQuery = 'PRAGMA foreign_key_list(' + JSON.stringify(t.name) + ')'
       const cols = db.prepare(colQuery).all() as any[]
       const fks = db.prepare(fkQuery).all() as any[]
+
+      // Accurate row count (full scan — fast for typical SQLite files)
+      let rowCount: number | undefined
+      try {
+        rowCount = (db.prepare(`SELECT COUNT(*) AS cnt FROM "${t.name}"`).get() as { cnt: number }).cnt
+      } catch { /* table might be locked or virtual */ }
 
       result.tables.push({
         name: t.name,
@@ -66,7 +82,9 @@ export class SQLiteDialect implements DatabaseDialect {
         primaryKeys: cols.filter(c => c.pk).map(c => c.name),
         foreignKeys: fks.map(f => ({
           columnName: f.from, referencedTable: f.table, referencedColumn: f.to
-        }))
+        })),
+        rowCount,
+        dataSize: sizeMap.get(t.name)
       })
     }
 

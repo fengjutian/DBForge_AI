@@ -91,6 +91,8 @@ function App(): React.ReactElement {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [rightPanel, setRightPanel] = useState<'ai' | null>(null)
   const [databases, setDatabases] = useState<string[]>([])
+  const [orbHovered, setOrbHovered] = useState(false)
+  const [orbClickTrigger, setOrbClickTrigger] = useState(0)
 
   // Resizable panels
   const [leftWidth, leftDragProps] = useResize({ direction: 'horizontal', initialSize: 300, min: 300, max: 500 })
@@ -250,19 +252,27 @@ function App(): React.ReactElement {
         {/* Floating AI button — Three.js liquid glass orb */}
         {rightPanel !== 'ai' && (
           <button
-            onClick={() => setRightPanel('ai')}
+            onClick={() => {
+              setRightPanel('ai')
+              setOrbClickTrigger((c) => c + 1)
+            }}
+            onMouseEnter={() => setOrbHovered(true)}
+            onMouseLeave={() => setOrbHovered(false)}
             className="fixed bottom-[104px] right-[74px] z-50 flex items-center justify-center w-16 h-16 rounded-full
                        overflow-hidden
                        backdrop-blur-2xl bg-white/10 dark:bg-black/10
                        border border-white/20 dark:border-white/10
+                       animate-float
                        shadow-[0_8px_32px_-8px_rgba(16,185,129,0.4)]
                        dark:shadow-[0_8px_32px_-8px_rgba(16,185,129,0.5)]
                        hover:shadow-[0_12px_40px_-6px_rgba(16,185,129,0.5)]
                        hover:scale-110 active:scale-95
-                       transition-all duration-500 group"
+                       transition-all duration-500 group
+                       before:absolute before:inset-0 before:rounded-full before:pointer-events-none
+                       before:animate-ring-pulse dark:before:animate-ring-pulse-dark"
             title="打开 AI 助手"
           >
-            <LiquidGlassOrb />
+            <LiquidGlassOrb hovered={orbHovered} clickTrigger={orbClickTrigger} />
           </button>
         )}
 

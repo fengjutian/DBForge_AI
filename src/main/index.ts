@@ -1,5 +1,6 @@
 import { app, BrowserWindow, shell, ipcMain } from 'electron'
 import { join } from 'path'
+import { spawn } from 'child_process'
 import { electronApp, is } from '@electron-toolkit/utils'
 import configStore from './services/ConfigStore'
 import historyStore from './services/HistoryStore'
@@ -58,6 +59,38 @@ function createWindow(): void {
   ipcMain.handle('window:unmaximize', () => mainWindow?.unmaximize())
   ipcMain.handle('window:close', () => mainWindow?.close())
   ipcMain.handle('window:is-maximized', () => mainWindow?.isMaximized() ?? false)
+  ipcMain.handle('window:open-terminal', () => {
+    const platform = process.platform
+    console.log('[Main] Opening terminal on', platform)
+    try {
+      if (platform === 'win32') {
+        // Use 'start' command to open a new visible cmd window
+        spawn('cmd.exe', ['/c', 'start', 'cmd.exe'], {
+          detached: true,
+          stdio: 'ignore',
+          windowsHide: false
+        }).unref()
+      } else if (platform === 'darwin') {
+        spawn('open', ['-a', 'Terminal'], { detached: true, stdio: 'ignore' }).unref()
+      } else {
+        // Linux: try common terminals
+        const terminals = ['x-terminal-emulator', 'gnome-terminal', 'konsole', 'xfce4-terminal', 'lxterminal']
+        let spawned = false
+        for (const term of terminals) {
+          try {
+            spawn(term, [], { detached: true, stdio: 'ignore' }).unref()
+            spawned = true
+            break
+          } catch { /* try next */ }
+        }
+        if (!spawned) {
+          spawn('xterm', [], { detached: true, stdio: 'ignore' }).unref()
+        }
+      }
+    } catch (err) {
+      console.error('[Main] Failed to open terminal:', err)
+    }
+  })
 
   // Notify renderer when maximized state changes
   mainWindow.on('maximize', () => mainWindow?.webContents.send('window:maximized-changed', true))
@@ -101,11 +134,6 @@ app.whenReady().then(async () => {
   registerBackupHandlers()
   registerSettingsHandlers()
   registerSessionHandlers()
-
-  // F12 DevTools shortcut disabled by default
-  // app.on('browser-window-created', (_, window) => {
-  //   optimizer.watchWindowShortcuts(window)
-  // })
 
   createWindow()
 
