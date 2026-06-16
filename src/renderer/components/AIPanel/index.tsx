@@ -29,7 +29,7 @@ const TAB_LABELS: Record<Tab, string> = {
   history: '历史记录'
 }
 
-export default function AIPanel(): React.ReactElement {
+export default function AIPanel({ onClose }: { onClose?: () => void }): React.ReactElement {
   const { activeConnectionId, activeDatabase, switchDatabase } = useConnectionStore()
   const { tabs, activeTabId, updateContent, pendingExplainSQL, setPendingExplainSQL } = useEditorStore()
   const { result, error: queryError } = useResultStore()
@@ -317,7 +317,15 @@ export default function AIPanel(): React.ReactElement {
     <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       {/* Header */}
       <div className="px-3 pt-2 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-        <div className="font-semibold text-sm mb-2">AI 助手</div>
+        <div className="flex items-center justify-between mb-2">
+          <div className="font-semibold text-sm">AI 助手</div>
+          {onClose && (
+            <button onClick={onClose} title="关闭"
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md p-1 transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
 
         {/* Database selector */}
         {activeConnectionId && (

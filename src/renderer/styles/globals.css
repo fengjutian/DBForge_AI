@@ -210,3 +210,26 @@
 .titlebar-drag select {
   -webkit-app-region: no-drag;
 }
+
+/* ── Liquid Glass Animations ───────────────────────────── */
+@keyframes liquidFlow {
+  0% { background-position: 0% 40%; }
+  25% { background-position: 80% 20%; }
+  50% { background-position: 100% 60%; }
+  75% { background-position: 30% 100%; }
+  100% { background-position: 0% 40%; }
+}
+
+@keyframes liquidShimmer {
+  0% { transform: translateX(-120%) translateY(-20%) rotate(-15deg); }
+  100% { transform: translateX(250%) translateY(20%) rotate(-15deg); }
+}
+
+.animate-liquid-flow {
+  background-size: 300% 300%;
+  animation: liquidFlow 6s ease-in-out infinite;
+}
+
+.animate-liquid-shimmer {
+  animation: liquidShimmer 4s ease-in-out infinite;
+}

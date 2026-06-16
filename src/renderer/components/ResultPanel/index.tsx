@@ -122,7 +122,7 @@ export default function ResultPanel(): React.ReactElement {
 
   return (
     <div className="h-full flex flex-col min-h-0 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-green-500 dark:border-green-600 bg-green-600 text-white dark:bg-green-700 flex-shrink-0">
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 flex-shrink-0">
         {status === 'running' ? (
           <>
             <span className="text-xs text-yellow-500 animate-pulse">查询执行中...</span>
@@ -133,9 +133,9 @@ export default function ResultPanel(): React.ReactElement {
             {result && (
               <>
                 {activeDatabase && (
-                  <span className="text-xs text-green-100 dark:text-green-200 font-medium"><Database className="w-3 h-3 inline mr-1" />{activeDatabase}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 font-medium"><Database className="w-3 h-3 inline mr-1" />{activeDatabase}</span>
                 )}
-                <span className="text-xs text-white/80">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
                   {total.toLocaleString()} 行 · {result.executionTime}ms
                 </span>
               </>
@@ -148,15 +148,15 @@ export default function ResultPanel(): React.ReactElement {
         {result && (
           <>
             <button onClick={() => { setShowSearch(true); setTimeout(() => searchRef.current?.focus(), 50) }}
-              className="text-xs px-2 py-1 rounded border border-green-400 dark:border-green-500 hover:bg-green-500 dark:hover:bg-green-600">
+              className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">
               <Search className="w-3 h-3 inline mr-1" />搜索
             </button>
             
             <div className="relative" ref={exportMenuRef}>
               <button onClick={() => setShowExportMenu(!showExportMenu)}
-                className="text-xs px-2 py-1 rounded border border-green-400 dark:border-green-500 hover:bg-green-500 dark:hover:bg-green-600 flex items-center gap-1">
+                className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-1">
                 <Upload className="w-3 h-3 inline mr-1" />导出
-                <span className="text-white/60"><ChevronDown className="w-3 h-3 inline" /></span>
+                <span className="text-gray-400"><ChevronDown className="w-3 h-3 inline" /></span>
               </button>
               
               {showExportMenu && (

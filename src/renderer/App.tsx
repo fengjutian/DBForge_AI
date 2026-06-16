@@ -13,6 +13,7 @@ import AIPanel from './components/AIPanel'
 import BackupDialog from './components/BackupDialog'
 import Settings from './components/Settings'
 import Onboarding from './components/Onboarding'
+import LiquidGlassOrb from './components/LiquidGlassOrb'
 import { useSettingsStore } from './store/settingsStore'
 import { useEditorStore } from './store/editorStore'
 import { useResultStore } from './store/resultStore'
@@ -221,7 +222,7 @@ function App(): React.ReactElement {
                   {/* Vertical resize handle */}
                   <div
                     {...resultDragProps}
-                    className="h-1 flex-shrink-0 cursor-row-resize hover:bg-green-400 dark:hover:bg-green-500 active:bg-green-500 transition-colors bg-transparent group relative border-t border-gray-200 dark:border-gray-700"
+                    className="h-1 flex-shrink-0 cursor-row-resize hover:bg-green-400 dark:hover:bg-green-500 active:bg-green-500 transition-colors bg-transparent group relative border-t border-green-500 dark:border-green-600"
                     title="拖拽调整高度"
                   >
                     <div className="absolute inset-x-0 -top-0.5 -bottom-0.5 group-hover:bg-green-400/30 dark:group-hover:bg-green-500/30 transition-colors" />
@@ -248,7 +249,7 @@ function App(): React.ReactElement {
                 <div className="absolute inset-y-0 -left-0.5 -right-0.5 group-hover:bg-green-400/30 dark:group-hover:bg-green-500/30 transition-colors" />
               </div>
               <div className="flex-shrink-0 overflow-hidden" style={{ width: rightWidth }}>
-                <AIPanel />
+                <AIPanel onClose={() => setRightPanel(null)} />
               </div>
             </>
           )}
@@ -256,6 +257,25 @@ function App(): React.ReactElement {
 
         {/* VSCode-style status bar */}
         <StatusBar />
+
+        {/* Floating AI button — Three.js liquid glass orb */}
+        {rightPanel !== 'ai' && (
+          <button
+            onClick={() => setRightPanel('ai')}
+            className="fixed bottom-[104px] right-[74px] z-50 flex items-center justify-center w-16 h-16 rounded-full
+                       overflow-hidden
+                       backdrop-blur-2xl bg-white/10 dark:bg-black/10
+                       border border-white/20 dark:border-white/10
+                       shadow-[0_8px_32px_-8px_rgba(16,185,129,0.4)]
+                       dark:shadow-[0_8px_32px_-8px_rgba(16,185,129,0.5)]
+                       hover:shadow-[0_12px_40px_-6px_rgba(16,185,129,0.5)]
+                       hover:scale-110 active:scale-95
+                       transition-all duration-500 group"
+            title="打开 AI 助手"
+          >
+            <LiquidGlassOrb />
+          </button>
+        )}
 
         {/* Modals */}
         {showBackup && <BackupDialog onClose={() => setShowBackup(false)} />}
