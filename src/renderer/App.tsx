@@ -198,7 +198,7 @@ function App(): React.ReactElement {
             className="w-1 flex-shrink-0 cursor-col-resize hover:bg-green-400 dark:hover:bg-green-500 active:bg-green-500 transition-colors bg-transparent group relative"
             title="拖拽调整宽度"
           >
-            <div className="absolute inset-y-0 -left-0.5 -right-0.5 group-hover:bg-green-400/30 dark:group-hover:bg-green-500/30 transition-colors" />
+            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-green-400 dark:bg-green-500" />
           </div>
 
           {/* Center: editor + results */}
@@ -246,7 +246,7 @@ function App(): React.ReactElement {
                 className="w-1 flex-shrink-0 cursor-col-resize hover:bg-green-400 dark:hover:bg-green-500 active:bg-green-500 transition-colors bg-transparent group relative border-l border-gray-200 dark:border-gray-700"
                 title="拖拽调整宽度"
               >
-                <div className="absolute inset-y-0 -left-0.5 -right-0.5 group-hover:bg-green-400/30 dark:group-hover:bg-green-500/30 transition-colors" />
+                <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-green-400 dark:bg-green-500" />
               </div>
               <div className="flex-shrink-0 overflow-hidden" style={{ width: rightWidth }}>
                 <AIPanel onClose={() => setRightPanel(null)} />

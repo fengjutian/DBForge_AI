@@ -235,11 +235,10 @@ export default function ResultPanel(): React.ReactElement {
         )}
       </div>
 
-      <div className="flex items-center gap-2 px-3 py-1.5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex-shrink-0 text-xs flex-wrap min-h-[32px]">
+      {result && total > 0 && (
+        <div className="flex items-center gap-2 px-3 py-1.5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex-shrink-0 text-xs flex-wrap min-h-[32px]">
           <span className="text-gray-500 shrink-0">
-            {total === 0
-              ? '无数据'
-              : `第 ${Math.min((pagination.page - 1) * pagination.pageSize + 1, total)}–${Math.min(pagination.page * pagination.pageSize, total)} 条，共 ${total.toLocaleString()} 条`}
+            {`第 ${Math.min((pagination.page - 1) * pagination.pageSize + 1, total)}–${Math.min(pagination.page * pagination.pageSize, total)} 条，共 ${total.toLocaleString()} 条`}
           </span>
 
           <div className="flex-1" />
@@ -308,6 +307,7 @@ export default function ResultPanel(): React.ReactElement {
             </div>
           )}
         </div>
+      )}
     </div>
   )
 }

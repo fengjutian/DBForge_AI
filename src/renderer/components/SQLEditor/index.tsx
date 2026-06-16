@@ -5,6 +5,8 @@ import { useEditorStore } from '../../store/editorStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import { useResultStore } from '../../store/resultStore'
 import { useConnectionStore } from '../../store/connectionStore'
+import { useSessionStore } from '../../store/sessionStore'
+import { setupInlineAIPrompt } from './InlineAIPrompt'
 
 /** Map database type to Monaco editor language ID */
 function dbTypeToLang(dbType?: string): string {
@@ -78,23 +80,62 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
   const connLang = dbTypeToLang(conn?.databaseType)
   const { config } = useSettingsStore()
   const { setResult, setStatus, setQueryId } = useResultStore()
+  const { getSchema } = useSessionStore()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const editorRef = useRef<any>(null)
 
   // Always-current refs so Monaco action closures never capture stale values
   const activeConnectionIdRef = useRef(activeConnectionId)
+  const databaseTypeRef = useRef(conn?.databaseType)
   const tabIdRef = useRef(tabId)
   const setResultRef = useRef(setResult)
   const setStatusRef = useRef(setStatus)
   const setQueryIdRef = useRef(setQueryId)
   const setPendingExplainSQLRef = useRef(setPendingExplainSQL)
+  // Cleanup for inline AI prompt
+  const inlineAICleanupRef = useRef<(() => void) | null>(null)
 
   useEffect(() => { activeConnectionIdRef.current = activeConnectionId }, [activeConnectionId])
+  useEffect(() => { databaseTypeRef.current = conn?.databaseType }, [conn?.databaseType])
   useEffect(() => { tabIdRef.current = tabId }, [tabId])
   useEffect(() => { setResultRef.current = setResult }, [setResult])
   useEffect(() => { setStatusRef.current = setStatus }, [setStatus])
   useEffect(() => { setQueryIdRef.current = setQueryId }, [setQueryId])
   useEffect(() => { setPendingExplainSQLRef.current = setPendingExplainSQL }, [setPendingExplainSQL])
+
+  // Cleanup inline AI prompt on unmount
+  useEffect(() => {
+    return () => {
+      inlineAICleanupRef.current?.()
+      inlineAICleanupRef.current = null
+    }
+  }, [])
+
+  /** Get schema from the session store (stable ref-safe getter) */
+  const fetchSchema = useCallback(() => {
+    const connId = activeConnectionIdRef.current
+    if (!connId) return undefined
+    return getSchema(connId) ?? undefined
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getSchema])
+
+  /** Call AI text-to-sql via preload API */
+  const callTextToSQL = useCallback(
+    async (params: {
+      naturalLanguage: string
+      schema: import('../../../shared/types').DatabaseSchema
+      connectionId: string
+      databaseType?: string
+    }) => {
+      return window.electronAPI.ai.textToSQL({
+        naturalLanguage: params.naturalLanguage,
+        schema: params.schema,
+        connectionId: params.connectionId,
+        databaseType: params.databaseType as import('../../../shared/types').DatabaseType | undefined
+      })
+    },
+    []
+  )
 
   const tab = tabs.find(t => t.id === tabId)
   const isDark = config?.theme === 'dark' ||
@@ -279,6 +320,16 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
 
     monaco.languages.setLanguageConfiguration('sql', {
       comments: { lineComment: '--', blockComment: ['/*', '*/'] }
+    })
+
+    // ── Inline AI slash command ──
+    inlineAICleanupRef.current = setupInlineAIPrompt({
+      editor,
+      monaco,
+      activeConnectionIdRef,
+      databaseTypeRef,
+      fetchSchema,
+      callTextToSQL
     })
   // handleMount only runs once on mount —all state access goes through refs
   // eslint-disable-next-line react-hooks/exhaustive-deps
