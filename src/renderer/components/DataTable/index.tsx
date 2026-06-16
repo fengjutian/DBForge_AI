@@ -319,18 +319,18 @@ export default function DataTable({
           {columns.map(col => <col key={col.name} style={{ width: getColW(col.name) }} />)}
         </colgroup>
 
-        <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
+        <thead className="sticky top-0 bg-green-600 text-white dark:bg-green-700 z-10">
           <tr>
-            <th className="border-b border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 select-none" style={{ width: ROW_NUM_W }} />
+            <th className="border-b border-r border-green-500 dark:border-green-600 bg-green-600 dark:bg-green-700 text-white select-none" style={{ width: ROW_NUM_W }} />
             {columns.map(col => {
               const isColSel = selectedCol === col.name
               const hasFilter = !!filters[col.name]
               return (
                 <th key={col.name}
                   style={{ width: getColW(col.name), position: 'relative', overflow: 'hidden' }}
-                  className={`px-2 py-1.5 text-left font-medium border-b border-r border-gray-200 dark:border-gray-700
-                    select-none whitespace-nowrap transition-colors
-                    ${isColSel ? 'bg-green-500 text-white dark:bg-green-600' : 'hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer'}`}
+                  className={`px-2 py-1.5 text-left font-medium border-b border-r border-green-500 dark:border-green-600
+                    select-none whitespace-nowrap transition-colors text-white
+                    ${isColSel ? 'bg-green-700 dark:bg-green-800' : 'hover:bg-green-500 dark:hover:bg-green-600 cursor-pointer'}`}
                   onClick={() => { setSelectedCol(isColSel ? null : col.name); onSort?.(col.name, sortColumn === col.name && sortDirection === 'asc' ? 'desc' : 'asc') }}
                   onContextMenu={e => onColContextMenu(e, col.name)}>
                   <span className="truncate flex items-center gap-1 pr-2">

@@ -50,7 +50,7 @@ export default function MarkdownRenderer({ content, className = '', streaming = 
               <table className="text-xs border-collapse w-full">{children}</table>
             </div>
           ),
-          thead: ({ children }) => <thead className="bg-gray-100 dark:bg-gray-800">{children}</thead>,
+          thead: ({ children }) => <thead className="bg-green-600 text-white dark:bg-green-700">{children}</thead>,
           th: ({ children }) => <th className="border border-gray-300 dark:border-gray-600 px-2 py-1 font-semibold text-left">{children}</th>,
           td: ({ children }) => <td className="border border-gray-300 dark:border-gray-600 px-2 py-1">{children}</td>,
           strong: ({ children }) => <strong className="font-semibold text-gray-900 dark:text-gray-100">{children}</strong>,

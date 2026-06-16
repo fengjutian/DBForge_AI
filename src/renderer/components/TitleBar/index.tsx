@@ -63,8 +63,9 @@ function TitleBar({
     <div
       className={`
         flex items-center h-9 flex-shrink-0 select-none
-        bg-[#252526] dark:bg-[#252526] bg-white text-gray-800 dark:text-gray-100
-        border-b border-[#3c3c3c] dark:border-[#3c3c3c] border-gray-200
+        bg-green-600 dark:bg-green-600 bg-green-500 text-white dark:text-white
+        border-b border-green-700 dark:border-green-700 border-green-600
+
       `}
     >
       {/* ── Left: app icon + title (draggable) ───────────── */}
@@ -123,16 +124,16 @@ function TitleBar({
           <button
             onClick={onOpenBackup}
             className="px-2 py-0.5 text-[11px] rounded
-              text-gray-300 dark:text-gray-300 text-gray-600
-              hover:bg-[#3c3c3c] dark:hover:bg-[#3c3c3c] hover:bg-gray-200"
+              text-white dark:text-white
+              hover:bg-green-700 dark:hover:bg-green-700 hover:bg-green-700"
           >
             备份
           </button>
           <button
             onClick={onOpenSettings}
             className="px-2 py-0.5 text-[11px] rounded
-              text-gray-300 dark:text-gray-300 text-gray-600
-              hover:bg-[#3c3c3c] dark:hover:bg-[#3c3c3c] hover:bg-gray-200"
+              text-white dark:text-white
+              hover:bg-green-700 dark:hover:bg-green-700 hover:bg-green-700"
           >
             设置
           </button>
@@ -140,8 +141,8 @@ function TitleBar({
             onClick={onToggleAI}
             className={`px-2 py-0.5 text-[11px] rounded
               ${aiPanelOpen
-                ? 'bg-green-700 text-green-200'
-                : 'text-gray-300 dark:text-gray-300 hover:bg-[#3c3c3c] dark:hover:bg-[#3c3c3c] text-gray-600 hover:bg-gray-200'
+                ? 'bg-green-800 text-white'
+                : 'text-white dark:text-white hover:bg-green-700 dark:hover:bg-green-700 hover:bg-green-700'
               }`}
           >
             AI
@@ -156,8 +157,8 @@ function TitleBar({
           <button
             onClick={handleMinimize}
             className="w-11 h-full flex items-center justify-center
-              text-gray-300 dark:text-gray-300 text-gray-500
-              hover:bg-[#3c3c3c] dark:hover:bg-[#3c3c3c] hover:bg-gray-200
+              text-white dark:text-white
+              hover:bg-green-700 dark:hover:bg-green-700 hover:bg-green-700
               transition-colors duration-75"
             title="最小化"
           >
@@ -166,8 +167,8 @@ function TitleBar({
           <button
             onClick={handleMaximize}
             className="w-11 h-full flex items-center justify-center
-              text-gray-300 dark:text-gray-300 text-gray-500
-              hover:bg-[#3c3c3c] dark:hover:bg-[#3c3c3c] hover:bg-gray-200
+              text-white dark:text-white
+              hover:bg-green-700 dark:hover:bg-green-700 hover:bg-green-700
               transition-colors duration-75"
             title={maximized ? '还原' : '最大化'}
           >
@@ -180,7 +181,7 @@ function TitleBar({
           <button
             onClick={handleClose}
             className="w-11 h-full flex items-center justify-center
-              text-gray-300 dark:text-gray-300 text-gray-500
+              text-white dark:text-white
               hover:bg-red-600 hover:text-white
               transition-colors duration-75"
             title="关闭"

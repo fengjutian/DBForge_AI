@@ -107,12 +107,12 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       {/* Toolbar */}
-      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex-shrink-0">
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-green-500 dark:border-green-600 bg-green-600 text-white dark:bg-green-700 flex-shrink-0">
         {status === 'running' ? (
           <span className="text-xs text-yellow-500 animate-pulse">加载中...</span>
         ) : (
           <>
-            {result && <span className="text-xs text-gray-500">{result.executionTime}ms</span>}
+            {result && <span className="text-xs text-white/80">{result.executionTime}ms</span>}
             {status === 'error' && <span className="text-xs text-red-500"><X className="w-3 h-3 inline mr-1 align-middle" />{error}</span>}
           </>
         )}
@@ -120,14 +120,14 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
         {result && (
           <>
             <button onClick={() => setShowSearch(!showSearch)}
-              className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">
+              className="text-xs px-2 py-1 rounded border border-green-400 dark:border-green-500 hover:bg-green-500 dark:hover:bg-green-600">
               <Search className="w-3 h-3 inline mr-1" />搜索
             </button>
-            <button onClick={handleExportCSV} className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">CSV</button>
-            <button onClick={handleExportJSON} className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">JSON</button>
-            <button onClick={handleExportExcel} className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">Excel</button>
+            <button onClick={handleExportCSV} className="text-xs px-2 py-1 rounded border border-green-400 dark:border-green-500 hover:bg-green-500 dark:hover:bg-green-600">CSV</button>
+            <button onClick={handleExportJSON} className="text-xs px-2 py-1 rounded border border-green-400 dark:border-green-500 hover:bg-green-500 dark:hover:bg-green-600">JSON</button>
+            <button onClick={handleExportExcel} className="text-xs px-2 py-1 rounded border border-green-400 dark:border-green-500 hover:bg-green-500 dark:hover:bg-green-600">Excel</button>
             <button onClick={handleRefresh}
-              className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="text-xs px-2 py-1 rounded border border-green-400 dark:border-green-500 hover:bg-green-500 dark:hover:bg-green-600"
               title="刷新数据">
               <RefreshCw className="w-3 h-3 inline mr-1" />刷新
             </button>
