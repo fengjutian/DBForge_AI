@@ -70,7 +70,7 @@ function TitleBar({
     >
       {/* ── Left: app icon + title (draggable) ───────────── */}
       <div className="flex items-center gap-2 pl-4 pr-3 h-full titlebar-drag">
-        <Database className="w-4 h-4 text-green-500" />
+        <Database className="w-4 h-4 text-white" />
         <span className="font-semibold text-sm tracking-wide">DBForge AI</span>
       </div>
 
