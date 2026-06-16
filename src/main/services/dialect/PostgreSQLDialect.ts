@@ -137,7 +137,7 @@ export class PostgreSQLDialect implements DatabaseDialect {
     const n = normalizeSql(sql)
     const writePattern = /^\s*(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|CREATE|REPLACE|GRANT|REVOKE|LOCK)\b/i
     if (writePattern.test(n)) return false
-    return n.startsWith('SELECT') || n.startsWith('SHOW') || n.startsWith('EXPLAIN') || n.startsWith('WITH')
+    return n.startsWith('SELECT') || n.startsWith('SHOW') || n.startsWith('EXPLAIN') || n.startsWith('WITH') || n.startsWith('SET')
   }
 
   formatSQL(sql: string): string {

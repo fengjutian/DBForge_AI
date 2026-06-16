@@ -220,6 +220,11 @@ describe('MySQLDialect', () => {
     expect(dialect.isReadOnlySQL('EXPLAIN SELECT * FROM users')).toBe(true)
   })
 
+  it('USE is read-only (database switch)', () => {
+    expect(dialect.isReadOnlySQL('USE my_database')).toBe(true)
+    expect(dialect.isReadOnlySQL('USE `my_database`')).toBe(true)
+  })
+
   it('default port is 3306', () => {
     expect(dialect.getDefaultPort()).toBe(3306)
   })
@@ -253,6 +258,11 @@ describe('PostgreSQLDialect', () => {
 
   it('EXPLAIN is read-only', () => {
     expect(dialect.isReadOnlySQL('EXPLAIN ANALYZE SELECT * FROM users')).toBe(true)
+  })
+
+  it('SET is read-only (session config)', () => {
+    expect(dialect.isReadOnlySQL("SET search_path TO public")).toBe(true)
+    expect(dialect.isReadOnlySQL('SET statement_timeout = 1000')).toBe(true)
   })
 
   it('default port is 5432', () => {
@@ -304,6 +314,10 @@ describe('SQLiteDialect', () => {
 
   it('EXPLAIN is read-only', () => {
     expect(dialect.isReadOnlySQL('EXPLAIN QUERY PLAN SELECT 1')).toBe(true)
+  })
+
+  it('USE is read-only', () => {
+    expect(dialect.isReadOnlySQL('USE my_database')).toBe(true)
   })
 
   it('default port is 0', () => {

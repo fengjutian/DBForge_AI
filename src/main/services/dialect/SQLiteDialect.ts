@@ -79,7 +79,7 @@ export class SQLiteDialect implements DatabaseDialect {
       .replace(/--[^\r\n]*/g, '')
       .replace(/\s+/g, ' ')
     return n.startsWith('SELECT') || n.startsWith('PRAGMA') ||
-           n.startsWith('EXPLAIN') || n.startsWith('WITH')
+           n.startsWith('EXPLAIN') || n.startsWith('WITH') || n.startsWith('USE')
   }
 
   formatSQL(sql: string): string { return sql }

@@ -93,7 +93,7 @@ export class MySQLDialect implements DatabaseDialect {
 
   isReadOnlySQL(sql: string): boolean {
     const n = sql.trim().toUpperCase().replace(/\/\*[\s\S]*?\*\//g, '').replace(/--[^\r\n]*/g, '').replace(/\s+/g, ' ')
-    return n.startsWith('SELECT') || n.startsWith('SHOW') || n.startsWith('DESCRIBE') || n.startsWith('EXPLAIN') || n.startsWith('WITH')
+    return n.startsWith('SELECT') || n.startsWith('SHOW') || n.startsWith('DESCRIBE') || n.startsWith('EXPLAIN') || n.startsWith('WITH') || n.startsWith('USE')
   }
 
   formatSQL(sql: string): string {
