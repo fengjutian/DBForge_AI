@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { Database, RefreshCw, X, AlertTriangle, BookOpen, Lightbulb, Bot, Rocket, FileText, Search, Shield, CheckCircle, Clipboard, BarChart3, Microscope, ChevronUp, ChevronDown, MessageSquare, Circle } from 'lucide-react'
 import { useConnectionStore } from '../../store/connectionStore'
+import { useSessionStore } from '../../store/sessionStore'
 import { useEditorStore } from '../../store/editorStore'
 import { useResultStore } from '../../store/resultStore'
 import { useAIStream, newStreamId } from '../../hooks/useAIStream'
@@ -85,12 +87,13 @@ export default function AIPanel(): React.ReactElement {
   const activeTab = tabs.find(t => t.id === activeTabId)
   const currentSQL = activeTab?.content?.trim() ?? ''
 
-  // Load database list when connection changes
+  // Load database list from the session's schema when connection changes
   const loadDatabases = useCallback(async () => {
     if (!activeConnectionId) { setDatabases([]); setSelectedDb(null); return }
     setDbLoading(true)
     try {
-      const schema: DatabaseSchema = await window.electronAPI.schema.fetch(activeConnectionId)
+      const schema = useSessionStore.getState().getSchema(activeConnectionId)
+      if (!schema) { setDatabases([]); return }
       const names = schema.databases.map(d => d.name)
       setDatabases(names)
       // Keep selectedDb if still valid, else default to activeDatabase or first
@@ -121,17 +124,16 @@ export default function AIPanel(): React.ReactElement {
     }
   }
 
-  /** Fetch schema filtered to the selected database */
-  const fetchSchema = async (): Promise<DatabaseSchema | undefined> => {
+  /** Get schema from the session, filtered to the selected database */
+  const fetchSchema = (): DatabaseSchema | undefined => {
     if (!activeConnectionId) return undefined
-    try {
-      const schema = await window.electronAPI.schema.fetch(activeConnectionId)
-      if (!selectedDb) return schema
-      return {
-        ...schema,
-        databases: schema.databases.filter(d => d.name === selectedDb)
-      }
-    } catch { return undefined }
+    const schema = useSessionStore.getState().getSchema(activeConnectionId)
+    if (!schema) return undefined
+    if (!selectedDb) return schema
+    return {
+      ...schema,
+      databases: schema.databases.filter(d => d.name === selectedDb)
+    }
   }
 
   const loadHistory = async () => {
@@ -177,7 +179,7 @@ export default function AIPanel(): React.ReactElement {
     setGenStreamId(sid); clearStream(sid); startStream(sid)
     setGenLoading(true); setGlobalError(null); setGenResponse(null)
     try {
-      const schema = await fetchSchema()
+      const schema = fetchSchema()
       if (!schema) { setGlobalError('无法获取数据库结构'); return }
       const res = await window.electronAPI.ai.textToSQL({ naturalLanguage: genInput, schema, connectionId: activeConnectionId, streamId: sid })
       setGenResponse(res)
@@ -217,7 +219,7 @@ export default function AIPanel(): React.ReactElement {
     setOptimizeStreamId(sid); clearStream(sid); startStream(sid)
     setOptimizeLoading(true); setGlobalError(null); setOptimizeResponse(null)
     try {
-      const schema = await fetchSchema()
+      const schema = fetchSchema()
       const res = await window.electronAPI.ai.optimizeQuery({ sql: currentSQL, schema, streamId: sid })
       setOptimizeResponse(res)
     } catch (e) {
@@ -234,7 +236,7 @@ export default function AIPanel(): React.ReactElement {
     setDiagnoseStreamId(sid); clearStream(sid); startStream(sid)
     setDiagnoseLoading(true); setGlobalError(null); setDiagnoseResponse(null)
     try {
-      const schema = await fetchSchema()
+      const schema = fetchSchema()
       const res = await window.electronAPI.ai.diagnoseError({ sql: currentSQL, errorMessage: diagnoseError, schema, streamId: sid })
       setDiagnoseResponse(res)
     } catch (e) {
@@ -267,7 +269,7 @@ export default function AIPanel(): React.ReactElement {
     setSchemaDocStreamId(sid); clearStream(sid); startStream(sid)
     setSchemaDocLoading(true); setGlobalError(null); setSchemaDocResponse(null)
     try {
-      const schema = await fetchSchema()
+      const schema = fetchSchema()
       if (!schema) { setGlobalError('无法获取数据库结构'); return }
       const res = await window.electronAPI.ai.generateSchemaDoc({ schema, targetDb: selectedDb ?? undefined, streamId: sid })
       setSchemaDocResponse(res)
@@ -320,14 +322,14 @@ export default function AIPanel(): React.ReactElement {
         {/* Database selector */}
         {activeConnectionId && (
           <div className="flex items-center gap-1.5 mb-2">
-            <span className="text-xs text-gray-400 flex-shrink-0">🗄 数据库：</span>
+            <span className="text-xs text-gray-400 flex-shrink-0"><Database className="w-3 h-3 inline mr-1 align-middle" />数据库：</span>
             {dbLoading ? (
               <span className="text-xs text-gray-400">加载中...</span>
             ) : databases.length > 0 ? (
               <select
                 value={selectedDb ?? ''}
                 onChange={e => { handleSwitchDb(e.target.value); setTimeout(() => e.target.blur(), 0) }}
-                className="flex-1 text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-0"
+                className="flex-1 text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500 min-w-0"
               >
                 {databases.map(db => (
                   <option key={db} value={db}>{db}</option>
@@ -336,14 +338,14 @@ export default function AIPanel(): React.ReactElement {
             ) : (
               <span className="text-xs text-gray-400">无数据库</span>
             )}
-            <button onClick={loadDatabases} title="刷新" className="text-xs text-gray-400 hover:text-blue-500 flex-shrink-0">↻</button>
+            <button onClick={loadDatabases} title="刷新" className="text-xs text-gray-400 hover:text-green-500 flex-shrink-0"><RefreshCw className="w-3 h-3 inline" /></button>
           </div>
         )}
 
         <div className="flex gap-0.5 flex-wrap">
           {tabs_list.map(t => (
             <button key={t} onClick={() => { setTab(t); setGlobalError(null) }}
-              className={`text-xs px-2 py-1 rounded-t border-b-2 transition-colors whitespace-nowrap ${tab === t ? 'border-blue-500 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
+              className={`text-xs px-2 py-1 rounded-t border-b-2 transition-colors whitespace-nowrap ${tab === t ? 'border-green-500 text-green-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
               {TAB_LABELS[t]}{t === 'history' && history.length ? ` (${history.length})` : ''}
             </button>
           ))}
@@ -353,8 +355,8 @@ export default function AIPanel(): React.ReactElement {
       {/* Global error */}
       {globalError && (
         <div className="mx-3 mt-2 text-xs text-red-500 bg-red-50 dark:bg-red-900/20 rounded p-2 flex items-start justify-between gap-2 flex-shrink-0">
-          <span>✗ {globalError}</span>
-          <button onClick={() => setGlobalError(null)} className="text-gray-400 hover:text-gray-600 flex-shrink-0">✕</button>
+          <span><AlertTriangle className="w-3 h-3 inline mr-1 align-middle" />{globalError}</span>
+          <button onClick={() => setGlobalError(null)} className="text-gray-400 hover:text-gray-600 flex-shrink-0"><X className="w-3 h-3" /></button>
         </div>
       )}
 
@@ -469,7 +471,7 @@ export default function AIPanel(): React.ReactElement {
 // ── Sub-components ──────────────────────────────────────────
 
 function NoConnectionWarning() {
-  return <div className="text-xs text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 rounded p-2">⚠ 请先选择一个数据库连接</div>
+  return <div className="text-xs text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 rounded p-2"><AlertTriangle className="w-3 h-3 inline mr-1 align-middle" />请先选择一个数据库连接</div>
 }
 
 function NoSQLWarning() {
@@ -511,7 +513,7 @@ function GenerateTab(p: GenerateTabProps): React.ReactElement {
       <div>
         <label className="text-xs text-gray-500 mb-1 block">用自然语言描述查询需求</label>
         <textarea
-          className="w-full text-sm px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+          className="w-full text-sm px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500 resize-none"
           rows={3}
           placeholder="例如：查询最近7天注册的用户数量，按天分组..."
           value={p.genInput}
@@ -520,7 +522,7 @@ function GenerateTab(p: GenerateTabProps): React.ReactElement {
         />
         <button onClick={p.onGenerate}
           disabled={p.genLoading || !p.genInput.trim() || !p.activeConnectionId}
-          className="mt-2 w-full text-sm py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 font-medium">
+          className="mt-2 w-full text-sm py-1.5 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 font-medium">
           {p.genLoading ? '生成中...' : '生成 SQL  Ctrl+Enter'}
         </button>
       </div>
@@ -532,7 +534,7 @@ function GenerateTab(p: GenerateTabProps): React.ReactElement {
         <div className="space-y-2">
           {p.genResponse.isDangerous && (
             <div className="text-xs text-red-600 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-2">
-              ⚠ 危险操作警告：此 SQL 可能修改或删除数据，请谨慎执行！
+              <AlertTriangle className="w-3 h-3 inline mr-1 align-middle" />危险操作警告：此 SQL 可能修改或删除数据，请谨慎执行！
             </div>
           )}
           <SQLBlock
@@ -544,7 +546,7 @@ function GenerateTab(p: GenerateTabProps): React.ReactElement {
             explainLoading={p.explainingSql}
           />
           {(p.explainingSql || p.sqlExplanation) && (
-            <InfoBox color="amber" title="📖 SQL 解释">
+            <InfoBox color="amber" title={<><BookOpen className="w-3 h-3 inline mr-1 align-middle" />SQL 解释</>}>
               {p.explainSqlThinking && <ThinkingBox text={p.explainSqlThinking} />}
               {p.explainingSql && !p.sqlExplanation
                 ? <StreamingDots />
@@ -552,7 +554,7 @@ function GenerateTab(p: GenerateTabProps): React.ReactElement {
             </InfoBox>
           )}
           {p.genResponse.explanation && (
-            <InfoBox color="gray" title="💡 说明">
+            <InfoBox color="gray" title={<><Lightbulb className="w-3 h-3 inline mr-1 align-middle" />说明</>}>
               <MarkdownRenderer content={p.genResponse.explanation} />
             </InfoBox>
           )}
@@ -563,11 +565,11 @@ function GenerateTab(p: GenerateTabProps): React.ReactElement {
         <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
           <button onClick={p.onExplainResult} disabled={p.explainingResult}
             className="w-full text-sm py-1.5 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50">
-            {p.explainingResult ? '分析中...' : '🤖 AI 解释查询结果'}
+            {p.explainingResult ? '分析中...' : <><Bot className="w-3 h-3 inline mr-1 align-middle" />AI 解释查询结果</>}
           </button>
           {(p.explainingResult || p.resultExplanation) && (
             <div className="mt-2">
-              <InfoBox color="blue" title="🤖 结果分析">
+              <InfoBox color="blue" title={<><Bot className="w-3 h-3 inline mr-1 align-middle" />结果分析</>}>
                 {p.explainingResult && !p.resultExplanation
                   ? <StreamingDots />
                   : <MarkdownRenderer content={p.resultExplanation} />}
@@ -581,11 +583,11 @@ function GenerateTab(p: GenerateTabProps): React.ReactElement {
         <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
           <button onClick={() => p.onExplainSQL(p.currentSQL)} disabled={p.explainingSql}
             className="w-full text-sm py-1.5 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50">
-            {p.explainingSql ? '解释中...' : '📖 解释编辑器中的 SQL'}
+            {p.explainingSql ? '解释中...' : <><BookOpen className="w-3 h-3 inline mr-1 align-middle" />解释编辑器中的 SQL</>}
           </button>
           {(p.explainingSql || p.sqlExplanation) && !p.genResponse && (
             <div className="mt-2">
-              <InfoBox color="amber" title="📖 SQL 解释">
+              <InfoBox color="amber" title={<><BookOpen className="w-3 h-3 inline mr-1 align-middle" />SQL 解释</>}>
                 {p.explainSqlThinking && <ThinkingBox text={p.explainSqlThinking} />}
                 {p.explainingSql && !p.sqlExplanation
                   ? <StreamingDots />
@@ -621,8 +623,8 @@ function OptimizeTab(p: OptimizeTabProps): React.ReactElement {
             <pre className="font-mono whitespace-pre-wrap break-all line-clamp-4">{p.currentSQL}</pre>
           </div>
           <button onClick={p.onOptimize} disabled={p.loading}
-            className="w-full text-sm py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 font-medium">
-            {p.loading ? '分析中...' : '🚀 AI 优化查询'}
+            className="w-full text-sm py-1.5 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 font-medium">
+            {p.loading ? '分析中...' : <><Rocket className="w-3 h-3 inline mr-1 align-middle" />AI 优化查询</>}
           </button>
         </>
       )}
@@ -639,16 +641,16 @@ function OptimizeTab(p: OptimizeTabProps): React.ReactElement {
             onUse={() => p.onUseSQL(p.response!.optimizedSql)}
           />
           {p.response.suggestions.length > 0 && (
-            <InfoBox color="blue" title="💡 优化建议">
+            <InfoBox color="blue" title={<><Lightbulb className="w-3 h-3 inline mr-1 align-middle" />优化建议</>}>
               <ul className="space-y-1">
                 {p.response.suggestions.map((s, i) => (
-                  <li key={i} className="flex gap-1.5"><span className="text-blue-400 flex-shrink-0">•</span><span>{s}</span></li>
+                  <li key={i} className="flex gap-1.5"><span className="text-green-400 flex-shrink-0"><Circle className="w-1.5 h-1.5 inline fill-current" /></span><span>{s}</span></li>
                 ))}
               </ul>
             </InfoBox>
           )}
           {p.response.explanation && (
-            <InfoBox color="gray" title="📝 说明">
+            <InfoBox color="gray" title={<><FileText className="w-3 h-3 inline mr-1 align-middle" />说明</>}>
               <MarkdownRenderer content={p.response.explanation} />
             </InfoBox>
           )}
@@ -679,7 +681,7 @@ function DiagnoseTab(p: DiagnoseTabProps): React.ReactElement {
       <div>
         <label className="text-xs text-gray-500 mb-1 block">错误信息</label>
         <textarea
-          className="w-full text-sm px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+          className="w-full text-sm px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500 resize-none"
           rows={3}
           placeholder="粘贴 MySQL 错误信息，例如：ERROR 1064 (42000): You have an error..."
           value={p.errorMessage}
@@ -687,7 +689,7 @@ function DiagnoseTab(p: DiagnoseTabProps): React.ReactElement {
         />
         <button onClick={p.onDiagnose} disabled={p.loading || !p.currentSQL || !p.errorMessage.trim()}
           className="mt-2 w-full text-sm py-1.5 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 font-medium">
-          {p.loading ? '诊断中...' : '🔍 AI 诊断错误'}
+          {p.loading ? '诊断中...' : <><Search className="w-3 h-3 inline mr-1 align-middle" />AI 诊断错误</>}
         </button>
       </div>
 
@@ -696,7 +698,7 @@ function DiagnoseTab(p: DiagnoseTabProps): React.ReactElement {
 
       {p.response && (
         <div className="space-y-2">
-          <InfoBox color="red" title="🔍 错误诊断">
+          <InfoBox color="red" title={<><Search className="w-3 h-3 inline mr-1 align-middle" />错误诊断</>}>
             <MarkdownRenderer content={p.response.diagnosis} />
           </InfoBox>
           {p.response.fixedSql && (
@@ -704,10 +706,10 @@ function DiagnoseTab(p: DiagnoseTabProps): React.ReactElement {
               onUse={() => p.onUseSQL(p.response!.fixedSql!)} />
           )}
           {p.response.suggestions.length > 0 && (
-            <InfoBox color="amber" title="💡 修复建议">
+            <InfoBox color="amber" title={<><Lightbulb className="w-3 h-3 inline mr-1 align-middle" />修复建议</>}>
               <ul className="space-y-1">
                 {p.response.suggestions.map((s, i) => (
-                  <li key={i} className="flex gap-1.5"><span className="text-amber-400 flex-shrink-0">•</span><span>{s}</span></li>
+                  <li key={i} className="flex gap-1.5"><span className="text-amber-400 flex-shrink-0"><Circle className="w-1.5 h-1.5 inline fill-current" /></span><span>{s}</span></li>
                 ))}
               </ul>
             </InfoBox>
@@ -723,7 +725,7 @@ function DiagnoseTab(p: DiagnoseTabProps): React.ReactElement {
 const SEVERITY_COLORS = {
   high: 'text-red-600 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
   medium: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800',
-  low: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+  low: 'text-green-600 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
 }
 
 const SEVERITY_LABELS = { high: '高危', medium: '中危', low: '低危' }
@@ -748,7 +750,7 @@ function SecurityTab(p: SecurityTabProps): React.ReactElement {
           </div>
           <button onClick={p.onAudit} disabled={p.loading}
             className="w-full text-sm py-1.5 rounded bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50 font-medium">
-            {p.loading ? '审计中...' : '🛡 AI 安全审计'}
+            {p.loading ? '审计中...' : <><Shield className="w-3 h-3 inline mr-1 align-middle" />AI 安全审计</>}
           </button>
         </>
       )}
@@ -759,10 +761,10 @@ function SecurityTab(p: SecurityTabProps): React.ReactElement {
       {p.response && (
         <div className="space-y-2">
           <div className={`text-xs rounded p-2 font-medium ${p.response.safe ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'}`}>
-            {p.response.safe ? '✅ 未发现安全问题' : `⚠ 发现 ${p.response.issues.length} 个安全问题`}
+            {p.response.safe ? <><CheckCircle className="w-3 h-3 inline mr-1 align-middle" />未发现安全问题</> : <><AlertTriangle className="w-3 h-3 inline mr-1 align-middle" />发现 {p.response.issues.length} 个安全问题</>}
           </div>
           {p.response.summary && (
-            <InfoBox color="gray" title="📋 总体评估">
+            <InfoBox color="gray" title={<><Clipboard className="w-3 h-3 inline mr-1 align-middle" />总体评估</>}>
               <MarkdownRenderer content={p.response.summary} />
             </InfoBox>
           )}
@@ -799,7 +801,7 @@ function SchemaDocTab(p: SchemaDocTabProps): React.ReactElement {
       {!p.activeConnectionId ? <NoConnectionWarning /> : (
         <button onClick={p.onGenerate} disabled={p.loading}
           className="w-full text-sm py-1.5 rounded bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 font-medium">
-          {p.loading ? '生成中...' : '📚 生成 Schema 文档'}
+          {p.loading ? '生成中...' : <><BookOpen className="w-3 h-3 inline mr-1 align-middle" />生成 Schema 文档</>}
         </button>
       )}
       {p.loading && p.thinking && <ThinkingBox text={p.thinking} />}
@@ -841,7 +843,7 @@ function DataQualityTab(p: DataQualityTabProps): React.ReactElement {
       {!p.hasResult ? <NoResultWarning /> : (
         <button onClick={p.onAnalyze} disabled={p.loading}
           className="w-full text-sm py-1.5 rounded bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50 font-medium">
-          {p.loading ? '分析中...' : '🔬 AI 数据质量分析'}
+          {p.loading ? '分析中...' : <><Microscope className="w-3 h-3 inline mr-1 align-middle" />AI 数据质量分析</>}
         </button>
       )}
 
@@ -851,12 +853,12 @@ function DataQualityTab(p: DataQualityTabProps): React.ReactElement {
       {p.response && (
         <div className="space-y-2">
           {p.response.summary && (
-            <InfoBox color="blue" title="📊 质量总结">
+            <InfoBox color="blue" title={<><BarChart3 className="w-3 h-3 inline mr-1 align-middle" />质量总结</>}>
               <MarkdownRenderer content={p.response.summary} />
             </InfoBox>
           )}
           {p.response.issues.length === 0 ? (
-            <div className="text-xs text-green-600 bg-green-50 dark:bg-green-900/20 rounded p-2">✅ 未发现明显数据质量问题</div>
+            <div className="text-xs text-green-600 bg-green-50 dark:bg-green-900/20 rounded p-2"><CheckCircle className="w-3 h-3 inline mr-1 align-middle" />未发现明显数据质量问题</div>
           ) : (
             p.response.issues.map((issue, i) => (
               <div key={i} className="text-xs bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-2 space-y-0.5">
@@ -898,7 +900,7 @@ function HistoryTab(p: HistoryTabProps): React.ReactElement {
           value={p.historySearch}
           onChange={e => p.setHistorySearch(e.target.value)}
         />
-        <button onClick={p.onLoadHistory} className="text-xs text-gray-400 hover:text-blue-500" title="刷新">↻</button>
+        <button onClick={p.onLoadHistory} className="text-xs text-gray-400 hover:text-green-500" title="刷新"><RefreshCw className="w-3 h-3 inline" /></button>
         {p.history.length > 0 && (
           <button onClick={p.onClearHistory} className="text-xs text-red-400 hover:text-red-600">清空</button>
         )}
@@ -914,9 +916,9 @@ function HistoryTab(p: HistoryTabProps): React.ReactElement {
               <pre className="text-xs font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-all flex-1 leading-relaxed line-clamp-3">{h.sql}</pre>
               <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button onClick={() => p.onUseSQL(h.sql)}
-                  className="text-xs px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 hover:bg-blue-200">使用</button>
+                  className="text-xs px-1.5 py-0.5 rounded bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 hover:bg-green-200">使用</button>
                 <button onClick={() => p.onDeleteHistory(h.id)}
-                  className="text-xs px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/40 text-red-500 hover:bg-red-200">✕</button>
+                  className="text-xs px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/40 text-red-500 hover:bg-red-200"><X className="w-3 h-3" /></button>
               </div>
             </div>
             <div className="flex items-center gap-2 mt-1 text-xs text-gray-400">
@@ -961,7 +963,7 @@ function SQLBlock(p: SQLBlockProps): React.ReactElement {
             </button>
           )}
           <button onClick={p.onUse}
-            className="text-xs px-2 py-0.5 rounded bg-blue-600 text-white hover:bg-blue-700">使用</button>
+            className="text-xs px-2 py-0.5 rounded bg-green-600 text-white hover:bg-green-700">使用</button>
         </div>
       </div>
       <pre className="text-xs font-mono p-3 overflow-x-auto whitespace-pre-wrap">{p.sql}</pre>
@@ -973,13 +975,13 @@ type InfoBoxColor = 'gray' | 'blue' | 'amber' | 'red' | 'green'
 
 const INFO_BOX_STYLES: Record<InfoBoxColor, { wrapper: string; title: string }> = {
   gray: { wrapper: 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700', title: 'text-gray-600 dark:text-gray-400' },
-  blue: { wrapper: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800', title: 'text-blue-700 dark:text-blue-400' },
+  blue: { wrapper: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800', title: 'text-green-700 dark:text-green-400' },
   amber: { wrapper: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800', title: 'text-amber-700 dark:text-amber-400' },
   red: { wrapper: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800', title: 'text-red-700 dark:text-red-400' },
   green: { wrapper: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800', title: 'text-green-700 dark:text-green-400' }
 }
 
-function InfoBox({ color, title, children }: { color: InfoBoxColor; title: string; children: React.ReactNode }): React.ReactElement {
+function InfoBox({ color, title, children }: { color: InfoBoxColor; title: React.ReactNode; children: React.ReactNode }): React.ReactElement {
   const s = INFO_BOX_STYLES[color]
   return (
     <div className={`rounded border p-2 ${s.wrapper}`}>
@@ -1010,7 +1012,7 @@ function ThinkingBox({ text }: { text: string }): React.ReactElement {
       >
         <span className="inline-block w-3 h-3 border-2 border-purple-400 rounded-full animate-pulse flex-shrink-0" />
         <span className="font-medium flex-1 text-left">思考过程</span>
-        <span className="opacity-60">{expanded ? '▲' : '▼'}</span>
+        <span className="opacity-60">{expanded ? <ChevronUp className="w-3 h-3 inline" /> : <ChevronDown className="w-3 h-3 inline" />}</span>
       </button>
       {expanded && (
         <div className="px-2 pb-2 text-purple-700 dark:text-purple-300 font-mono whitespace-pre-wrap break-all max-h-48 overflow-y-auto leading-relaxed border-t border-purple-200 dark:border-purple-800 pt-1.5">
@@ -1025,7 +1027,7 @@ function ThinkingBox({ text }: { text: string }): React.ReactElement {
 function StreamingBox({ text }: { text: string }): React.ReactElement {
   return (
     <div className="text-xs bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded p-2 font-mono whitespace-pre-wrap break-all max-h-40 overflow-y-auto text-gray-600 dark:text-gray-300">
-      {text}<span className="inline-block w-1.5 h-3 bg-blue-500 animate-pulse ml-0.5 align-middle" />
+      {text}<span className="inline-block w-1.5 h-3 bg-green-500 animate-pulse ml-0.5 align-middle" />
     </div>
   )
 }

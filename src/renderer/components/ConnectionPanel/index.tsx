@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
+import { Database, FileText } from 'lucide-react'
 import { useConnectionStore } from '../../store/connectionStore'
+import { useSessionStore } from '../../store/sessionStore'
 import type { ConnectionConfig, SSHTunnelConfig } from '../../../shared/types'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -18,7 +20,8 @@ const emptyForm = (): Omit<ConnectionConfig, 'id' | 'createdAt' | 'updatedAt'> =
 
 export default function ConnectionPanel(): React.ReactElement {
   const { connections, statuses, activeConnectionId, loadConnections, createConnection,
-    updateConnection, deleteConnection, activateConnection, deactivateConnection } = useConnectionStore()
+    updateConnection, deleteConnection } = useConnectionStore()
+  const { activate, deactivate, activatingId, errors } = useSessionStore()
 
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -70,7 +73,7 @@ export default function ConnectionPanel(): React.ReactElement {
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
         <span className="font-semibold text-sm">连接管理</span>
-        <button onClick={openNew} className="text-xs px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">新建</button>
+        <button onClick={openNew} className="text-xs px-2 py-1 rounded bg-green-600 text-white hover:bg-green-700">新建</button>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -80,10 +83,10 @@ export default function ConnectionPanel(): React.ReactElement {
           const isActive = activeConnectionId === c.id
           return (
             <div key={c.id}
-              className={'flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-100 ' + (isActive ? 'bg-blue-50 dark:bg-blue-900/30' : '')}
-              onClick={() => isActive ? deactivateConnection(c.id) : activateConnection(c.id)}>
+              className={'flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-100 ' + (isActive ? 'bg-green-50 dark:bg-green-900/30' : '')}
+              onClick={() => isActive ? deactivate(c.id) : activate(c.id)}>
               <span className={'w-2 h-2 rounded-full ' + STATUS_COLORS[status]} title={status} />
-              <span className="text-xs">{c.databaseType === 'postgresql' ? '🐘' : c.databaseType === 'sqlite' ? '🪶' : '🐬'}</span>
+              <span className="text-xs">{c.databaseType === 'postgresql' ? <Database className="w-3 h-3 inline" /> : c.databaseType === 'sqlite' ? <FileText className="w-3 h-3 inline" /> : <Database className="w-3 h-3 inline" />}</span>
               <span className="flex-1 text-sm truncate">{c.name}</span>
               <span className="text-xs text-gray-400">{c.host}:{c.port}</span>
             </div>
@@ -147,7 +150,7 @@ export default function ConnectionPanel(): React.ReactElement {
               </div>
 
               <div className="flex gap-2 pt-2">
-                <button onClick={handleSave} className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">保存</button>
+                <button onClick={handleSave} className="flex-1 px-3 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700">保存</button>
                 <button onClick={handleTest} disabled={testing} className="px-3 py-2 border text-sm rounded hover:bg-gray-50">{testing ? '测试中...' : '测试连接'}</button>
                 <button onClick={() => setShowForm(false)} className="px-3 py-2 border text-sm rounded hover:bg-gray-50">取消</button>
               </div>

@@ -385,7 +385,7 @@ export interface IPCError {
 }
 
 // ============================================================
-// Session Types
+// Session Types (timeout / lock)
 // ============================================================
 
 export interface SessionConfig {
@@ -394,6 +394,27 @@ export interface SessionConfig {
 
 export interface SessionWarning {
   minutesRemaining: number
+}
+
+// ============================================================
+// Unified DB Session (Connection + Schema)
+// ============================================================
+
+/** A fully activated DB session — connection + schema + status in one context */
+export interface SessionContext {
+  connection: ConnectionConfig
+  schema: DatabaseSchema
+  status: ConnectionStatus
+  activatedAt: number
+}
+
+export type SessionEventType = 'activated' | 'deactivated' | 'schema-refreshed' | 'error'
+
+export interface SessionEventPayload {
+  connectionId: string
+  event: SessionEventType
+  session?: SessionContext
+  error?: string
 }
 
 // ============================================================

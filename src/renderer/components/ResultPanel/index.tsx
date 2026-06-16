@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { Database, X, Search, Upload, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useResultStore, selectDisplayRows, selectTotalRows, selectColumns } from '../../store/resultStore'
 import { useConnectionStore } from '../../store/connectionStore'
 import DataTable from '../DataTable'
@@ -132,14 +133,14 @@ export default function ResultPanel(): React.ReactElement {
             {result && (
               <>
                 {activeDatabase && (
-                  <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">🗄 {activeDatabase}</span>
+                  <span className="text-xs text-green-600 dark:text-green-400 font-medium"><Database className="w-3 h-3 inline mr-1" />{activeDatabase}</span>
                 )}
                 <span className="text-xs text-gray-500">
                   {total.toLocaleString()} 行 · {result.executionTime}ms
                 </span>
               </>
             )}
-            {status === 'error' && <span className="text-xs text-red-500">✗ {error}</span>}
+            {status === 'error' && <span className="text-xs text-red-500"><X className="w-3 h-3 inline mr-1 align-middle" />{error}</span>}
             {status === 'cancelled' && <span className="text-xs text-yellow-500">已取消</span>}
           </>
         )}
@@ -148,14 +149,14 @@ export default function ResultPanel(): React.ReactElement {
           <>
             <button onClick={() => { setShowSearch(true); setTimeout(() => searchRef.current?.focus(), 50) }}
               className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">
-              🔍 搜索
+              <Search className="w-3 h-3 inline mr-1" />搜索
             </button>
             
             <div className="relative" ref={exportMenuRef}>
               <button onClick={() => setShowExportMenu(!showExportMenu)}
                 className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-1">
-                📤 导出
-                <span className="text-gray-400">▼</span>
+                <Upload className="w-3 h-3 inline mr-1" />导出
+                <span className="text-gray-400"><ChevronDown className="w-3 h-3 inline" /></span>
               </button>
               
               {showExportMenu && (
@@ -213,7 +214,7 @@ export default function ResultPanel(): React.ReactElement {
         <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 bg-yellow-50 dark:bg-yellow-900/20">
           <input ref={searchRef} className="flex-1 text-sm px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none"
             placeholder="搜索内容..." value={search} onChange={e => setSearch(e.target.value)} />
-          <button onClick={() => { setShowSearch(false); setSearch('') }} className="text-xs text-gray-400 hover:text-gray-700">✕</button>
+          <button onClick={() => { setShowSearch(false); setSearch('') }} className="text-xs text-gray-400 hover:text-gray-700"><X className="w-3 h-3" /></button>
         </div>
       )}
 
@@ -267,7 +268,7 @@ export default function ResultPanel(): React.ReactElement {
               onClick={() => setPage(pagination.page - 1)}
               title="上一页"
               className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:cursor-not-allowed"
-            >‹ 上一页</button>
+            ><ChevronLeft className="w-3 h-3 inline mr-1" />上一页</button>
 
             <span className="px-2 text-gray-500 shrink-0">
               {pagination.page} / {totalPages} 页 · 共 {total.toLocaleString()} 条
@@ -278,7 +279,7 @@ export default function ResultPanel(): React.ReactElement {
               onClick={() => setPage(pagination.page + 1)}
               title="下一页"
               className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:cursor-not-allowed"
-            >下一页 ›</button>
+            >下一页<ChevronRight className="w-3 h-3 inline ml-1" /></button>
             <button
               disabled={pagination.page >= totalPages}
               onClick={() => setPage(totalPages)}

@@ -28,6 +28,7 @@ import type {
   AppConfig,
   TestResult,
   DatabaseSchema,
+  SessionContext,
   UpdateStatusEvent
 } from '../shared/types'
 import { IPC } from '../shared/ipc-channels'
@@ -59,14 +60,6 @@ const electronAPI = {
       update: (group: ConnectionGroup) => ipcRenderer.invoke(IPC.CONNECTION_GROUP_UPDATE, group),
       delete: (id: string) => ipcRenderer.invoke(IPC.CONNECTION_GROUP_DELETE, id)
     }
-  },
-
-  // ── Schema ─────────────────────────────────────────────────
-  schema: {
-    fetch: (connectionId: string): Promise<DatabaseSchema> =>
-      ipcRenderer.invoke(IPC.SCHEMA_FETCH, connectionId),
-    refresh: (connectionId: string): Promise<DatabaseSchema> =>
-      ipcRenderer.invoke(IPC.SCHEMA_REFRESH, connectionId)
   },
 
   // ── Query ──────────────────────────────────────────────────
@@ -197,7 +190,7 @@ const electronAPI = {
     set: (config: Partial<AppConfig>) => ipcRenderer.invoke(IPC.SETTINGS_SET, config)
   },
 
-  // ── Session ────────────────────────────────────────────────
+  // ── Session (timeout / lock) ──────────────────────────
   session: {
     extend: () => ipcRenderer.invoke(IPC.SESSION_EXTEND),
     onLock: (callback: () => void) => {
@@ -207,6 +200,49 @@ const electronAPI = {
     onWarning: (callback: (minutesRemaining: number) => void) => {
       ipcRenderer.on(IPC.SESSION_WARNING, (_event, minutes) => callback(minutes))
       return () => ipcRenderer.removeAllListeners(IPC.SESSION_WARNING)
+    }
+  },
+
+  // ── DB Session (unified connection + schema) ─────────
+  dbSession: {
+    activate: (connectionId: string): Promise<SessionContext> =>
+      ipcRenderer.invoke(IPC.SESSION_ACTIVATE, connectionId),
+    deactivate: (connectionId: string): Promise<{ success: boolean }> =>
+      ipcRenderer.invoke(IPC.SESSION_DEACTIVATE, connectionId),
+    refreshSchema: (connectionId: string): Promise<SessionContext> =>
+      ipcRenderer.invoke(IPC.SESSION_REFRESH_SCHEMA, connectionId),
+    getSession: (connectionId: string): Promise<SessionContext> =>
+      ipcRenderer.invoke(IPC.SESSION_GET, connectionId),
+    getSchema: (connectionId: string): Promise<DatabaseSchema> =>
+      ipcRenderer.invoke(IPC.SESSION_GET_SCHEMA, connectionId),
+    onActivated: (callback: (data: { connectionId: string; session: SessionContext }) => void) => {
+      ipcRenderer.on(IPC.SESSION_ACTIVATED, (_event, data) => callback(data))
+      return () => ipcRenderer.removeAllListeners(IPC.SESSION_ACTIVATED)
+    },
+    onDeactivated: (callback: (data: { connectionId: string }) => void) => {
+      ipcRenderer.on(IPC.SESSION_DEACTIVATED, (_event, data) => callback(data))
+      return () => ipcRenderer.removeAllListeners(IPC.SESSION_DEACTIVATED)
+    },
+    onSchemaRefreshed: (callback: (data: { connectionId: string; session: SessionContext }) => void) => {
+      ipcRenderer.on(IPC.SESSION_SCHEMA_REFRESHED, (_event, data) => callback(data))
+      return () => ipcRenderer.removeAllListeners(IPC.SESSION_SCHEMA_REFRESHED)
+    },
+    onError: (callback: (data: { connectionId: string; error: string }) => void) => {
+      ipcRenderer.on(IPC.SESSION_ERROR, (_event, data) => callback(data))
+      return () => ipcRenderer.removeAllListeners(IPC.SESSION_ERROR)
+    }
+  },
+
+  // ── Window controls (frameless title bar) ────────────────
+  window: {
+    minimize: () => ipcRenderer.invoke(IPC.WINDOW_MINIMIZE),
+    maximize: () => ipcRenderer.invoke(IPC.WINDOW_MAXIMIZE),
+    unmaximize: () => ipcRenderer.invoke(IPC.WINDOW_UNMAXIMIZE),
+    close: () => ipcRenderer.invoke(IPC.WINDOW_CLOSE),
+    isMaximized: (): Promise<boolean> => ipcRenderer.invoke(IPC.WINDOW_IS_MAXIMIZED),
+    onMaximizedChanged: (callback: (maximized: boolean) => void) => {
+      ipcRenderer.on(IPC.WINDOW_MAXIMIZED_CHANGED, (_event, maximized) => callback(maximized))
+      return () => ipcRenderer.removeAllListeners(IPC.WINDOW_MAXIMIZED_CHANGED)
     }
   },
 

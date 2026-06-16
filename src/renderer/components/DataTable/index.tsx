@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { Check, X, ArrowUp, ArrowDown, FileText, Camera, ChevronDown } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import type { ColumnMeta } from '../../../shared/types'
 
@@ -77,9 +78,9 @@ function SQLModal({ sql, onClose }: { sql: string; onClose: () => void }) {
           <span className="font-semibold text-sm">执行的 SQL</span>
           <div className="flex items-center gap-2">
             <button onClick={copy} className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">
-              {copied ? '✓ 已复制' : '复制'}
+              {copied ? <><Check className="w-2.5 h-2.5 inline mr-0.5" />已复制</> : '复制'}
             </button>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-lg leading-none">✕</button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-lg leading-none"><X className="w-3 h-3" /></button>
           </div>
         </div>
         <pre className="flex-1 overflow-auto p-4 text-xs font-mono text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-all leading-relaxed">{sql}</pre>
@@ -117,7 +118,7 @@ function ColContextMenu({
     })
   }, [x, y])
 
-  const item = (icon: string, label: string, onClick: () => void, cls = '') => (
+  const item = (icon: React.ReactNode, label: string, onClick: () => void, cls = '') => (
     <button onClick={() => { onClick(); onClose() }}
       className={`flex items-center gap-2 w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 ${cls}`}>
       <span className="w-3 text-center shrink-0">{icon}</span>
@@ -135,8 +136,8 @@ function ColContextMenu({
         onClick={e => e.stopPropagation()}>
 
         {/* Sort */}
-        {item('↑', `升序 (${col} ASC)`, () => onSort(col, 'asc'), 'text-blue-600 dark:text-blue-400')}
-        {item('↓', `降序 (${col} DESC)`, () => onSort(col, 'desc'), 'text-blue-600 dark:text-blue-400')}
+        {item(<ArrowUp className="w-2.5 h-2.5" />, `升序 (${col} ASC)`, () => onSort(col, 'asc'), 'text-green-600 dark:text-green-400')}
+        {item(<ArrowDown className="w-2.5 h-2.5" />, `降序 (${col} DESC)`, () => onSort(col, 'desc'), 'text-green-600 dark:text-green-400')}
 
         <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
 
@@ -152,8 +153,8 @@ function ColContextMenu({
                 <button key={op}
                   onClick={() => { onFilter(col, rule); onClose() }}
                   className={`w-full text-left px-3 py-1 text-xs font-mono hover:bg-gray-100 dark:hover:bg-gray-700 truncate
-                    ${isActive ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}`}>
-                  {isActive && <span className="mr-1">✓</span>}
+                    ${isActive ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                  {isActive && <span className="mr-1"><Check className="w-2.5 h-2.5 inline" /></span>}
                   {col} {op} '{displayVal}'
                 </button>
               )
@@ -168,7 +169,7 @@ function ColContextMenu({
           <div key={op} className="flex items-center gap-1 px-2 py-0.5">
             <span className="text-xs font-mono text-gray-500 dark:text-gray-400 w-6 shrink-0">{op}</span>
             <input
-              className="w-0 flex-1 text-xs border border-gray-300 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
+              className="w-0 flex-1 text-xs border border-gray-300 dark:border-gray-600 rounded px-1 py-0.5 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-green-400"
               placeholder="输入值后回车..."
               onKeyDown={e => {
                 if (e.key === 'Enter') {
@@ -184,13 +185,13 @@ function ColContextMenu({
         {activeFilter && (
           <>
             <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
-            {item('✕', '清除此列筛选', () => onClearFilter(col), 'text-red-500')}
+            {item(<X className="w-2.5 h-2.5" />, '清除此列筛选', () => onClearFilter(col), 'text-red-500')}
           </>
         )}
 
         <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
-        {hasSql && item('📄', '查看执行的 SQL', onViewSQL)}
-        {item('📷', '截图保存', onScreenshot)}
+        {hasSql && item(<FileText className="w-2.5 h-2.5" />, '查看执行的 SQL', onViewSQL)}
+        {item(<Camera className="w-2.5 h-2.5" />, '截图保存', onScreenshot)}
       </div>
     </div>,
     document.body
@@ -299,12 +300,12 @@ export default function DataTable({
     <div ref={internalRef}>
       {/* Active filter bar */}
       {filterCount > 0 && (
-        <div className="flex items-center gap-2 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 flex-wrap">
-          <span className="text-xs text-blue-600 dark:text-blue-400 shrink-0">🔽 筛选中：</span>
+        <div className="flex items-center gap-2 px-2 py-1 bg-green-50 dark:bg-green-900/20 border-b border-green-200 dark:border-green-800 flex-wrap">
+          <span className="text-xs text-green-600 dark:text-green-400 shrink-0"><ChevronDown className="w-2.5 h-2.5 inline mr-0.5" />筛选中：</span>
           {Object.entries(filters).map(([col, rule]) => (
-            <span key={col} className="inline-flex items-center gap-1 text-xs bg-blue-100 dark:bg-blue-800/50 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
+            <span key={col} className="inline-flex items-center gap-1 text-xs bg-green-100 dark:bg-green-800/50 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full">
               <span className="font-mono">{col} {rule.op} '{rule.value}'</span>
-              <button onClick={() => handleClearFilter(col)} className="hover:text-red-500 leading-none">✕</button>
+              <button onClick={() => handleClearFilter(col)} className="hover:text-red-500 leading-none"><X className="w-2.5 h-2.5" /></button>
             </span>
           ))}
           <button onClick={() => setFilters({})} className="text-xs text-gray-400 hover:text-red-500 ml-auto shrink-0">清除全部</button>
@@ -329,16 +330,16 @@ export default function DataTable({
                   style={{ width: getColW(col.name), position: 'relative', overflow: 'hidden' }}
                   className={`px-2 py-1.5 text-left font-medium border-b border-r border-gray-200 dark:border-gray-700
                     select-none whitespace-nowrap transition-colors
-                    ${isColSel ? 'bg-blue-500 text-white dark:bg-blue-600' : 'hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer'}`}
+                    ${isColSel ? 'bg-green-500 text-white dark:bg-green-600' : 'hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer'}`}
                   onClick={() => { setSelectedCol(isColSel ? null : col.name); onSort?.(col.name, sortColumn === col.name && sortDirection === 'asc' ? 'desc' : 'asc') }}
                   onContextMenu={e => onColContextMenu(e, col.name)}>
                   <span className="truncate flex items-center gap-1 pr-2">
-                    {hasFilter && <span className="text-orange-400 shrink-0" title={`${filters[col.name].op} '${filters[col.name].value}'`}>🔽</span>}
+                    {hasFilter && <span className="text-orange-400 shrink-0" title={`${filters[col.name].op} '${filters[col.name].value}'`}><ChevronDown className="w-2.5 h-2.5 inline" /></span>}
                     {col.name}
-                    {sortColumn === col.name && <span className="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
+                    {sortColumn === col.name && <span className="ml-1">{sortDirection === 'asc' ? <ArrowUp className="w-2.5 h-2.5 inline" /> : <ArrowDown className="w-2.5 h-2.5 inline" />}</span>}
                   </span>
                   <div onMouseDown={e => onColResizeStart(e, col.name)}
-                    className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-blue-400/60 active:bg-blue-500/80 transition-colors"
+                    className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-green-400/60 active:bg-green-500/80 transition-colors"
                     style={{ zIndex: 1 }} onClick={e => e.stopPropagation()} />
                 </th>
               )
@@ -354,20 +355,20 @@ export default function DataTable({
               <tr key={i} style={{ height: rowH }} className="border-b border-gray-100 dark:border-gray-800">
                 <td style={{ width: ROW_NUM_W, height: rowH, position: 'relative', overflow: 'visible' }}
                   className={`border-r border-gray-200 dark:border-gray-700 text-right select-none cursor-pointer transition-colors
-                    ${isRowSel ? 'bg-blue-500 text-white font-bold' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                    ${isRowSel ? 'bg-green-500 text-white font-bold' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                   onClick={() => setSelectedRow(isRowSel ? null : i)}>
                   <span className="px-2">{rowOffset + i + 1}</span>
                   <div onMouseDown={e => onRowResizeStart(e, i)}
-                    className="absolute bottom-0 left-0 w-full h-1.5 cursor-row-resize hover:bg-blue-400/60 active:bg-blue-500/80 transition-colors"
+                    className="absolute bottom-0 left-0 w-full h-1.5 cursor-row-resize hover:bg-green-400/60 active:bg-green-500/80 transition-colors"
                     style={{ zIndex: 1 }} onClick={e => e.stopPropagation()} />
                 </td>
                 {columns.map(col => {
                   const isColSel = selectedCol === col.name
                   const isCellHov = hoveredCell?.row === i && hoveredCell?.col === col.name
                   const bg = isCellHov ? 'bg-yellow-100 dark:bg-yellow-900/40'
-                    : isRowSel && isColSel ? 'bg-blue-300 dark:bg-blue-700/70'
-                    : isRowSel ? 'bg-blue-100 dark:bg-blue-900/40'
-                    : isColSel ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                    : isRowSel && isColSel ? 'bg-green-300 dark:bg-green-700/70'
+                    : isRowSel ? 'bg-green-100 dark:bg-green-900/40'
+                    : isColSel ? 'bg-green-50 dark:bg-green-900/20' : ''
                   const value = row[col.name]
                   return (
                     <td key={col.name}

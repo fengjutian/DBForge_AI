@@ -1,4 +1,5 @@
 import React, { useRef, useCallback, useEffect } from 'react'
+import { Play, Bot, AlertTriangle } from 'lucide-react'
 import Editor, { OnMount } from '@monaco-editor/react'
 import { useEditorStore } from '../../store/editorStore'
 import { useSettingsStore } from '../../store/settingsStore'
@@ -109,7 +110,7 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
       if (check.isDangerous) {
         const reasons = check.reasons.join('\n• ')
         const confirmed = window.confirm(
-          `⚠ 危险操作警告\n\n检测到以下风险：\n• ${reasons}\n\n此操作可能修改或删除数据，是否继续执行？`
+          `危险操作警告\n\n检测到以下风险：\n• ${reasons}\n\n此操作可能修改或删除数据，是否继续执行？`
         )
         if (!confirmed) return
       }
@@ -164,7 +165,7 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
         if (check.isDangerous) {
           const reasons = check.reasons.join('\n• ')
           const confirmed = window.confirm(
-            `⚠ 危险操作警告\n\n检测到以下风险：\n• ${reasons}\n\n此操作可能修改或删除数据，是否继续执行？`
+            `危险操作警告\n\n检测到以下风险：\n• ${reasons}\n\n此操作可能修改或删除数据，是否继续执行？`
           )
           if (!confirmed) return
         }
@@ -253,7 +254,7 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
 
     editor.addAction({
       id: 'execute-selected-sql',
-      label: '▶ 执行选中 SQL',
+      label: '> 执行选中 SQL',
       contextMenuGroupId: '1_modification',
       contextMenuOrder: 1,
       precondition: 'editorHasSelection',
@@ -266,7 +267,7 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
 
     editor.addAction({
       id: 'ai-explain-sql',
-      label: '🤖 使用 AI 解释 SQL',
+      label: '[AI] 使用 AI 解释 SQL',
       contextMenuGroupId: 'navigation',
       contextMenuOrder: 1.5,
       precondition: 'editorHasSelection',
@@ -290,14 +291,14 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
         <button onClick={executeQuery}
           className="text-xs px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700 font-medium">
-          ▶ 执行全部 <span className="opacity-60 ml-1">Ctrl+Enter</span>
+          <Play className="w-3 h-3 inline mr-1 fill-current" />执行全部 <span className="opacity-60 ml-1">Ctrl+Enter</span>
         </button>
         <button onClick={formatQuery}
           className="text-xs px-3 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">
           格式化<span className="opacity-60 ml-1">Ctrl+K</span>
         </button>
         {!activeConnectionId && (
-          <span className="text-xs text-yellow-500 ml-2">⚠ 未选择连接</span>
+          <span className="text-xs text-yellow-500 ml-2"><AlertTriangle className="w-3 h-3 inline mr-1 align-middle" />未选择连接</span>
         )}
       </div>
       <div className="flex-1">

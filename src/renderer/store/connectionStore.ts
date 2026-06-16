@@ -25,6 +25,10 @@ interface ConnectionState {
   deactivateConnection: (id: string) => Promise<void>
   switchDatabase: (connectionId: string, database: string) => Promise<void>
   updateStatus: (status: ConnectionStatus) => void
+  /** Used by sessionStore to sync activeConnectionId after unified activation */
+  updateActiveConnectionId: (id: string | null) => void
+  /** Used by sessionStore to clear on deactivation/error */
+  clearActiveConnectionId: () => void
 }
 
 export const useConnectionStore = create<ConnectionState>((set, get) => {
@@ -97,6 +101,24 @@ export const useConnectionStore = create<ConnectionState>((set, get) => {
     updateStatus: (status) => {
       set((state) => ({
         statuses: { ...state.statuses, [status.id]: status }
+      }))
+    },
+
+    updateActiveConnectionId: (id) => {
+      set((state) => {
+        if (state.activeConnectionId === id) return state // no change
+        const conn = state.connections.find(c => c.id === id)
+        return {
+          activeConnectionId: id,
+          activeDatabase: conn?.database ?? null
+        }
+      })
+    },
+
+    clearActiveConnectionId: () => {
+      set((state) => ({
+        activeConnectionId: null,
+        activeDatabase: null
       }))
     }
   }

@@ -16,7 +16,7 @@ import type {
 import aiModule from '../services/AIModule'
 import configStore from '../services/ConfigStore'
 import historyStore from '../services/HistoryStore'
-import { fetchSchema } from './settings'
+import dbSessionManager from '../services/DBSessionManager'
 
 function wrapError(err: unknown): Error {
   const message = err instanceof Error ? err.message : String(err)
@@ -100,21 +100,21 @@ export function register(): void {
 
   ipcMain.handle(IPC.AI_TABLE_DEPENDENCIES, async (_event, req: TableAnalysisRequest) => {
     try {
-      const schema = await fetchSchema(req.connectionId)
+      const schema = await dbSessionManager.refreshSchema(req.connectionId)
       return await aiModule.analyzeTableDependencies(schema, req.dbName, req.tableName, req.streamId)
     } catch (err) { throw wrapError(err) }
   })
 
   ipcMain.handle(IPC.AI_TABLE_DATA_DICT, async (_event, req: TableAnalysisRequest) => {
     try {
-      const schema = await fetchSchema(req.connectionId)
+      const schema = await dbSessionManager.refreshSchema(req.connectionId)
       return await aiModule.generateTableDataDict(schema, req.dbName, req.tableName, req.streamId)
     } catch (err) { throw wrapError(err) }
   })
 
   ipcMain.handle(IPC.AI_TABLE_INDEX_ANALYSIS, async (_event, req: TableAnalysisRequest) => {
     try {
-      const schema = await fetchSchema(req.connectionId)
+      const schema = await dbSessionManager.refreshSchema(req.connectionId)
       return await aiModule.analyzeTableIndexes(schema, req.dbName, req.tableName, req.streamId)
     } catch (err) { throw wrapError(err) }
   })

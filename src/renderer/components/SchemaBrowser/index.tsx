@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import type { DatabaseSchema, DatabaseInfo, TableInfo } from '../../../shared/types'
 import { useConnectionStore } from '../../store/connectionStore'
+import { useSessionStore } from '../../store/sessionStore'
 import { useEditorStore } from '../../store/editorStore'
 import ERDiagram from '../ERDiagram'
 import TableAnalysisModal, { type AnalysisType } from '../TableAnalysisModal'
@@ -12,8 +13,8 @@ interface Tooltip { x: number; y: number; text: string }
 
 export default function SchemaBrowser(): React.ReactElement {
   const { activeConnectionId } = useConnectionStore()
+  const { refreshSchema, getSchema } = useSessionStore()
   const { openPreviewTab, updatePreviewTab, addTab, updateContent } = useEditorStore()
-  const [schema, setSchema] = useState<DatabaseSchema | null>(null)
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [menu, setMenu] = useState<ContextMenu | null>(null)
@@ -25,22 +26,8 @@ export default function SchemaBrowser(): React.ReactElement {
   const [joinBuilder, setJoinBuilder] = useState<{ dbName: string } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const fetchSchema = useCallback(async (id: string) => {
-    setLoading(true)
-    try {
-      const s = await window.electronAPI.schema.fetch(id)
-      setSchema(s)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (activeConnectionId) fetchSchema(activeConnectionId)
-    else setSchema(null)
-  }, [activeConnectionId, fetchSchema])
+  // Schema comes from the global session — no local fetch needed
+  const schema: DatabaseSchema | null = activeConnectionId ? getSchema(activeConnectionId) : null
 
   const toggle = (key: string) =>
     setExpanded(prev => { const s = new Set(prev); s.has(key) ? s.delete(key) : s.add(key); return s })
@@ -124,8 +111,7 @@ export default function SchemaBrowser(): React.ReactElement {
     closeMenu()
     setLoading(true)
     try {
-      const s = await window.electronAPI.schema.refresh(activeConnectionId)
-      setSchema(s)
+      await refreshSchema(activeConnectionId)
     } finally {
       setLoading(false)
     }
@@ -138,7 +124,7 @@ export default function SchemaBrowser(): React.ReactElement {
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
         <span className="font-semibold text-sm">Schema 浏览器</span>
         {activeConnectionId && (
-          <button onClick={handleRefresh} className="text-xs text-gray-400 hover:text-blue-500">刷新</button>
+          <button onClick={handleRefresh} className="text-xs text-gray-400 hover:text-green-500">刷新</button>
         )}
       </div>
 
@@ -157,13 +143,13 @@ export default function SchemaBrowser(): React.ReactElement {
               onMouseLeave={closeTooltip}
             >
               <span className="text-gray-400">{expanded.has(db.name) ? '▾' : '▸'}</span>
-              <span className="text-blue-600 dark:text-blue-400">🗄 </span>
-              <span className="text-blue-600 dark:text-blue-400 truncate max-w-[150px]" title={db.name}>{db.name}</span>
+              <span className="text-green-600 dark:text-green-400">🗄 </span>
+              <span className="text-green-600 dark:text-green-400 truncate max-w-[150px]" title={db.name}>{db.name}</span>
               <span className="ml-auto text-xs text-gray-400">{db.tables.length}</span>
               <button
                 onClick={e => { e.stopPropagation(); handleShowJoinBuilder(db.name) }}
                 title="可视化 JOIN 构建器"
-                className="ml-1 text-gray-400 hover:text-blue-500 text-xs px-0.5"
+                className="ml-1 text-gray-400 hover:text-green-500 text-xs px-0.5"
               >🔗</button>
             </div>
             {expanded.has(db.name) && db.tables.map(table => (

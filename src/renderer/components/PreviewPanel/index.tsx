@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react'
+import { X, Search, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { Tab } from '../../store/editorStore'
 import { useEditorStore } from '../../store/editorStore'
 import DataTable from '../DataTable'
@@ -112,7 +113,7 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
         ) : (
           <>
             {result && <span className="text-xs text-gray-500">{result.executionTime}ms</span>}
-            {status === 'error' && <span className="text-xs text-red-500">✗ {error}</span>}
+            {status === 'error' && <span className="text-xs text-red-500"><X className="w-3 h-3 inline mr-1 align-middle" />{error}</span>}
           </>
         )}
         <div className="flex-1" />
@@ -120,7 +121,7 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
           <>
             <button onClick={() => setShowSearch(!showSearch)}
               className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">
-              🔍 搜索
+              <Search className="w-3 h-3 inline mr-1" />搜索
             </button>
             <button onClick={handleExportCSV} className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">CSV</button>
             <button onClick={handleExportJSON} className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">JSON</button>
@@ -128,7 +129,7 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
             <button onClick={handleRefresh}
               className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
               title="刷新数据">
-              ↻ 刷新
+              <RefreshCw className="w-3 h-3 inline mr-1" />刷新
             </button>
           </>
         )}
@@ -139,7 +140,7 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
         <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 bg-yellow-50 dark:bg-yellow-900/20 flex-shrink-0">
           <input autoFocus className="flex-1 text-sm px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none"
             placeholder="搜索当前页..." value={search} onChange={e => setSearch(e.target.value)} />
-          <button onClick={() => { setShowSearch(false); setSearch('') }} className="text-xs text-gray-400 hover:text-gray-700">✕</button>
+          <button onClick={() => { setShowSearch(false); setSearch('') }} className="text-xs text-gray-400 hover:text-gray-700"><X className="w-3 h-3" /></button>
         </div>
       )}
 
@@ -175,10 +176,10 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
           <button disabled={page <= 1 || status === 'running'} onClick={() => setPage(1)}
             className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:cursor-not-allowed">«</button>
           <button disabled={page <= 1 || status === 'running'} onClick={() => setPage(page - 1)}
-            className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:cursor-not-allowed">‹ 上一页</button>
+            className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:cursor-not-allowed"><ChevronLeft className="w-3 h-3 inline mr-1" />上一页</button>
           <span className="px-2 text-gray-500 shrink-0">{page} / {totalPages} 页 · 共 {total.toLocaleString()} 条</span>
           <button disabled={page >= totalPages || status === 'running'} onClick={() => setPage(page + 1)}
-            className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:cursor-not-allowed">下一页 ›</button>
+            className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:cursor-not-allowed">下一页<ChevronRight className="w-3 h-3 inline ml-1" /></button>
           <button disabled={page >= totalPages || status === 'running'} onClick={() => setPage(totalPages)}
             className="px-2 py-1 rounded border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:cursor-not-allowed">»</button>
         </div>

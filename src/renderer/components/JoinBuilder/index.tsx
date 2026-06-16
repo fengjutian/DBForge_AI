@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState, useCallback } from 'react'
+import { X, Link2, ExternalLink, Check, Plus, Image, Clipboard, FileText, FolderKanban, Circle } from 'lucide-react'
 import type { DatabaseInfo, TableInfo } from '../../../shared/types'
 
 // ── Types ─────────────────────────────────────────────────────
@@ -37,7 +38,7 @@ const H_GAP = 100
 const V_GAP = 60
 
 const JOIN_COLORS: Record<JoinType, string> = {
-  'INNER JOIN': '#3b82f6',
+  'INNER JOIN': '#22c55e',
   'LEFT JOIN': '#10b981',
   'RIGHT JOIN': '#f59e0b',
   'FULL OUTER JOIN': '#8b5cf6',
@@ -170,7 +171,7 @@ function JoinEdgePanel({
         {toInfo?.columns.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
       </select>
 
-      <button onClick={onRemove} className="ml-auto text-red-400 hover:text-red-600 px-1">✕</button>
+      <button onClick={onRemove} className="ml-auto text-red-400 hover:text-red-600 px-1"><X className="w-3 h-3" /></button>
     </div>
   )
 }
@@ -200,7 +201,7 @@ export default function JoinBuilder({ db, onClose, onInsertSQL }: Props): React.
   const textMuted = isDark ? '#9ca3af' : '#6b7280'
   const borderColor = isDark ? '#374151' : '#e5e7eb'
   const pkColor = isDark ? '#fbbf24' : '#d97706'
-  const fkColor = isDark ? '#60a5fa' : '#2563eb'
+  const fkColor = isDark ? '#4ade80' : '#16a34a'
 
   // Add table to canvas
   const addTable = useCallback((tableName: string, autoClose = false) => {
@@ -355,18 +356,18 @@ export default function JoinBuilder({ db, onClose, onInsertSQL }: Props): React.
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <div className="flex items-center gap-3">
-            <span className="font-semibold text-sm">🔗 可视化 JOIN 构建器</span>
-            <span className="text-xs text-gray-400">数据库: <span className="text-blue-500 font-mono">{db.name}</span></span>
+            <span className="font-semibold text-sm"><Link2 className="w-4 h-4 inline mr-1.5 align-middle" />可视化 JOIN 构建器</span>
+            <span className="text-xs text-gray-400">数据库: <span className="text-green-500 font-mono">{db.name}</span></span>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => onInsertSQL(sql)}
               disabled={!sql}
-              className="text-xs px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+              className="text-xs px-3 py-1.5 rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed font-medium"
             >
-              ↗ 插入到编辑器
+              <ExternalLink className="w-3 h-3 inline mr-1" />插入到编辑器
             </button>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-lg leading-none px-1">✕</button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-lg leading-none px-1"><X className="w-4 h-4" /></button>
           </div>
         </div>
 
@@ -386,11 +387,11 @@ export default function JoinBuilder({ db, onClose, onInsertSQL }: Props): React.
                     onClick={() => added ? removeTable(t.name) : addTable(t.name, true)}
                     className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer text-xs transition-colors ${
                       added
-                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                        ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'
                         : 'hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
                     }`}
                   >
-                    <span>{added ? '✓' : '+'}</span>
+                    <span>{added ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3" />}</span>
                     <span className="font-mono truncate">{t.name}</span>
                   </div>
                 )
@@ -411,18 +412,18 @@ export default function JoinBuilder({ db, onClose, onInsertSQL }: Props): React.
                   onClick={() => setActiveTab(tab)}
                   className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
                     activeTab === tab
-                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      ? 'border-green-500 text-green-600 dark:text-green-400'
                       : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                   }`}
                 >
-                  {tab === 'canvas' ? '🖼 画布' : tab === 'columns' ? '📋 列选择' : '📝 SQL 预览'}
+                  {tab === 'canvas' ? <><Image className="w-3 h-3 inline mr-1" />画布</> : tab === 'columns' ? <><Clipboard className="w-3 h-3 inline mr-1" />列选择</> : <><FileText className="w-3 h-3 inline mr-1" />SQL 预览</>}
                 </button>
               ))}
               {pendingEdge && (
                 <div className="ml-auto flex items-center gap-2 px-3 text-xs text-amber-600 dark:text-amber-400">
-                  <span className="animate-pulse">●</span>
+                  <span className="animate-pulse"><Circle className="w-2 h-2 inline fill-current" /></span>
                   已选 {pendingEdge.fromTable}.{pendingEdge.fromCol}，点击目标列完成连接
-                  <button onClick={() => setPendingEdge(null)} className="text-gray-400 hover:text-gray-600">✕</button>
+                  <button onClick={() => setPendingEdge(null)} className="text-gray-400 hover:text-gray-600"><X className="w-3 h-3" /></button>
                 </div>
               )}
             </div>
@@ -441,7 +442,7 @@ export default function JoinBuilder({ db, onClose, onInsertSQL }: Props): React.
                 {selectedTables.length === 0 && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div className="text-center text-gray-400 text-sm space-y-1">
-                      <div className="text-3xl">🗂</div>
+                      <div className="text-3xl text-gray-300"><FolderKanban className="w-8 h-8 inline" /></div>
                       <div>从左侧点击表名添加到画布</div>
                       <div className="text-xs">点击列名可手动连接 JOIN 条件</div>
                     </div>
@@ -515,7 +516,7 @@ export default function JoinBuilder({ db, onClose, onInsertSQL }: Props): React.
                                   <rect x={1} y={cy} width={NODE_W - 2} height={COL_H} fill="rgba(245,158,11,0.2)" />
                                 )}
                                 <text x={10} y={cy + COL_H / 2 + 4} fontSize="10" fill={isPK ? pkColor : isFK ? fkColor : textMuted}>
-                                  {isPK ? '🔑' : isFK ? '🔗' : '·'}
+                                  {isPK ? 'PK' : isFK ? 'FK' : '·'}
                                 </text>
                                 <text x={28} y={cy + COL_H / 2 + 4} fontSize="11" fill={isPK ? pkColor : isFK ? fkColor : textColor} fontWeight={isPK ? '600' : '400'}>
                                   {col.name}
@@ -554,8 +555,8 @@ export default function JoinBuilder({ db, onClose, onInsertSQL }: Props): React.
                   const allSelected = st.selectedCols.size === 0
                   return (
                     <div key={st.name} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                      <div className="flex items-center gap-3 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border-b border-gray-200 dark:border-gray-700">
-                        <span className="font-semibold text-sm text-blue-600 dark:text-blue-400">{st.name}</span>
+                      <div className="flex items-center gap-3 px-3 py-2 bg-green-50 dark:bg-green-900/20 border-b border-gray-200 dark:border-gray-700">
+                        <span className="font-semibold text-sm text-green-600 dark:text-green-400">{st.name}</span>
                         <span className="text-xs text-gray-400">别名:</span>
                         <input
                           value={st.alias}
@@ -564,7 +565,7 @@ export default function JoinBuilder({ db, onClose, onInsertSQL }: Props): React.
                         />
                         <button
                           onClick={() => setSelectedTables(prev => prev.map(t => t.name === st.name ? { ...t, selectedCols: new Set() } : t))}
-                          className={`ml-auto text-xs px-2 py-0.5 rounded ${allSelected ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500'}`}
+                          className={`ml-auto text-xs px-2 py-0.5 rounded ${allSelected ? 'bg-green-100 dark:bg-green-900/40 text-green-600' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500'}`}
                         >
                           全选 (*)
                         </button>
@@ -611,14 +612,14 @@ export default function JoinBuilder({ db, onClose, onInsertSQL }: Props): React.
                     disabled={!sql}
                     className="text-xs px-3 py-1.5 rounded border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40"
                   >
-                    📋 复制
+                    <Clipboard className="w-3 h-3 inline mr-1" />复制
                   </button>
                   <button
                     onClick={() => onInsertSQL(sql)}
                     disabled={!sql}
-                    className="text-xs px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 font-medium"
+                    className="text-xs px-3 py-1.5 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-40 font-medium"
                   >
-                    ↗ 插入到编辑器
+                    <ExternalLink className="w-3 h-3 inline mr-1" />插入到编辑器
                   </button>
                 </div>
               </div>
@@ -632,9 +633,9 @@ export default function JoinBuilder({ db, onClose, onInsertSQL }: Props): React.
               <button
                 onClick={addManualEdge}
                 disabled={selectedTables.length < 2}
-                className="text-xs px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/50 disabled:opacity-40"
+                className="text-xs px-2 py-0.5 rounded bg-green-50 dark:bg-green-900/30 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/50 disabled:opacity-40"
               >
-                + 添加
+                <Plus className="w-3 h-3 inline mr-1" />添加
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-2">

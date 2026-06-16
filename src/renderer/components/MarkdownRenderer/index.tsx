@@ -31,7 +31,7 @@ export default function MarkdownRenderer({ content, className = '', streaming = 
               )
             }
             return (
-              <code className="bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5 font-mono text-xs text-blue-700 dark:text-blue-300">
+              <code className="bg-gray-100 dark:bg-gray-800 rounded px-1 py-0.5 font-mono text-xs text-green-700 dark:text-green-300">
                 {children}
               </code>
             )
@@ -41,7 +41,7 @@ export default function MarkdownRenderer({ content, className = '', streaming = 
           ol: ({ children }) => <ol className="list-decimal list-inside mb-1.5 space-y-0.5 text-gray-700 dark:text-gray-300">{children}</ol>,
           li: ({ children }) => <li className="text-xs">{children}</li>,
           blockquote: ({ children }) => (
-            <blockquote className="border-l-2 border-blue-400 pl-2 my-1 text-gray-500 dark:text-gray-400 italic">
+            <blockquote className="border-l-2 border-green-400 pl-2 my-1 text-gray-500 dark:text-gray-400 italic">
               {children}
             </blockquote>
           ),
@@ -58,7 +58,7 @@ export default function MarkdownRenderer({ content, className = '', streaming = 
           hr: () => <hr className="my-2 border-gray-200 dark:border-gray-700" />,
           a: ({ href, children }) => (
             <a href={href} target="_blank" rel="noreferrer"
-              className="text-blue-600 dark:text-blue-400 hover:underline">
+              className="text-green-600 dark:text-green-400 hover:underline">
               {children}
             </a>
           ),
@@ -67,7 +67,7 @@ export default function MarkdownRenderer({ content, className = '', streaming = 
         {renderedContent}
       </ReactMarkdown>
       {streaming && (
-        <span className="inline-block w-1.5 h-3.5 bg-blue-500 animate-pulse ml-0.5 align-middle rounded-sm" />
+        <span className="inline-block w-1.5 h-3.5 bg-green-500 animate-pulse ml-0.5 align-middle rounded-sm" />
       )}
     </div>
   )

@@ -72,7 +72,7 @@ export default function Settings({ onClose }: Props): React.ReactElement {
         <div className="w-36 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col py-2">
           {TABS.map(t => (
             <button key={t} onClick={() => setActiveTab(t)}
-              className={`text-left text-sm px-4 py-2 ${activeTab === t ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 font-medium' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+              className={`text-left text-sm px-4 py-2 ${activeTab === t ? 'bg-green-50 dark:bg-green-900/30 text-green-600 font-medium' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
               {t}
             </button>
           ))}
@@ -196,7 +196,7 @@ export default function Settings({ onClose }: Props): React.ReactElement {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-sm">审计日志</h3>
-                <button onClick={loadAudit} className="text-xs text-blue-500 hover:underline">刷新</button>
+                <button onClick={loadAudit} className="text-xs text-green-500 hover:underline">刷新</button>
               </div>
               <div className="space-y-1 max-h-80 overflow-y-auto">
                 {auditEntries.length === 0 && <p className="text-xs text-gray-400">暂无审计记录</p>}
@@ -236,7 +236,7 @@ export default function Settings({ onClose }: Props): React.ReactElement {
 }
 
 const sel = 'w-full text-sm px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none'
-const inp = 'flex-1 text-sm px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500'
+const inp = 'flex-1 text-sm px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500'
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

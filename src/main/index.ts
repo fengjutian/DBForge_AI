@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, shell, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import configStore from './services/ConfigStore'
@@ -13,6 +13,7 @@ import { register as registerExportHandlers } from './ipc/export'
 import { register as registerAIHandlers } from './ipc/ai'
 import { register as registerBackupHandlers } from './ipc/backup'
 import { register as registerSettingsHandlers } from './ipc/settings'
+import { register as registerSessionHandlers } from './ipc/session'
 import { bootstrapDialects } from './services/dialect/index'
 
 // Global uncaught exception handler - prevents white screen
@@ -33,6 +34,8 @@ function createWindow(): void {
     minWidth: 1024,
     minHeight: 600,
     show: false,
+    frame: false,
+    titleBarStyle: 'hidden',
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -42,6 +45,23 @@ function createWindow(): void {
       webSecurity: true
     }
   })
+
+  // ── Window control IPC handlers ───────────────────────────
+  ipcMain.handle('window:minimize', () => mainWindow?.minimize())
+  ipcMain.handle('window:maximize', () => {
+    if (mainWindow?.isMaximized()) {
+      mainWindow.unmaximize()
+    } else {
+      mainWindow?.maximize()
+    }
+  })
+  ipcMain.handle('window:unmaximize', () => mainWindow?.unmaximize())
+  ipcMain.handle('window:close', () => mainWindow?.close())
+  ipcMain.handle('window:is-maximized', () => mainWindow?.isMaximized() ?? false)
+
+  // Notify renderer when maximized state changes
+  mainWindow.on('maximize', () => mainWindow?.webContents.send('window:maximized-changed', true))
+  mainWindow.on('unmaximize', () => mainWindow?.webContents.send('window:maximized-changed', false))
 
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
@@ -83,6 +103,7 @@ app.whenReady().then(async () => {
   registerAIHandlers()
   registerBackupHandlers()
   registerSettingsHandlers()
+  registerSessionHandlers()
 
   // Default open or close DevTools by F12 in development
   app.on('browser-window-created', (_, window) => {

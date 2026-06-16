@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react'
+import { Circle } from 'lucide-react'
 import { useEditorStore } from '../../store/editorStore'
 
 export default function TabManager(): React.ReactElement {
@@ -47,13 +48,13 @@ export default function TabManager(): React.ReactElement {
           onDoubleClick={() => tab.type !== 'preview' && startRename(tab.id, tab.title)}
           className={`flex items-center gap-1 px-3 py-2 text-sm cursor-pointer border-r border-gray-200 dark:border-gray-700 min-w-[100px] max-w-[180px] flex-shrink-0 group
             ${tab.id === activeTabId
-              ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-b-2 border-b-blue-500'
+              ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-b-2 border-b-green-500'
               : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
         >
           {renamingId === tab.id ? (
             <input
               autoFocus
-              className="flex-1 text-sm bg-transparent outline-none border-b border-blue-500 min-w-0"
+              className="flex-1 text-sm bg-transparent outline-none border-b border-green-500 min-w-0"
               value={renameValue}
               onChange={e => setRenameValue(e.target.value)}
               onBlur={commitRename}
@@ -62,7 +63,7 @@ export default function TabManager(): React.ReactElement {
             />
           ) : (
             <span className="flex-1 truncate">
-              {tab.isDirty && <span className="text-yellow-500 mr-1">●</span>}
+              {tab.isDirty && <span className="text-yellow-500 mr-1"><Circle className="w-2 h-2 inline fill-yellow-500" /></span>}
               {tab.title}
             </span>
           )}

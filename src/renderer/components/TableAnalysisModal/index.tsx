@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { Link2, BookOpen, Zap, BarChart3, Check, Clipboard, X, MessageCircle, ChevronUp, ChevronDown } from 'lucide-react'
 import { useAIStream, newStreamId } from '../../hooks/useAIStream'
 import MarkdownRenderer from '../MarkdownRenderer'
 
@@ -12,11 +13,11 @@ interface Props {
   onClose: () => void
 }
 
-const TYPE_CONFIG: Record<AnalysisType, { label: string; icon: string; color: string }> = {
-  'dependencies':  { label: '依赖关系分析', icon: '🔗', color: 'blue' },
-  'data-dict':     { label: '数据字典',     icon: '📖', color: 'purple' },
-  'indexes':       { label: '索引分析',     icon: '⚡', color: 'amber' },
-  'query-perf':    { label: '查询性能分析', icon: '📊', color: 'green' },
+const TYPE_CONFIG: Record<AnalysisType, { label: string; icon: React.ReactNode; color: string }> = {
+  'dependencies':  { label: '依赖关系分析', icon: <Link2 className="w-5 h-5" />, color: 'blue' },
+  'data-dict':     { label: '数据字典',     icon: <BookOpen className="w-5 h-5" />, color: 'purple' },
+  'indexes':       { label: '索引分析',     icon: <Zap className="w-5 h-5" />, color: 'amber' },
+  'query-perf':    { label: '查询性能分析', icon: <BarChart3 className="w-5 h-5" />, color: 'green' },
 }
 
 export default function TableAnalysisModal({ connectionId, dbName, tableName, type, onClose }: Props): React.ReactElement {
@@ -68,7 +69,7 @@ export default function TableAnalysisModal({ connectionId, dbName, tableName, ty
   const thinking = getThinking(streamId)
 
   const borderColor = {
-    blue: 'border-blue-500', purple: 'border-purple-500',
+    green: 'border-green-500', purple: 'border-purple-500',
     amber: 'border-amber-500', green: 'border-green-500'
   }[cfg.color]
 
@@ -96,8 +97,8 @@ export default function TableAnalysisModal({ connectionId, dbName, tableName, ty
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
             {streaming && (
-              <span className="flex items-center gap-1.5 text-xs text-blue-500">
-                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              <span className="flex items-center gap-1.5 text-xs text-green-500">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                 分析中...
               </span>
             )}
@@ -112,25 +113,25 @@ export default function TableAnalysisModal({ connectionId, dbName, tableName, ty
               >
                 {copied ? (
                   <>
-                    <span className="text-green-500">✓</span>
+                    <span className="text-green-500"><Check className="w-4 h-4" /></span>
                     <span className="text-green-500">已复制</span>
                   </>
                 ) : (
                   <>
-                    <span>📋</span>
+                    <span><Clipboard className="w-4 h-4" /></span>
                     <span>复制</span>
                   </>
                 )}
               </button>
             )}
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg leading-none">✕</button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg leading-none"><X className="w-4 h-4" /></button>
           </div>
         </div>
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
           {error && (
-            <div className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 rounded p-3">✗ {error}</div>
+            <div className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 rounded p-3"><X className="w-3 h-3 inline mr-1 align-middle" />{error}</div>
           )}
 
           {/* Thinking process */}
@@ -162,9 +163,9 @@ function ThinkingBox({ text, streaming }: { text: string; streaming: boolean }):
       >
         {streaming
           ? <span className="w-3 h-3 border-2 border-purple-400 rounded-full animate-pulse flex-shrink-0" />
-          : <span className="text-purple-400 flex-shrink-0">💭</span>}
+          : <span className="text-purple-400 flex-shrink-0"><MessageCircle className="w-4 h-4" /></span>}
         <span className="font-medium flex-1 text-left">思考过程</span>
-        <span className="opacity-60">{expanded ? '▲' : '▼'}</span>
+        <span className="opacity-60">{expanded ? <ChevronUp className="w-3 h-3 inline" /> : <ChevronDown className="w-3 h-3 inline" />}</span>
       </button>
       {expanded && (
         <div className="px-3 pb-3 text-purple-700 dark:text-purple-300 max-h-48 overflow-y-auto leading-relaxed border-t border-purple-200 dark:border-purple-800 pt-2">

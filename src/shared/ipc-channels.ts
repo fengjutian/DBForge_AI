@@ -19,10 +19,6 @@ export const IPC = {
   CONNECTION_GROUP_UPDATE: 'connection:group-update',
   CONNECTION_GROUP_DELETE: 'connection:group-delete',
 
-  // Schema
-  SCHEMA_FETCH: 'schema:fetch',
-  SCHEMA_REFRESH: 'schema:refresh',
-
   // Query
   QUERY_EXECUTE: 'query:execute',
   QUERY_CANCEL: 'query:cancel',
@@ -57,6 +53,17 @@ export const IPC = {
   AI_STREAM_ERROR: 'ai:stream-error',
   AI_STREAM_THINKING: 'ai:stream-thinking',
 
+  // DB Session (unified connection + schema lifecycle)
+  SESSION_ACTIVATE: 'session:activate',
+  SESSION_DEACTIVATE: 'session:deactivate',
+  SESSION_REFRESH_SCHEMA: 'session:refresh-schema',
+  SESSION_GET: 'session:get',
+  SESSION_GET_SCHEMA: 'session:get-schema',
+  SESSION_ACTIVATED: 'session:activated',               // main -> renderer push
+  SESSION_DEACTIVATED: 'session:deactivated',            // main -> renderer push
+  SESSION_SCHEMA_REFRESHED: 'session:schema-refreshed', // main -> renderer push
+  SESSION_ERROR: 'session:error',                        // main -> renderer push
+
   // Backup
   BACKUP_DETECT_TOOL: 'backup:detect-tool',
   BACKUP_VALIDATE_PATH: 'backup:validate-path',
@@ -90,6 +97,14 @@ export const IPC = {
   SESSION_EXTEND: 'session:extend',
   SESSION_LOCK: 'session:lock', // main -> renderer push
   SESSION_WARNING: 'session:warning', // main -> renderer push
+
+  // Window controls (frameless title bar)
+  WINDOW_MINIMIZE: 'window:minimize',
+  WINDOW_MAXIMIZE: 'window:maximize',
+  WINDOW_UNMAXIMIZE: 'window:unmaximize',
+  WINDOW_CLOSE: 'window:close',
+  WINDOW_IS_MAXIMIZED: 'window:is-maximized',
+  WINDOW_MAXIMIZED_CHANGED: 'window:maximized-changed', // main -> renderer push
 
   // Auto-updater
   UPDATER_CHECK: 'updater:check',

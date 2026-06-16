@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+﻿import { ipcMain } from 'electron'
 import { IPC } from '../../shared/ipc-channels'
 import type { AppConfig, IPCError, SqlSnippet } from '../../shared/types'
 import configStore from '../services/ConfigStore'
@@ -7,7 +7,6 @@ import auditLog from '../services/AuditLog'
 import snippetStore from '../services/SnippetStore'
 import sessionManager from '../services/SessionManager'
 import autoUpdater from '../services/AutoUpdater'
-import connectionManager from '../services/ConnectionManager'
 
 function wrapError(err: unknown): IPCError {
   const message = err instanceof Error ? err.message : String(err)
@@ -19,7 +18,7 @@ function wrapError(err: unknown): IPCError {
 }
 
 export function register(): void {
-  // 鈹€鈹€ Settings 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // ── Settings ───────────────────────────────────────────────
 
   ipcMain.handle(IPC.SETTINGS_GET, () => {
     try {
@@ -41,7 +40,7 @@ export function register(): void {
     }
   })
 
-  // 鈹€鈹€ History 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // ── History ────────────────────────────────────────────────
 
   ipcMain.handle(IPC.HISTORY_LIST, (_event, limit?: number) => {
     try {
@@ -80,7 +79,7 @@ export function register(): void {
     }
   })
 
-  // 鈹€鈹€ Audit 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // ── Audit ──────────────────────────────────────────────────
 
   ipcMain.handle(IPC.AUDIT_LIST, (_event, options?: { startTime?: number; endTime?: number; connectionId?: string }) => {
     try {
@@ -116,7 +115,7 @@ export function register(): void {
     }
   })
 
-  // 鈹€鈹€ Snippets 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // ── Snippets ───────────────────────────────────────────────
 
   ipcMain.handle(IPC.SNIPPET_LIST, () => {
     try {
@@ -153,25 +152,7 @@ export function register(): void {
     }
   })
 
-  // 鈹€鈹€ Schema 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-
-  ipcMain.handle(IPC.SCHEMA_FETCH, async (_event, connectionId: string) => {
-    try {
-      return await fetchSchema(connectionId)
-    } catch (err) {
-      throw wrapError(err)
-    }
-  })
-
-  ipcMain.handle(IPC.SCHEMA_REFRESH, async (_event, connectionId: string) => {
-    try {
-      return await fetchSchema(connectionId)
-    } catch (err) {
-      throw wrapError(err)
-    }
-  })
-
-  // 鈹€鈹€ Session 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // ── Session (timeout / lock) ───────────────────────────────
 
   ipcMain.handle(IPC.SESSION_EXTEND, () => {
     try {
@@ -182,7 +163,7 @@ export function register(): void {
     }
   })
 
-  // 鈹€鈹€ Auto-updater 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // ── Auto-updater ───────────────────────────────────────────
 
   ipcMain.handle(IPC.UPDATER_CHECK, async () => {
     try {
@@ -210,11 +191,4 @@ export function register(): void {
       throw wrapError(err)
     }
   })
-}
-
-// Schema fetch helper
-
-export async function fetchSchema(connectionId: string) {
-  const conn = connectionManager.getPool(connectionId)
-  return conn.dialect.fetchSchema(conn.pool, connectionId)
 }

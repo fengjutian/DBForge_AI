@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState, useCallback } from 'react'
+import { X } from 'lucide-react'
 import type { DatabaseInfo, TableInfo } from '../../../shared/types'
 
 interface Props {
@@ -134,13 +135,13 @@ export default function ERDiagram({ db, focusTable, onClose }: Props): React.Rea
   const isDark = document.documentElement.classList.contains('dark')
   const bg = isDark ? '#111827' : '#f9fafb'
   const nodeBg = isDark ? '#1f2937' : '#ffffff'
-  const nodeHeader = isDark ? '#1e3a5f' : '#dbeafe'
-  const nodeHeaderFocus = isDark ? '#1e40af' : '#3b82f6'
+  const nodeHeader = isDark ? '#064e3b' : '#d1fae5'
+  const nodeHeaderFocus = isDark ? '#065f46' : '#22c55e'
   const textColor = isDark ? '#f3f4f6' : '#111827'
   const textMuted = isDark ? '#9ca3af' : '#6b7280'
   const borderColor = isDark ? '#374151' : '#e5e7eb'
   const pkColor = isDark ? '#fbbf24' : '#d97706'
-  const fkColor = isDark ? '#60a5fa' : '#2563eb'
+  const fkColor = isDark ? '#4ade80' : '#16a34a'
   const edgeColor = isDark ? '#4b5563' : '#94a3b8'
 
   return (
@@ -153,17 +154,17 @@ export default function ERDiagram({ db, focusTable, onClose }: Props): React.Rea
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <span className="font-semibold text-sm">
             {isAllTables ? (
-              <>ER 图 · <span className="text-blue-500">{db.name}</span>
+              <>ER 图 · <span className="text-green-500">{db.name}</span>
               <span className="ml-2 text-xs text-gray-400 font-normal">所有表（{tables.length} 张）</span></>
             ) : (
-              <>ER 图 · <span className="text-blue-500">{focusTable}</span>
+              <>ER 图 · <span className="text-green-500">{focusTable}</span>
               <span className="ml-2 text-xs text-gray-400 font-normal">及关联表（{tables.length} 张）</span></>
             )}
           </span>
           <div className="flex items-center gap-3">
             <span className="text-xs text-gray-400">滚轮缩放 · 拖拽表节点或画布</span>
             <button onClick={onClose}
-              className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-lg leading-none">✕</button>
+              className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-lg leading-none"><X className="w-4 h-4" /></button>
           </div>
         </div>
 
@@ -209,7 +210,7 @@ export default function ERDiagram({ db, focusTable, onClose }: Props): React.Rea
                     {/* Body */}
                     <rect width={NODE_W} height={height} rx="8"
                       fill={nodeBg}
-                      stroke={isFocus ? '#3b82f6' : borderColor}
+                      stroke={isFocus ? '#22c55e' : borderColor}
                       strokeWidth={isFocus ? 2 : 1} />
                     {/* Header bg */}
                     <rect width={NODE_W} height={HEADER_H} rx="8"
@@ -237,7 +238,7 @@ export default function ERDiagram({ db, focusTable, onClose }: Props): React.Rea
                           )}
                           <text x={10} y={cy + COL_H / 2 + 4} fontSize="10"
                             fill={isPK ? pkColor : isFK ? fkColor : textMuted}>
-                            {isPK ? '🔑' : isFK ? '🔗' : '·'}
+                            {isPK ? <tspan fill="#f59e0b" fontWeight="bold">PK</tspan> : isFK ? <tspan fill="#22c55e" fontWeight="bold">FK</tspan> : <tspan>·</tspan>}
                           </text>
                           <text x={28} y={cy + COL_H / 2 + 4} fontSize="11"
                             fill={isPK ? pkColor : isFK ? fkColor : textColor}
@@ -262,8 +263,8 @@ export default function ERDiagram({ db, focusTable, onClose }: Props): React.Rea
 
         {/* Legend */}
         <div className="absolute bottom-4 right-4 flex items-center gap-3 text-xs text-gray-400 bg-white/80 dark:bg-gray-800/80 backdrop-blur px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700">
-          <span style={{ color: pkColor }}>🔑 主键</span>
-          <span style={{ color: fkColor }}>🔗 外键</span>
+          <span style={{ color: pkColor }}>PK 主键</span>
+          <span style={{ color: fkColor }}>FK 外键</span>
           <span>— 关联关系</span>
         </div>
       </div>

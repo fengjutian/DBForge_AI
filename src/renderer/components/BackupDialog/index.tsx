@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { FolderOpen, AlertTriangle, Folder } from 'lucide-react'
 import { useConnectionStore } from '../../store/connectionStore'
 import type { BackupProgress } from '../../../shared/types'
 
@@ -85,7 +86,7 @@ export default function BackupDialog({ onClose }: Props): React.ReactElement {
         <div className="flex border-b border-gray-200 dark:border-gray-700">
           {(['backup', 'restore'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`flex-1 py-2 text-sm font-medium ${tab === t ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
+              className={`flex-1 py-2 text-sm font-medium ${tab === t ? 'border-b-2 border-green-500 text-green-600' : 'text-gray-500 hover:text-gray-700'}`}>
               {t === 'backup' ? '备份' : '恢复'}
             </button>
           ))}
@@ -107,11 +108,11 @@ export default function BackupDialog({ onClose }: Props): React.ReactElement {
                 <div className="flex gap-2">
                   <input className={inp} value={dbInput} onChange={e => setDbInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && addDb()} placeholder="数据库名" />
-                  <button onClick={addDb} className="text-sm px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700">添加</button>
+                  <button onClick={addDb} className="text-sm px-3 py-1.5 rounded bg-green-600 text-white hover:bg-green-700">添加</button>
                 </div>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {databases.map(d => (
-                    <span key={d} className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <span key={d} className="text-xs bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full flex items-center gap-1">
                       {d}
                       <button onClick={() => setDatabases(prev => prev.filter(x => x !== d))} className="hover:text-red-500">×</button>
                     </span>
@@ -130,7 +131,7 @@ export default function BackupDialog({ onClose }: Props): React.ReactElement {
                     }}
                     className="text-sm px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
                   >
-                    📁 选择
+                    <FolderOpen className="w-3.5 h-3.5 inline mr-1" />选择
                   </button>
                 </div>
               </div>
@@ -168,7 +169,7 @@ export default function BackupDialog({ onClose }: Props): React.ReactElement {
                   }}
                   className="text-sm px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
-                  📁 选择
+                  <FolderOpen className="w-3.5 h-3.5 inline mr-1" />选择
                 </button>
               </div>
             </div>
@@ -177,7 +178,7 @@ export default function BackupDialog({ onClose }: Props): React.ReactElement {
           {/* Validation Error */}
           {validationError && (
             <div className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded px-3 py-2">
-              ⚠️ {validationError}
+              <AlertTriangle className="w-3 h-3 inline mr-1 align-middle" />{validationError}
             </div>
           )}
 
@@ -189,11 +190,11 @@ export default function BackupDialog({ onClose }: Props): React.ReactElement {
                 <span>{progress.percent}%</span>
               </div>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div className={`h-2 rounded-full transition-all ${progress.phase === 'error' ? 'bg-red-500' : 'bg-blue-500'}`}
+                <div className={`h-2 rounded-full transition-all ${progress.phase === 'error' ? 'bg-red-500' : 'bg-green-500'}`}
                   style={{ width: `${progress.percent}%` }} />
               </div>
               {progress.phase === 'done' && progress.filePath && (
-                <button onClick={handleOpenFolder} className="text-xs text-blue-500 hover:underline">📂 打开备份文件夹</button>
+                <button onClick={handleOpenFolder} className="text-xs text-green-500 hover:underline"><Folder className="w-3 h-3 inline mr-1" />打开备份文件夹</button>
               )}
             </div>
           )}
@@ -203,7 +204,7 @@ export default function BackupDialog({ onClose }: Props): React.ReactElement {
             <button
               onClick={tab === 'backup' ? handleBackup : handleRestore}
               disabled={running || !connectionId}
-              className="text-sm px-4 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
+              className="text-sm px-4 py-1.5 rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
               {running ? '执行中...' : tab === 'backup' ? '开始备份' : '开始恢复'}
             </button>
           </div>
@@ -214,4 +215,4 @@ export default function BackupDialog({ onClose }: Props): React.ReactElement {
 }
 
 const sel = 'w-full text-sm px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none'
-const inp = 'w-full text-sm px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500'
+const inp = 'w-full text-sm px-2 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500'
