@@ -18,6 +18,12 @@ const emptyForm = (): Omit<ConnectionConfig, 'id' | 'createdAt' | 'updatedAt'> =
   username: 'root', password: '', database: '', ssh: { ...emptySSH }
 })
 
+const inputClass = 'w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">{label}{children}</label>
+}
+
 export default function ConnectionPanel(): React.ReactElement {
   const { connections, statuses, activeConnectionId, loadConnections, createConnection,
     updateConnection, deleteConnection } = useConnectionStore()
@@ -63,11 +69,6 @@ export default function ConnectionPanel(): React.ReactElement {
   }
 
   const isSQLite = form.databaseType === 'sqlite'
-  const input = 'w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
-
-  function Field({ label, children }: { label: string; children: React.ReactNode }) {
-    return <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">{label}{children}</label>
-  }
 
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
@@ -99,9 +100,9 @@ export default function ConnectionPanel(): React.ReactElement {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-[600px] max-h-[90vh] overflow-y-auto p-5">
             <h2 className="font-semibold text-base mb-4">{editingId ? '编辑连接' : '新建连接'}</h2>
             <div className="space-y-3">
-              <Field label="名称"><input className={input} value={form.name} onChange={e => f('name', e.target.value)} /></Field>
+              <Field label="名称"><input className={inputClass} value={form.name} onChange={e => f('name', e.target.value)} /></Field>
               <Field label="数据库类型">
-                <select className={input} value={form.databaseType || 'mysql'}
+                <select className={inputClass} value={form.databaseType || 'mysql'}
                   onChange={e => {
                     const t = e.target.value as any
                     f('databaseType', t)
@@ -116,17 +117,17 @@ export default function ConnectionPanel(): React.ReactElement {
 
               {!isSQLite && <>
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="col-span-2"><Field label="主机"><input className={input} value={form.host} onChange={e => f('host', e.target.value)} /></Field></div>
-                  <Field label="端口"><input className={input} type="number" value={form.port} onChange={e => f('port', +e.target.value)} /></Field>
+                  <div className="col-span-2"><Field label="主机"><input className={inputClass} value={form.host} onChange={e => f('host', e.target.value)} /></Field></div>
+                  <Field label="端口"><input className={inputClass} type="number" value={form.port} onChange={e => f('port', +e.target.value)} /></Field>
                 </div>
-                <Field label="用户名"><input className={input} value={form.username} onChange={e => f('username', e.target.value)} /></Field>
-                <Field label="密码"><input className={input} type="password" value={form.password} onChange={e => f('password', e.target.value)} /></Field>
+                <Field label="用户名"><input className={inputClass} value={form.username} onChange={e => f('username', e.target.value)} /></Field>
+                <Field label="密码"><input className={inputClass} type="password" value={form.password} onChange={e => f('password', e.target.value)} /></Field>
               </>}
 
               {isSQLite && <p className="text-xs text-gray-400">SQLite 是本地文件数据库，无需填写主机/端口/用户名/密码</p>}
 
               <Field label={isSQLite ? '数据库文件路径' : form.databaseType === 'postgresql' ? '数据库' : '数据库（可选）'}>
-                <input className={input} value={form.database}
+                <input className={inputClass} value={form.database}
                   required={form.databaseType === 'postgresql'}
                   placeholder={isSQLite ? '选择 .db/.sqlite 文件路径' : form.databaseType === 'postgresql' ? '必填（默认: postgres）' : ''}
                   onChange={e => f('database', e.target.value)} />
@@ -140,11 +141,11 @@ export default function ConnectionPanel(): React.ReactElement {
                 {form.ssh?.enabled && (
                   <div className="space-y-2 mt-2">
                     <div className="grid grid-cols-3 gap-2">
-                      <div className="col-span-2"><Field label="SSH 主机"><input className={input} value={form.ssh.host} onChange={e => fSSH('host', e.target.value)} /></Field></div>
-                      <Field label="端口"><input className={input} type="number" value={form.ssh.port} onChange={e => fSSH('port', +e.target.value)} /></Field>
+                      <div className="col-span-2"><Field label="SSH 主机"><input className={inputClass} value={form.ssh.host} onChange={e => fSSH('host', e.target.value)} /></Field></div>
+                      <Field label="端口"><input className={inputClass} type="number" value={form.ssh.port} onChange={e => fSSH('port', +e.target.value)} /></Field>
                     </div>
-                    <Field label="SSH 用户名"><input className={input} value={form.ssh.username} onChange={e => fSSH('username', e.target.value)} /></Field>
-                    <Field label="SSH 密码"><input className={input} type="password" value={form.ssh.password} onChange={e => fSSH('password', e.target.value)} /></Field>
+                    <Field label="SSH 用户名"><input className={inputClass} value={form.ssh.username} onChange={e => fSSH('username', e.target.value)} /></Field>
+                    <Field label="SSH 密码"><input className={inputClass} type="password" value={form.ssh.password} onChange={e => fSSH('password', e.target.value)} /></Field>
                   </div>
                 )}
               </div>

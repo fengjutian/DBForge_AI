@@ -9,6 +9,24 @@ directories:
 files:
   - out/**/*
   - "!out/renderer/**/*.map"
+  # Strip dev cruft from bundled node_modules
+  - "!node_modules/**/*.md"
+  - "!node_modules/**/*.ts"
+  - "!node_modules/**/*.map"
+  - "!node_modules/**/*.tsbuildinfo"
+  - "!node_modules/**/docs/**"
+  - "!node_modules/**/test/**"
+  - "!node_modules/**/tests/**"
+  - "!node_modules/**/*.test.js"
+  - "!node_modules/**/*.spec.js"
+  - "!node_modules/**/example/**"
+  - "!node_modules/**/examples/**"
+  - "!node_modules/**/benchmark/**"
+  - "!node_modules/**/LICENSE"
+  - "!node_modules/**/CHANGELOG.md"
+  - "!node_modules/**/Makefile"
+  - "!node_modules/**/.eslintrc*"
+  - "!node_modules/**/.editorconfig"
 
 extraMetadata:
   main: out/main/index.js
@@ -27,6 +45,8 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
+  # Maximum LZMA compression for the installer (default is already 'max', explicit for safety)
+  compression: max
 
 # macOS
 mac:
@@ -84,8 +104,10 @@ nodeGypRebuild: false
 # Exclude optional native modules that require a C++ compiler
 buildDependenciesFromSource: false
 
-# Asar packaging
-asar: true
+# Asar packaging — max compression to shrink the app archive
+asar:
+  compression: max
+  smartUnpack: true
 asarUnpack:
   - "node_modules/better-sqlite3/**"
   - "node_modules/ssh2/**"

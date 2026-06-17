@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Database, RefreshCw, X, AlertTriangle, BookOpen, Lightbulb, Bot, Rocket, FileText, Search, Shield, CheckCircle, Clipboard, BarChart3, Microscope, ChevronUp, ChevronDown, MessageSquare, Circle } from 'lucide-react'
+import { Database, RefreshCw, Loader2, X, AlertTriangle, BookOpen, Lightbulb, Bot, Rocket, FileText, Search, Shield, CheckCircle, Clipboard, BarChart3, Microscope, ChevronUp, ChevronDown, MessageSquare, Circle } from 'lucide-react'
 import { useConnectionStore } from '../../store/connectionStore'
 import { useSessionStore } from '../../store/sessionStore'
 import { useEditorStore } from '../../store/editorStore'
@@ -329,24 +329,48 @@ export default function AIPanel({ onClose }: { onClose?: () => void }): React.Re
 
         {/* Database selector */}
         {activeConnectionId && (
-          <div className="flex items-center gap-1.5 mb-2">
-            <span className="text-xs text-gray-400 flex-shrink-0"><Database className="w-3 h-3 inline mr-1 align-middle" />数据库：</span>
-            {dbLoading ? (
-              <span className="text-xs text-gray-400">加载中...</span>
-            ) : databases.length > 0 ? (
-              <select
-                value={selectedDb ?? ''}
-                onChange={e => { handleSwitchDb(e.target.value); setTimeout(() => e.target.blur(), 0) }}
-                className="flex-1 text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-green-500 min-w-0"
-              >
-                {databases.map(db => (
-                  <option key={db} value={db}>{db}</option>
-                ))}
-              </select>
-            ) : (
-              <span className="text-xs text-gray-400">无数据库</span>
-            )}
-            <button onClick={loadDatabases} title="刷新" className="text-xs text-gray-400 hover:text-green-500 flex-shrink-0"><RefreshCw className="w-3 h-3 inline" /></button>
+          <div className="flex items-center gap-2 mb-2 px-0.5">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <Database className="w-3.5 h-3.5 text-green-500" />
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">数据库</span>
+              {databases.length > 0 && !dbLoading && (
+                <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded-full leading-none font-medium">{databases.length}</span>
+              )}
+            </div>
+            <div className="relative flex-1 min-w-0">
+              {dbLoading ? (
+                <div className="flex items-center gap-1.5 text-xs text-gray-400 px-2 py-1.5">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span>加载中...</span>
+                </div>
+              ) : databases.length > 0 ? (
+                <>
+                  <select
+                    value={selectedDb ?? ''}
+                    onChange={e => { handleSwitchDb(e.target.value); setTimeout(() => e.target.blur(), 0) }}
+                    className="w-full text-xs appearance-none pl-2.5 pr-7 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600 focus:outline-none focus:border-green-400 dark:focus:border-green-500 focus:ring-1 focus:ring-green-500/30 focus:bg-white dark:focus:bg-gray-750 transition-colors cursor-pointer truncate"
+                  >
+                    {databases.map(db => (
+                      <option key={db} value={db}>{db}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                </>
+              ) : (
+                <div className="flex items-center gap-1.5 text-xs text-gray-400 px-2 py-1.5">
+                  <Database className="w-3 h-3 opacity-50" />
+                  <span>无可用数据库</span>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={loadDatabases}
+              title="刷新数据库列表"
+              disabled={dbLoading}
+              className="flex-shrink-0 p-1 rounded-md text-gray-400 hover:text-green-500 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${dbLoading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
         )}
 
