@@ -353,9 +353,41 @@ export default function DataTable({
 
   const colDrag = useRef<{ col: string; startX: number; startW: number } | null>(null)
   const rowDrag = useRef<{ row: number; startY: number; startH: number } | null>(null)
+  const mouseDrag = useRef<{ startCol: number; startRow: number } | null>(null)
+  const isDragging = useRef(false)
   const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const internalRef = useRef<HTMLDivElement>(null)
   const containerRef = tableRef ?? internalRef
+
+  // ── Mouse drag-to-select ──────────────────────────────────
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!mouseDrag.current) return
+      const el = document.elementFromPoint(e.clientX, e.clientY)
+      if (!el) return
+      // Find the nearest parent <td> with data attributes
+      const td = (el as HTMLElement).closest?.('td[data-row-index][data-col-index]') as HTMLElement | null
+      if (!td) return
+      const colIdx = parseInt(td.dataset.colIndex ?? '', 10)
+      const rowIdx = parseInt(td.dataset.rowIndex ?? '', 10)
+      if (isNaN(colIdx) || isNaN(rowIdx)) return
+      if (colIdx !== mouseDrag.current.startCol || rowIdx !== mouseDrag.current.startRow) {
+        isDragging.current = true
+      }
+      extendSelection(colIdx, rowIdx)
+    }
+    const onUp = () => {
+      mouseDrag.current = null
+      // Reset dragging flag after a tick so onClick can read it
+      setTimeout(() => { isDragging.current = false }, 0)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [extendSelection])
 
   const getColW = (name: string) => colWidths[name] ?? DEFAULT_COL_W
   const getRowH = (i: number) => rowHeights[i] ?? DEFAULT_ROW_H
@@ -509,7 +541,7 @@ export default function DataTable({
 
       {/* Scrollable virtual table */}
       <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-auto">
-        <table className="text-xs border-collapse" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
+        <table className="text-xs border-collapse select-none" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
           <colgroup>
             <col style={{ width: ROW_NUM_W }} />
             {effectiveColumns.map(col => <col key={col.name} style={{ width: getColW(col.name) }} />)}
@@ -591,6 +623,8 @@ export default function DataTable({
                     const value = displayValue !== undefined ? displayValue : rawValue
                   return (
                     <td key={col.name}
+                      data-row-index={i}
+                      data-col-index={colIdx}
                       style={{
                         width: getColW(col.name), height: rowH, maxWidth: getColW(col.name),
                         position: 'relative',
@@ -598,7 +632,14 @@ export default function DataTable({
                       onMouseEnter={e => { if (!isEditing) { setHoveredCell({ row: i, col: col.name }); showTooltip(e, value) } }}
                       onMouseLeave={() => { if (!isEditing) { setHoveredCell(null); hideTooltip() } }}
                       onMouseMove={isEditing ? undefined : updateTooltipPos}
+                      onMouseDown={(e) => {
+                        if (!isEditing && e.button === 0) {
+                          mouseDrag.current = { startCol: colIdx, startRow: i }
+                          selectCell(colIdx, i)
+                        }
+                      }}
                       onClick={(e) => {
+                        if (isDragging.current) return
                         if (!isEditing) {
                           setHoveredCell({ row: i, col: col.name })
                           if (e.ctrlKey || e.metaKey) { toggleCellSelection(colIdx, i) }

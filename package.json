@@ -1,5 +1,5 @@
 {
-  "name": "electron-db-manager",
+  "name": "DBForge AI",
   "version": "1.2.2",
   "description": "DBForge AI - Cross-platform desktop database management tool",
   "main": "out/main/index.js",
