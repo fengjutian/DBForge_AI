@@ -401,7 +401,8 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
             wordWrap: 'on',
             tabSize: 2,
             automaticLayout: true,
-            suggestOnTriggerCharacters: true
+            suggestOnTriggerCharacters: true,
+            overviewRulerBorder: false
           }}
         />
       </div>
