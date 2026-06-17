@@ -89,14 +89,14 @@ function App(): React.ReactElement {
   const [showBackup, setShowBackup] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
-  const [rightPanel, setRightPanel] = useState<'ai' | null>(null)
+  const [rightPanel, setRightPanel] = useState<'ai' | null>('ai')
   const [databases, setDatabases] = useState<string[]>([])
   const [orbHovered, setOrbHovered] = useState(false)
   const [orbClickTrigger, setOrbClickTrigger] = useState(0)
 
   // Resizable panels
   const [leftWidth, leftDragProps] = useResize({ direction: 'horizontal', initialSize: 300, min: 300, max: 500 })
-  const [rightWidth, rightDragProps] = useResize({ direction: 'horizontal', initialSize: 288, min: 160, max: 600, reverse: true })
+  const [rightWidth, rightDragProps] = useResize({ direction: 'horizontal', initialSize: 400, min: 400, max: 600, reverse: true })
   const [resultHeight, resultDragProps] = useResize({ direction: 'vertical', initialSize: 320, min: 120, max: 800, reverse: true })
 
   useEffect(() => {

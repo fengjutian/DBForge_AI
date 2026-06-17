@@ -96,7 +96,7 @@ export default function ConnectionPanel(): React.ReactElement {
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-[480px] max-h-[90vh] overflow-y-auto p-5">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-[600px] max-h-[90vh] overflow-y-auto p-5">
             <h2 className="font-semibold text-base mb-4">{editingId ? '编辑连接' : '新建连接'}</h2>
             <div className="space-y-3">
               <Field label="名称"><input className={input} value={form.name} onChange={e => f('name', e.target.value)} /></Field>
