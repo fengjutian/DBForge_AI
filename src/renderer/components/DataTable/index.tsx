@@ -289,6 +289,9 @@ export default function DataTable({
   const setRows = useFormulaStore(s => s.setRows)
   const selectCell = useFormulaStore(s => s.selectCell)
   const extendSelection = useFormulaStore(s => s.extendSelection)
+  const toggleCellSelection = useFormulaStore(s => s.toggleCellSelection)
+  const selectAll = useFormulaStore(s => s.selectAll)
+  const isCellSelected = useFormulaStore(s => s.isCellSelected)
   const getCellValue = useFormulaStore(s => s.getCellValue)
   const getCellFormula = useFormulaStore(s => s.getCellFormula)
   const hasFormula = useFormulaStore(s => s.hasFormula)
@@ -329,6 +332,24 @@ export default function DataTable({
     }
     onFiltersChange(filters)
   }, [filters, filterMode, onFiltersChange])
+
+  // ── Ctrl+A select all keyboard handler ─────────────────────
+  useEffect(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        // Only intercept when the table container or its children are focused
+        const active = document.activeElement
+        if (active === el || el.contains(active) || active === document.body) {
+          e.preventDefault()
+          selectAll()
+        }
+      }
+    }
+    el.addEventListener('keydown', onKeyDown)
+    return () => el.removeEventListener('keydown', onKeyDown)
+  }, [selectAll])
 
   const colDrag = useRef<{ col: string; startX: number; startW: number } | null>(null)
   const rowDrag = useRef<{ row: number; startY: number; startH: number } | null>(null)
@@ -557,9 +578,10 @@ export default function DataTable({
                   {effectiveColumns.map((col, colIdx) => {
                     const isColSel = selectedCol === col.name
                     const isCellHov = hoveredCell?.row === i && hoveredCell?.col === col.name
+                    const cellSelected = isCellSelected(colIdx, i)
                     const bg = isCellHov ? 'bg-yellow-100 dark:bg-yellow-900/40'
-                      : isRowSel && isColSel ? 'bg-green-300 dark:bg-green-700/70'
-                      : isRowSel ? 'bg-green-100 dark:bg-green-900/40'
+                      : cellSelected ? 'bg-green-200 dark:bg-green-700/50'
+                      : isRowSel ? 'bg-green-50 dark:bg-green-900/20'
                       : isColSel ? 'bg-green-50 dark:bg-green-900/20' : ''
                     const isEditing = editingCell?.rowIdx === i && editingCell?.col === col.name
                     const cellHasFormula = hasFormula(colIdx, i)
@@ -579,7 +601,8 @@ export default function DataTable({
                       onClick={(e) => {
                         if (!isEditing) {
                           setHoveredCell({ row: i, col: col.name })
-                          if (e.shiftKey) { extendSelection(colIdx, i) }
+                          if (e.ctrlKey || e.metaKey) { toggleCellSelection(colIdx, i) }
+                          else if (e.shiftKey) { extendSelection(colIdx, i) }
                           else { selectCell(colIdx, i) }
                         }
                       }}

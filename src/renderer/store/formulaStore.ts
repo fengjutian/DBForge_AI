@@ -14,7 +14,7 @@ interface FormulaState {
   // Current cell selection
   selection: CellSelection
 
-  // Whether the formula bar is active
+  /** Whether the formula bar is active */
   formulaBarVisible: boolean
 
   // Currently editing cell (for formula bar binding)
@@ -46,6 +46,12 @@ interface FormulaState {
   /** Extend selection (shift-click) */
   extendSelection: (col: number, row: number) => void
 
+  /** Toggle a cell in/out of the pinned selection (ctrl-click) */
+  toggleCellSelection: (col: number, row: number) => void
+
+  /** Select all cells in the current data */
+  selectAll: () => void
+
   /** Clear selection */
   clearSelection: () => void
 
@@ -63,6 +69,9 @@ interface FormulaState {
 
   /** Check if a cell has a formula */
   hasFormula: (col: number, row: number) => boolean
+
+  /** Check if a cell is currently selected (in range or pinned) */
+  isCellSelected: (col: number, row: number) => boolean
 
   /** Recalculate all formulas */
   recalcAll: () => void
@@ -88,7 +97,7 @@ const depGraph = new DependencyGraph()
 export const useFormulaStore = create<FormulaState>((set, get) => ({
   cellFormulas: {},
   computedColumns: [],
-  selection: { anchor: null, focus: null },
+  selection: { anchor: null, focus: null, pinnedCells: new Set() },
   formulaBarVisible: true,
   editingCell: null,
   columnNames: [],
@@ -158,7 +167,7 @@ export const useFormulaStore = create<FormulaState>((set, get) => ({
 
   selectCell: (col, row) => {
     set({
-      selection: { anchor: { col, row }, focus: { col, row } },
+      selection: { anchor: { col, row }, focus: { col, row }, pinnedCells: new Set() },
       editingCell: null,
     })
   },
@@ -168,12 +177,46 @@ export const useFormulaStore = create<FormulaState>((set, get) => ({
       selection: {
         anchor: state.selection.anchor ?? { col, row },
         focus: { col, row },
+        pinnedCells: state.selection.pinnedCells,
       },
     }))
   },
 
+  toggleCellSelection: (col, row) => {
+    set((state) => {
+      const key = toKey(col, row)
+      const next = new Set(state.selection.pinnedCells)
+      if (next.has(key)) {
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+      return {
+        selection: {
+          anchor: state.selection.anchor,
+          focus: state.selection.focus,
+          pinnedCells: next,
+        },
+      }
+    })
+  },
+
+  selectAll: () => {
+    const state = get()
+    const totalCols = state.columnNames.length + state.computedColumns.length
+    const totalRows = state.rows.length
+    if (totalCols === 0 || totalRows === 0) return
+    set({
+      selection: {
+        anchor: { col: 0, row: 0 },
+        focus: { col: totalCols - 1, row: totalRows - 1 },
+        pinnedCells: new Set(),
+      },
+    })
+  },
+
   clearSelection: () => {
-    set({ selection: { anchor: null, focus: null }, editingCell: null })
+    set({ selection: { anchor: null, focus: null, pinnedCells: new Set() }, editingCell: null })
   },
 
   setFormulaBarVisible: (visible) => set({ formulaBarVisible: visible }),
@@ -225,6 +268,17 @@ export const useFormulaStore = create<FormulaState>((set, get) => ({
     const state = get()
     const ccIndex = col - state.columnNames.length
     return ccIndex >= 0 && ccIndex < state.computedColumns.length
+  },
+
+  isCellSelected: (col, row) => {
+    const { anchor, focus, pinnedCells } = get().selection
+    if (pinnedCells.has(toKey(col, row))) return true
+    if (!anchor || !focus) return false
+    const minCol = Math.min(anchor.col, focus.col)
+    const maxCol = Math.max(anchor.col, focus.col)
+    const minRow = Math.min(anchor.row, focus.row)
+    const maxRow = Math.max(anchor.row, focus.row)
+    return col >= minCol && col <= maxCol && row >= minRow && row <= maxRow
   },
 
   recalcAll: () => {
@@ -284,8 +338,34 @@ export const useFormulaStore = create<FormulaState>((set, get) => ({
 
   getSelectionAggregate: () => {
     const state = get()
-    const { anchor, focus } = state.selection
-    if (!anchor || !focus) return { count: 0, sum: null, avg: null }
+    const { anchor, focus, pinnedCells } = state.selection
+
+    // If we have neither range nor pinned cells, return empty
+    if (!anchor || !focus) {
+      if (pinnedCells.size === 0) return { count: 0, sum: null, avg: null }
+      // Aggregate over pinned cells only
+      let count = 0
+      let sum = 0
+      let hasNumeric = false
+      for (const key of pinnedCells) {
+        const addr = fromKeyWrapper(key)
+        if (!addr) continue
+        const val = state.getCellValue(addr.col, addr.row)
+        if (val !== null && val !== undefined && val !== '') {
+          count++
+          const num = Number(val)
+          if (!isNaN(num)) {
+            sum += num
+            hasNumeric = true
+          }
+        }
+      }
+      return {
+        count,
+        sum: hasNumeric ? sum : null,
+        avg: hasNumeric && count > 0 ? sum / count : null,
+      }
+    }
 
     const minCol = Math.min(anchor.col, focus.col)
     const maxCol = Math.max(anchor.col, focus.col)
@@ -296,6 +376,7 @@ export const useFormulaStore = create<FormulaState>((set, get) => ({
     let sum = 0
     let hasNumeric = false
 
+    // Aggregate over rectangle range
     for (let r = minRow; r <= maxRow; r++) {
       for (let c = minCol; c <= maxCol; c++) {
         const val = state.getCellValue(c, r)
@@ -306,6 +387,23 @@ export const useFormulaStore = create<FormulaState>((set, get) => ({
             sum += num
             hasNumeric = true
           }
+        }
+      }
+    }
+
+    // Also aggregate over pinned cells outside the rectangle
+    for (const key of pinnedCells) {
+      const addr = fromKeyWrapper(key)
+      if (!addr) continue
+      // Skip if already inside the rectangle
+      if (addr.col >= minCol && addr.col <= maxCol && addr.row >= minRow && addr.row <= maxRow) continue
+      const val = state.getCellValue(addr.col, addr.row)
+      if (val !== null && val !== undefined && val !== '') {
+        count++
+        const num = Number(val)
+        if (!isNaN(num)) {
+          sum += num
+          hasNumeric = true
         }
       }
     }

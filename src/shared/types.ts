@@ -619,6 +619,8 @@ export interface CellSelection {
   anchor: CellAddress | null
   /** The current focus cell */
   focus: CellAddress | null
+  /** Cells explicitly toggled via Ctrl+click (cell keys like "A1") */
+  pinnedCells: Set<string>
 }
 
 /** A virtual computed column defined by a formula applied to every row */
