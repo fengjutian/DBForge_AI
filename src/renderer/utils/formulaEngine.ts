@@ -183,6 +183,7 @@ function tokenize(input: string): Token[] {
           pos: i - ident.length,
         })
         // Peek for range
+        const colRe2 = /^[A-Z]+$/i
         if (i < input.length && input[i] === ':') {
           skip()
           let next = ''
@@ -195,7 +196,7 @@ function tokenize(input: string): Token[] {
             const start = fromKey(ident.toUpperCase())
             const end = fromKey(next.toUpperCase())
             if (start && end) {
-              tokens.push({ kind: 'RANGE', value: `${ident.toUpperCase()}:${next.toUpperCase()}`, pos: start.pos ?? 0 })
+              tokens.push({ kind: 'RANGE', value: `${ident.toUpperCase()}:${next.toUpperCase()}`, pos: 0 })
             }
           } else if (colRe2.test(next)) {
             // Column range A:B
@@ -549,13 +550,13 @@ function evaluateFunction(
     // ── Math ──
     case 'SUM': {
       const values = resolveArgs().flat()
-      return values.reduce((acc, v) => acc + toNumber(v), 0)
+      return values.reduce((acc: number, v) => acc + toNumber(v), 0)
     }
     case 'AVG':
     case 'AVERAGE': {
       const values = resolveArgs().flat().filter(v => isNumeric(v))
       if (values.length === 0) return '#DIV/0!'
-      return values.reduce((acc, v) => acc + toNumber(v), 0) / values.length
+      return values.reduce((acc: number, v) => acc + toNumber(v), 0) / values.length
     }
     case 'COUNT': {
       const values = resolveArgs().flat()
@@ -832,7 +833,7 @@ export const formulaEngine: IFormulaEngine = {
     const parsed = parseFormula(expr)
     return {
       dependencies: parsed.dependencies,
-      evaluate: (cellGetter) => parsed.evaluate(cellGetter as CellGetter),
+      evaluate: (cellGetter) => parsed.evaluate(cellGetter as unknown as CellGetter),
     }
   },
   colToLetter,
