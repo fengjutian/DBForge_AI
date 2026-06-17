@@ -39,6 +39,15 @@ export default function SchemaBrowser(): React.ReactElement {
   // ── Row count / storage size toggle ──
   const [showStorage, setShowStorage] = useState(false)
 
+  const toggle = useCallback((key: string) => {
+    setExpanded(prev => {
+      const s = new Set(prev)
+      if (s.has(key)) s.delete(key)
+      else s.add(key)
+      return s
+    })
+  }, [])
+
   // Schema comes from the global session — no local fetch needed
   const schema: DatabaseSchema | null = activeConnectionId ? getSchema(activeConnectionId) : null
 
@@ -392,7 +401,7 @@ export default function SchemaBrowser(): React.ReactElement {
           style={{ left: menu.x, top: menu.y }}
           onClick={e => e.stopPropagation()}>
           <button onClick={handlePreview} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
-            <FileText size={14} className="inline mr-1.5" />预览数据
+            <FileText size={14} className="inline mr-1.5" />预览数据 →
           </button>
           <button onClick={handleFormulaView} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
             <Calculator size={14} className="inline mr-1.5" />公式数据视图
