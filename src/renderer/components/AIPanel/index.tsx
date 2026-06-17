@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Database, RefreshCw, Loader2, X, AlertTriangle, BookOpen, Lightbulb, Bot, Rocket, FileText, Search, Shield, CheckCircle, Clipboard, BarChart3, Microscope, ChevronUp, ChevronDown, MessageSquare, Circle } from 'lucide-react'
 import { useConnectionStore } from '../../store/connectionStore'
 import { useSessionStore } from '../../store/sessionStore'
@@ -42,6 +42,20 @@ export default function AIPanel({ onClose }: { onClose?: () => void }): React.Re
   const [databases, setDatabases] = useState<string[]>([])
   const [selectedDb, setSelectedDb] = useState<string | null>(activeDatabase)
   const [dbLoading, setDbLoading] = useState(false)
+  const [dbDropdownOpen, setDbDropdownOpen] = useState(false)
+  const dbDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!dbDropdownOpen) return
+    const handler = (e: MouseEvent) => {
+      if (dbDropdownRef.current && !dbDropdownRef.current.contains(e.target as Node)) {
+        setDbDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [dbDropdownOpen])
 
   // ── Stream IDs (stable per session, reset on new call) ──
   const [genStreamId, setGenStreamId] = useState('')
@@ -337,7 +351,7 @@ export default function AIPanel({ onClose }: { onClose?: () => void }): React.Re
                 <span className="text-[10px] text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded-full leading-none font-medium">{databases.length}</span>
               )}
             </div>
-            <div className="relative flex-1 min-w-0">
+            <div ref={dbDropdownRef} className="relative flex-1 min-w-0">
               {dbLoading ? (
                 <div className="flex items-center gap-1.5 text-xs text-gray-400 px-2 py-1.5">
                   <Loader2 className="w-3 h-3 animate-spin" />
@@ -345,16 +359,26 @@ export default function AIPanel({ onClose }: { onClose?: () => void }): React.Re
                 </div>
               ) : databases.length > 0 ? (
                 <>
-                  <select
-                    value={selectedDb ?? ''}
-                    onChange={e => { handleSwitchDb(e.target.value); setTimeout(() => e.target.blur(), 0) }}
-                    className="w-full text-xs appearance-none pl-2.5 pr-7 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600 focus:outline-none focus:border-green-400 dark:focus:border-green-500 focus:ring-1 focus:ring-green-500/30 focus:bg-white dark:focus:bg-gray-750 transition-colors cursor-pointer truncate"
+                  <button
+                    onClick={() => setDbDropdownOpen(!dbDropdownOpen)}
+                    className="w-full text-xs text-left pl-2.5 pr-7 py-1.5 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600 focus:outline-none focus:border-green-400 dark:focus:border-green-500 focus:ring-1 focus:ring-green-500/30 focus:bg-white dark:focus:bg-gray-750 transition-colors cursor-pointer truncate"
                   >
-                    {databases.map(db => (
-                      <option key={db} value={db}>{db}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                    {selectedDb || '选择数据库...'}
+                  </button>
+                  <ChevronDown className={`absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none transition-transform ${dbDropdownOpen ? 'rotate-180' : ''}`} />
+                  {dbDropdownOpen && (
+                    <div className="absolute left-0 right-0 top-full mt-1 z-50 max-h-48 overflow-y-auto rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg">
+                      {databases.map(db => (
+                        <button
+                          key={db}
+                          onClick={() => { handleSwitchDb(db); setDbDropdownOpen(false) }}
+                          className={`w-full text-left text-xs px-2.5 py-1.5 truncate transition-colors hover:bg-green-50 dark:hover:bg-green-900/30 hover:text-green-700 dark:hover:text-green-400 ${selectedDb === db ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium' : 'text-gray-700 dark:text-gray-200'}`}
+                        >
+                          {db}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="flex items-center gap-1.5 text-xs text-gray-400 px-2 py-1.5">
@@ -601,7 +625,7 @@ function GenerateTab(p: GenerateTabProps): React.ReactElement {
           </button>
           {(p.explainingResult || p.resultExplanation) && (
             <div className="mt-2">
-              <InfoBox color="blue" title={<><Bot className="w-3 h-3 inline mr-1 align-middle" />结果分析</>}>
+              <InfoBox color="green" title={<><Bot className="w-3 h-3 inline mr-1 align-middle" />结果分析</>}>
                 {p.explainingResult && !p.resultExplanation
                   ? <StreamingDots />
                   : <MarkdownRenderer content={p.resultExplanation} />}
@@ -673,7 +697,7 @@ function OptimizeTab(p: OptimizeTabProps): React.ReactElement {
             onUse={() => p.onUseSQL(p.response!.optimizedSql)}
           />
           {p.response.suggestions.length > 0 && (
-            <InfoBox color="blue" title={<><Lightbulb className="w-3 h-3 inline mr-1 align-middle" />优化建议</>}>
+            <InfoBox color="green" title={<><Lightbulb className="w-3 h-3 inline mr-1 align-middle" />优化建议</>}>
               <ul className="space-y-1">
                 {p.response.suggestions.map((s, i) => (
                   <li key={i} className="flex gap-1.5"><span className="text-green-400 flex-shrink-0"><Circle className="w-1.5 h-1.5 inline fill-current" /></span><span>{s}</span></li>
@@ -885,7 +909,7 @@ function DataQualityTab(p: DataQualityTabProps): React.ReactElement {
       {p.response && (
         <div className="space-y-2">
           {p.response.summary && (
-            <InfoBox color="blue" title={<><BarChart3 className="w-3 h-3 inline mr-1 align-middle" />质量总结</>}>
+            <InfoBox color="green" title={<><BarChart3 className="w-3 h-3 inline mr-1 align-middle" />质量总结</>}>
               <MarkdownRenderer content={p.response.summary} />
             </InfoBox>
           )}

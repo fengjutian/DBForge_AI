@@ -56,6 +56,12 @@ const emptyForm = (): Omit<ConnectionConfig, 'id' | 'createdAt' | 'updatedAt'> =
   username: 'root', password: '', database: '', ssh: { ...emptySSH }
 })
 
+const inputCls = 'w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
+
+const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">{label}{children}</label>
+)
+
 // ── Component ─────────────────────────────────────────────────
 export default function ConnectionTree(): React.ReactElement {
   const {
@@ -391,11 +397,6 @@ export default function ConnectionTree(): React.ReactElement {
   }
 
   const isSQLite = form.databaseType === 'sqlite'
-  const inputCls = 'w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100'
-
-  const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
-    <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">{label}{children}</label>
-  )
 
   // ── Render one connection's schema tree ──────────────────
   const renderSchemaTree = (connId: string) => {

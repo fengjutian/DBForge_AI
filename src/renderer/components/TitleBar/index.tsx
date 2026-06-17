@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { Database, Square, Minus, X, Maximize2 } from 'lucide-react'
 import { useConnectionStore } from '../../store/connectionStore'
 
@@ -33,6 +33,20 @@ function TitleBar({
   } = useConnectionStore()
 
   const [maximized, setMaximized] = useState(false)
+  const [dbDropdownOpen, setDbDropdownOpen] = useState(false)
+  const dbDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!dbDropdownOpen) return
+    const handler = (e: MouseEvent) => {
+      if (dbDropdownRef.current && !dbDropdownRef.current.contains(e.target as Node)) {
+        setDbDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [dbDropdownOpen])
 
   useEffect(() => {
     // Check initial maximized state
@@ -85,26 +99,34 @@ function TitleBar({
               <span className="text-gray-500 dark:text-gray-500 font-mono">{conn.host}:{conn.port}</span>
             </div>
             {status === 'connected' && databases.length > 0 && (
-              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded
+              <div ref={dbDropdownRef} className="relative flex items-center gap-1 px-1.5 py-0.5 rounded
                 bg-[#2d2d2d] dark:bg-[#2d2d2d] bg-gray-100">
                 <Database className="w-3 h-3 text-green-400" />
-                <select
-                  value={activeDatabase ?? ''}
-                  onChange={e => {
-                    if (e.target.value) {
-                      switchDatabase(activeConnectionId!, e.target.value)
-                      document.body.focus()
-                    }
-                  }}
+                <button
+                  onClick={() => setDbDropdownOpen(!dbDropdownOpen)}
                   className="text-[11px] bg-transparent border-none outline-none
                     text-green-400 dark:text-green-400 text-green-600
-                    cursor-pointer max-w-[140px] appearance-none"
+                    cursor-pointer max-w-[140px] truncate text-left"
                 >
-                  {!activeDatabase && <option value="" disabled>选择数据库</option>}
-                  {databases.map(db => (
-                    <option key={db} value={db}>{db}</option>
-                  ))}
-                </select>
+                  {activeDatabase || '选择数据库'}
+                </button>
+                {dbDropdownOpen && (
+                  <div className="absolute left-0 top-full mt-1 z-50 min-w-[160px] max-h-48 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                    {databases.map(db => (
+                      <button
+                        key={db}
+                        onClick={() => {
+                          switchDatabase(activeConnectionId!, db)
+                          setDbDropdownOpen(false)
+                          document.body.focus()
+                        }}
+                        className={`w-full text-left text-[11px] px-2.5 py-1.5 truncate transition-colors hover:bg-green-50 hover:text-green-700 ${activeDatabase === db ? 'bg-green-50 text-green-700 font-medium' : 'text-gray-700'}`}
+                      >
+                        {db}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
