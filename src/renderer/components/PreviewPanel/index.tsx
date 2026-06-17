@@ -1,10 +1,15 @@
-import React, { useState, useCallback } from 'react'
-import { X, Search, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
+import React, { useState, useCallback, useEffect } from 'react'
+import { X, Search, RefreshCw, ChevronLeft, ChevronRight, Plus, Pencil, Save, Undo2 } from 'lucide-react'
 import type { Tab } from '../../store/editorStore'
 import { useEditorStore } from '../../store/editorStore'
 import type { FilterRule } from '../../../shared/types'
 import { buildWhereClause } from '../../../shared/sqlFilter'
 import DataTable from '../DataTable'
+import FormulaBar from '../DataTable/FormulaBar'
+import SelectionBar from '../DataTable/SelectionBar'
+import { useFormulaStore } from '../../store/formulaStore'
+import { useEditBufferStore } from '../../store/editBufferStore'
+import { useSessionStore } from '../../store/sessionStore'
 
 interface PreviewPanelProps {
   tab: Tab
@@ -13,12 +18,41 @@ interface PreviewPanelProps {
 export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactElement {
   const { updatePreviewTab } = useEditorStore()
   const [page, setPageState] = useState(1)
-  const [pageSize, setPageSizeState] = useState(100)
+  const [pageSize, setPageSizeState] = useState(tab.formulaMode ? 1000 : 100)
   const [sort, setSort] = useState<{ column: string | null; direction: 'asc' | 'desc' }>({ column: null, direction: 'asc' })
   const [showSearch, setShowSearch] = useState(false)
   const [search, setSearch] = useState('')
   const [jumpInput, setJumpInput] = useState('')
   const [filters, setFilters] = useState<Record<string, FilterRule>>({})
+  const [showComputedColInput, setShowComputedColInput] = useState(false)
+  const [computedColName, setComputedColName] = useState('')
+  const [computedColExpr, setComputedColExpr] = useState('')
+  const ccInputRef = React.useRef<HTMLInputElement>(null)
+
+  // ── Edit mode ──────────────────────────────────────────
+  const [editingMode, setEditingMode] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle')
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  const addComputedColumn = useFormulaStore(s => s.addComputedColumn)
+  const removeComputedColumn = useFormulaStore(s => s.removeComputedColumn)
+  const computedColumns = useFormulaStore(s => s.computedColumns)
+  const setFormulaBarVisible = useFormulaStore(s => s.setFormulaBarVisible)
+
+  // ── Edit buffer store ─────────────────────────────────
+  const editHasChanges = useEditBufferStore(s => s.hasChanges)
+  const editGetChangeSummary = useEditBufferStore(s => s.getChangeSummary)
+  const editInitBuffer = useEditBufferStore(s => s.initBuffer)
+  const editSetCell = useEditBufferStore(s => s.setCell)
+  const editClearBuffer = useEditBufferStore(s => s.clearBuffer)
+  const editGenerateStructuredChanges = useEditBufferStore(s => s.generateStructuredChanges)
+  const editGetCellValue = useEditBufferStore(s => s.getCellValue)
+  const editGetRowState = useEditBufferStore(s => s.getRowState)
+
+  // Show formula bar by default for formula-mode tabs
+  useEffect(() => {
+    if (tab.formulaMode) setFormulaBarVisible(true)
+  }, [tab.formulaMode, setFormulaBarVisible])
 
   const result = tab.previewResult
   const status = tab.previewStatus ?? 'idle'
@@ -124,6 +158,13 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
   }
 
   const handleRefresh = () => {
+    if (editingMode && editHasChanges()) {
+      if (!confirm('刷新将丢失所有未保存的修改，确定继续？')) return
+      editClearBuffer()
+      setEditingMode(false)
+      setSaveStatus('idle')
+      setSaveError(null)
+    }
     setFilters({})
     setPageState(1)
     setSort({ column: null, direction: 'asc' })
@@ -142,33 +183,201 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
     }
   }
 
+  // ── Edit mode handlers ────────────────────────────────
+
+  const enterEditMode = useCallback(() => {
+    if (!result || !tab.connectionId || !tab.previewTable) return
+
+    // Get primary keys from cached schema
+    const schema = useSessionStore.getState().getSchema(tab.connectionId)
+    const tableInfo = schema?.databases
+      .find(d => d.name === tab.previewTable!.dbName)
+      ?.tables.find(t => t.name === tab.previewTable!.tableName)
+    const primaryKeys = tableInfo?.primaryKeys ?? []
+
+    editInitBuffer({
+      connectionId: tab.connectionId,
+      database: tab.previewTable.dbName,
+      table: tab.previewTable.tableName,
+      columns: result.columns,
+      primaryKeys,
+      rows: result.rows,
+      querySql: result.sql,
+      capturedAt: Date.now()
+    })
+
+    setEditingMode(true)
+    setSaveStatus('idle')
+    setSaveError(null)
+  }, [result, tab.connectionId, tab.previewTable, editInitBuffer])
+
+  const exitEditMode = useCallback(() => {
+    if (editHasChanges()) {
+      if (!confirm('放弃所有未保存的修改？')) return
+    }
+    editClearBuffer()
+    setEditingMode(false)
+    setSaveStatus('idle')
+    setSaveError(null)
+  }, [editHasChanges, editClearBuffer])
+
+  const handleSave = useCallback(async () => {
+    if (!tab.connectionId || !tab.previewTable) return
+
+    const structured = editGenerateStructuredChanges()
+    if (!structured) {
+      setSaveStatus('idle')
+      return
+    }
+
+    setSaveStatus('saving')
+    setSaveError(null)
+
+    try {
+      const patchResult = await window.electronAPI.snapshot.executePatch({
+        connectionId: tab.connectionId,
+        database: tab.previewTable.dbName,
+        table: tab.previewTable.tableName,
+        primaryKeys: [],
+        changes: structured.changes,
+        optimisticLock: true
+      })
+
+      if (patchResult.success && patchResult.conflicts && patchResult.conflicts.length === 0) {
+        setSaveStatus('success')
+        editClearBuffer()
+        setEditingMode(false)
+        // Refresh data
+        fetchPage(page, pageSize, sort, whereClause)
+        // Update total count
+        window.electronAPI.query.execute({
+          connectionId: tab.connectionId,
+          sql: `SELECT COUNT(*) AS cnt FROM \`${tab.previewTable.dbName}\`.\`${tab.previewTable.tableName}\``,
+          queryId: `preview_count_save_${tab.id}`
+        }).then(countResult => {
+          const newTotal = (countResult.rows[0]?.cnt as number) ?? 0
+          updatePreviewTab(tab.id, { previewTotal: newTotal })
+        }).catch(() => {})
+      } else if (patchResult.conflicts && patchResult.conflicts.length > 0) {
+        setSaveStatus('error')
+        setSaveError(`${patchResult.conflicts.length} 行发生冲突（已被其他用户修改），其余修改已保存`)
+      } else {
+        setSaveStatus('error')
+        setSaveError(patchResult.error ?? '保存失败')
+      }
+    } catch (err) {
+      setSaveStatus('error')
+      setSaveError(err instanceof Error ? err.message : '保存失败')
+    }
+  }, [tab.connectionId, tab.previewTable, tab.id, editGenerateStructuredChanges, editClearBuffer, fetchPage, page, pageSize, sort, whereClause, updatePreviewTab])
+
+  const handleCellEdit = useCallback((rowIndex: number, col: string, newValue: string, oldValue: unknown) => {
+    editSetCell(rowIndex, col, newValue, oldValue)
+  }, [editSetCell])
+
+  // Build display rows for edit mode (merge snapshot + changes)
+  const editDisplayRows = React.useMemo(() => {
+    if (!editingMode || !result) return rows
+    return result.rows.map((row, idx) => {
+      const state = editGetRowState(idx)
+      if (state === 'deleted') return { ...row, __edit_state: 'deleted' as const }
+      const displayRow: Record<string, unknown> = { ...row, __edit_state: state }
+      if (state === 'modified') {
+        for (const col of result.columns) {
+          const val = editGetCellValue(idx, col.name)
+          if (val !== undefined) displayRow[col.name] = val
+        }
+      }
+      return displayRow
+    })
+  }, [editingMode, result, rows, editGetRowState, editGetCellValue])
+
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       {/* Toolbar */}
-      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-green-500 dark:border-green-600 bg-green-600 text-white dark:bg-green-700 flex-shrink-0">
-        {status === 'running' ? (
-          <span className="text-xs text-yellow-500 animate-pulse">加载中...</span>
+      <div className={`flex items-center gap-2 px-3 py-1.5 border-b flex-shrink-0 text-white ${editingMode ? 'bg-orange-600 dark:bg-orange-700 border-orange-500 dark:border-orange-600' : 'bg-green-600 dark:bg-green-700 border-green-500 dark:border-green-600'}`}>
+        {editingMode ? (
+          <>
+            <span className="text-xs font-semibold flex items-center gap-1">
+              <Pencil className="w-3 h-3" />编辑模式
+            </span>
+            {editHasChanges() && (() => {
+              const s = editGetChangeSummary()
+              return (
+                <span className="text-xs text-orange-200">
+                  修改 {s.modified} · 删除 {s.deleted} · 新增 {s.inserted}
+                </span>
+              )
+            })()}
+            {saveStatus === 'saving' && <span className="text-xs text-yellow-300 animate-pulse">保存中...</span>}
+            {saveStatus === 'success' && <span className="text-xs text-green-300">✓ 已保存</span>}
+            {saveStatus === 'error' && saveError && <span className="text-xs text-red-300" title={saveError}>{saveError}</span>}
+          </>
         ) : (
           <>
-            {result && <span className="text-xs text-white/80">{result.executionTime}ms</span>}
-            {status === 'error' && <span className="text-xs text-red-500"><X className="w-3 h-3 inline mr-1 align-middle" />{error}</span>}
+            {status === 'running' ? (
+              <span className="text-xs text-yellow-500 animate-pulse">加载中...</span>
+            ) : (
+              <>
+                {result && <span className="text-xs text-white/80">{result.executionTime}ms</span>}
+                {status === 'error' && <span className="text-xs text-red-500"><X className="w-3 h-3 inline mr-1 align-middle" />{error}</span>}
+                {/* Computed column tags */}
+                {computedColumns.map(cc => (
+                  <span key={cc.id} className="inline-flex items-center gap-1 text-xs bg-blue-500/20 text-blue-200 px-1.5 py-0.5 rounded border border-blue-400/30">
+                    <span className="font-mono">{cc.name}</span>
+                    <button onClick={() => removeComputedColumn(cc.id)} className="hover:text-red-300 leading-none ml-0.5"><X className="w-2.5 h-2.5" /></button>
+                  </span>
+                ))}
+              </>
+            )}
           </>
         )}
         <div className="flex-1" />
+        {result && !editingMode && (
+          <button onClick={enterEditMode}
+            className="text-xs px-2 py-1 rounded border border-orange-400 dark:border-orange-500 hover:bg-orange-500 dark:hover:bg-orange-600 bg-orange-600/30"
+            title="进入编辑模式">
+            <Pencil className="w-3 h-3 inline mr-1" />编辑
+          </button>
+        )}
+        {result && editingMode && (
+          <>
+            <button onClick={handleSave}
+              disabled={!editHasChanges() || saveStatus === 'saving'}
+              className="text-xs px-2 py-1 rounded border border-orange-300 dark:border-orange-500 hover:bg-orange-500 dark:hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="保存修改">
+              <Save className="w-3 h-3 inline mr-1" />保存
+            </button>
+            <button onClick={exitEditMode}
+              className="text-xs px-2 py-1 rounded border border-orange-300 dark:border-orange-500 hover:bg-orange-500 dark:hover:bg-orange-600"
+              title="放弃修改并退出编辑">
+              <Undo2 className="w-3 h-3 inline mr-1" />放弃
+            </button>
+          </>
+        )}
         {result && (
           <>
             <button onClick={() => setShowSearch(!showSearch)}
-              className="text-xs px-2 py-1 rounded border border-green-400 dark:border-green-500 hover:bg-green-500 dark:hover:bg-green-600">
+              className={`text-xs px-2 py-1 rounded border hover:bg-green-500 dark:hover:bg-green-600 ${editingMode ? 'border-orange-400 dark:border-orange-500' : 'border-green-400 dark:border-green-500'}`}>
               <Search className="w-3 h-3 inline mr-1" />搜索
             </button>
-            <button onClick={handleExportCSV} className="text-xs px-2 py-1 rounded border border-green-400 dark:border-green-500 hover:bg-green-500 dark:hover:bg-green-600">CSV</button>
-            <button onClick={handleExportJSON} className="text-xs px-2 py-1 rounded border border-green-400 dark:border-green-500 hover:bg-green-500 dark:hover:bg-green-600">JSON</button>
-            <button onClick={handleExportExcel} className="text-xs px-2 py-1 rounded border border-green-400 dark:border-green-500 hover:bg-green-500 dark:hover:bg-green-600">Excel</button>
-            <button onClick={handleRefresh}
-              className="text-xs px-2 py-1 rounded border border-green-400 dark:border-green-500 hover:bg-green-500 dark:hover:bg-green-600"
-              title="刷新数据">
-              <RefreshCw className="w-3 h-3 inline mr-1" />刷新
-            </button>
+            {!editingMode && (
+              <>
+                <button onClick={() => { setShowComputedColInput(true); setTimeout(() => ccInputRef.current?.focus(), 50) }}
+                  className="text-xs px-2 py-1 rounded border border-blue-300 dark:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-300"
+                  title="添加计算列">
+                  <Plus className="w-3 h-3 inline mr-1" />计算列
+                </button>
+                <button onClick={handleExportCSV} className="text-xs px-2 py-1 rounded border border-green-400 dark:border-green-500 hover:bg-green-500 dark:hover:bg-green-600">CSV</button>
+                <button onClick={handleExportJSON} className="text-xs px-2 py-1 rounded border border-green-400 dark:border-green-500 hover:bg-green-500 dark:hover:bg-green-600">JSON</button>
+                <button onClick={handleExportExcel} className="text-xs px-2 py-1 rounded border border-green-400 dark:border-green-500 hover:bg-green-500 dark:hover:bg-green-600">Excel</button>
+                <button onClick={handleRefresh}
+                  className="text-xs px-2 py-1 rounded border border-green-400 dark:border-green-500 hover:bg-green-500 dark:hover:bg-green-600"
+                  title="刷新数据">
+                  <RefreshCw className="w-3 h-3 inline mr-1" />刷新
+                </button>
+              </>
+            )}
           </>
         )}
       </div>
@@ -182,6 +391,48 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
         </div>
       )}
 
+      {/* Computed column input */}
+      {showComputedColInput && result && !editingMode && (
+        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 flex-shrink-0">
+          <span className="text-xs text-blue-600 dark:text-blue-400 font-medium shrink-0">计算列</span>
+          <input
+            ref={ccInputRef}
+            className="flex-1 text-sm px-2 py-1 rounded border border-blue-300 dark:border-blue-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            placeholder="列名"
+            value={computedColName}
+            onChange={e => setComputedColName(e.target.value)}
+          />
+          <input
+            className="flex-[2] text-sm px-2 py-1 rounded border border-blue-300 dark:border-blue-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+            placeholder="公式，如 =amount*0.85"
+            value={computedColExpr}
+            onChange={e => setComputedColExpr(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && computedColName.trim() && computedColExpr.trim()) {
+                addComputedColumn({ name: computedColName.trim(), expression: computedColExpr.trim(), dependencies: [] })
+                setComputedColName('')
+                setComputedColExpr('')
+                setShowComputedColInput(false)
+              } else if (e.key === 'Escape') {
+                setShowComputedColInput(false); setComputedColName(''); setComputedColExpr('')
+              }
+            }}
+          />
+          <button onClick={() => {
+            if (computedColName.trim() && computedColExpr.trim()) {
+              addComputedColumn({ name: computedColName.trim(), expression: computedColExpr.trim(), dependencies: [] })
+              setComputedColName(''); setComputedColExpr(''); setShowComputedColInput(false)
+            }
+          }} disabled={!computedColName.trim() || !computedColExpr.trim()}
+            className="text-xs px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 shrink-0">添加</button>
+          <button onClick={() => { setShowComputedColInput(false); setComputedColName(''); setComputedColExpr('') }}
+            className="text-xs text-gray-400 hover:text-gray-600 shrink-0"><X className="w-3 h-3" /></button>
+        </div>
+      )}
+
+      {/* Formula bar */}
+      {result && columns.length > 0 && !editingMode && <FormulaBar />}
+
       {/* Table */}
       <div style={{ flex: '1 1 0', minHeight: 0 }}>
         {!result && status === 'idle' && (
@@ -190,23 +441,30 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
         {result && columns.length > 0 && (
           <DataTable
             columns={columns}
-            rows={rows.filter(row => !search || Object.values(row).some(v => {
+            rows={editingMode ? editDisplayRows.filter(row => !search || Object.values(row).some(v => {
+              if (v && typeof v === 'object' && '__edit_state' in (v as object)) return false
+              const s = v !== null && v !== undefined && typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')
+              return s.toLowerCase().includes(search.toLowerCase())
+            })) : rows.filter(row => !search || Object.values(row).some(v => {
               const s = v !== null && v !== undefined && typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')
               return s.toLowerCase().includes(search.toLowerCase())
             }))}
-            rowOffset={(page - 1) * pageSize}
-            sortColumn={sort.column}
-            sortDirection={sort.direction}
-            onSort={handleSort}
+            rowOffset={editingMode ? 0 : (page - 1) * pageSize}
+            sortColumn={editingMode ? null : sort.column}
+            sortDirection={editingMode ? 'asc' : sort.direction}
+            onSort={editingMode ? undefined : handleSort}
             sql={result?.sql}
-            filterMode="server"
-            onFiltersChange={handleFiltersChange}
+            filterMode={editingMode ? 'client' : 'server'}
+            onFiltersChange={editingMode ? undefined : handleFiltersChange}
+            onCellEdit={editingMode ? handleCellEdit : undefined}
           />
         )}
       </div>
 
-      {/* Pagination */}
-      {result && total > 0 && (
+      {!editingMode && <SelectionBar />}
+
+      {/* Pagination — hidden in edit mode */}
+      {result && total > 0 && !editingMode && (
       <div className="flex items-center gap-2 px-3 py-1.5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex-shrink-0 text-xs flex-wrap">
         <div className="flex items-center gap-1 shrink-0">
           <span className="text-gray-400">每页</span>

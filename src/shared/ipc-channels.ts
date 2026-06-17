@@ -24,6 +24,9 @@ export const IPC = {
   QUERY_CANCEL: 'query:cancel',
   QUERY_DANGEROUS_CHECK: 'query:dangerous-check',
 
+  // Diff/Patch Snapshot editing
+  SNAPSHOT_EXECUTE_PATCH: 'snapshot:execute-patch',
+
   // Export
   EXPORT_CSV: 'export:csv',
   EXPORT_JSON: 'export:json',

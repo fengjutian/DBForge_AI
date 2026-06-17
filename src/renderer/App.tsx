@@ -76,7 +76,7 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
 // ── Main App ──────────────────────────────────────────────────
 function App(): React.ReactElement {
   const { config, loadSettings } = useSettingsStore()
-  const { tabs, activeTabId } = useEditorStore()
+  const { tabs, activeTabId, pendingExplainSQL } = useEditorStore()
   const { clearResult } = useResultStore()
   const { activeConnectionId } = useConnectionStore()
 
@@ -138,6 +138,13 @@ function App(): React.ReactElement {
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
   }, [config?.theme])
+
+  // Auto-open AI panel when context menu triggers "AI 解释 SQL"
+  useEffect(() => {
+    if (pendingExplainSQL) {
+      setRightPanel('ai')
+    }
+  }, [pendingExplainSQL])
 
   // Session lock listener
   useEffect(() => {

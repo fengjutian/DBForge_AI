@@ -188,6 +188,86 @@ export interface DangerousCheckResult {
 }
 
 // ============================================================
+// Diff/Patch Snapshot Types (编辑模式)
+// ============================================================
+
+/** 一行数据的快照 —— 数据库原始值 */
+export type RowSnapshot = Record<string, unknown>
+
+/** 一张表的完整快照，用于编辑模式的基线 */
+export interface TableSnapshot {
+  connectionId: string
+  database: string
+  table: string
+  columns: ColumnMeta[]
+  primaryKeys: string[]
+  rows: RowSnapshot[]
+  querySql: string
+  capturedAt: number
+}
+
+/** 一个单元格的变更 */
+export interface CellChange {
+  rowPk: Record<string, unknown>
+  column: string
+  oldValue: unknown
+  newValue: unknown
+}
+
+/** 行级变更类型 */
+export type RowChangeType = 'modified' | 'deleted' | 'inserted'
+
+/** 一行数据的所有变更 */
+export interface RowChange {
+  type: RowChangeType
+  rowPk: Record<string, unknown>
+  rowIndex: number
+  cells: Record<string, CellChange>
+}
+
+/** 变更摘要 */
+export interface ChangeSummary {
+  modified: number
+  deleted: number
+  inserted: number
+}
+
+/** 生成的补丁 SQL（仅前端展示用，不发给后端执行） */
+export interface PatchSQL {
+  statements: string[]
+  summary: ChangeSummary
+}
+
+/** 发送给后端执行的结构化变更请求（安全：走参数绑定） */
+export interface ExecutePatchRequest {
+  connectionId: string
+  database: string
+  table: string
+  primaryKeys: string[]
+  changes: ExecutePatchChange[]
+  optimisticLock: boolean
+  /** 乐观锁需要的原始值：每行变更对应的旧值 */
+  snapshotRows?: Record<string, Record<string, unknown>>
+}
+
+export interface ExecutePatchChange {
+  type: 'update' | 'delete' | 'insert'
+  pk: Record<string, unknown>
+  set?: Record<string, unknown>
+  /** 乐观锁：UPDATE 时附带的旧值条件 */
+  oldValues?: Record<string, unknown>
+}
+
+export interface ExecutePatchResult {
+  success: boolean
+  executedCount: number
+  summary: ChangeSummary
+  /** 冲突的行主键列表 */
+  conflicts?: Record<string, unknown>[]
+  error?: string
+}
+
+// ============================================================
 // AI Types
 // ============================================================
 

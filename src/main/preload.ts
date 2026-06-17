@@ -5,6 +5,8 @@ import type {
   QueryOptions,
   QueryResult,
   DangerousCheckResult,
+  ExecutePatchRequest,
+  ExecutePatchResult,
   AIConfig,
   TextToSQLRequest,
   TextToSQLResponse,
@@ -69,6 +71,12 @@ const electronAPI = {
     cancel: (queryId: string) => ipcRenderer.invoke(IPC.QUERY_CANCEL, queryId),
     dangerousCheck: (sql: string): Promise<DangerousCheckResult> =>
       ipcRenderer.invoke(IPC.QUERY_DANGEROUS_CHECK, sql)
+  },
+
+  // ── Snapshot (Diff/Patch editing) ──────────────────────────
+  snapshot: {
+    executePatch: (request: ExecutePatchRequest): Promise<ExecutePatchResult> =>
+      ipcRenderer.invoke(IPC.SNAPSHOT_EXECUTE_PATCH, request)
   },
 
   // ── Export ─────────────────────────────────────────────────

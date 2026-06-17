@@ -1,8 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Check, X, ArrowUp, ArrowDown, FileText, Camera, ChevronDown, Copy } from 'lucide-react'
+import { Check, X, ArrowUp, ArrowDown, FileText, Camera, ChevronDown, Copy, Calculator } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import type { ColumnMeta, FilterRule } from '../../../shared/types'
+import { useFormulaStore } from '../../store/formulaStore'
+import { colToLetter, isFormula } from '../../utils/formulaEngine'
 
 interface DataTableProps {
   columns: ColumnMeta[]
@@ -282,6 +284,37 @@ export default function DataTable({
   const editInputRef = useRef<HTMLInputElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
+  // ── Formula store integration ───────────────────────────
+  const setColumns = useFormulaStore(s => s.setColumns)
+  const setRows = useFormulaStore(s => s.setRows)
+  const selectCell = useFormulaStore(s => s.selectCell)
+  const extendSelection = useFormulaStore(s => s.extendSelection)
+  const getCellValue = useFormulaStore(s => s.getCellValue)
+  const getCellFormula = useFormulaStore(s => s.getCellFormula)
+  const hasFormula = useFormulaStore(s => s.hasFormula)
+  const computedColumns = useFormulaStore(s => s.computedColumns)
+  const getComputedColumns = useFormulaStore(s => s.getComputedColumns)
+
+  // Build effective column list (real + computed)
+  const effectiveColumns = useMemo(() => {
+    const cc = getComputedColumns()
+    const computedMetas: ColumnMeta[] = cc.map(c => ({
+      name: c.name,
+      type: 'formula',
+      nullable: true,
+    }))
+    return [...columns, ...computedMetas]
+  }, [columns, computedColumns])
+
+  // Sync columns/rows to formula store
+  useEffect(() => {
+    setColumns(columns.map(c => c.name))
+  }, [columns, setColumns])
+
+  useEffect(() => {
+    setRows(rows)
+  }, [rows, setRows])
+
   // ── Stable ref to rowHeights for virtualizer estimateSize ──
   const rowHeightsRef = useRef(rowHeights)
   rowHeightsRef.current = rowHeights
@@ -458,25 +491,30 @@ export default function DataTable({
         <table className="text-xs border-collapse" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
           <colgroup>
             <col style={{ width: ROW_NUM_W }} />
-            {columns.map(col => <col key={col.name} style={{ width: getColW(col.name) }} />)}
+            {effectiveColumns.map(col => <col key={col.name} style={{ width: getColW(col.name) }} />)}
           </colgroup>
 
           <thead className="sticky top-0 bg-green-600 text-white dark:bg-green-700 z-10">
             <tr>
               <th className="border-b border-r border-green-500 dark:border-green-600 bg-green-600 dark:bg-green-700 text-white select-none" style={{ width: ROW_NUM_W }} />
-              {columns.map(col => {
+              {effectiveColumns.map((col, colIdx) => {
                 const isColSel = selectedCol === col.name
                 const hasFilter = !!filters[col.name]
+                const letter = colToLetter(colIdx)
+                const isComputed = colIdx >= columns.length
                 return (
                   <th key={col.name}
                     style={{ width: getColW(col.name), position: 'relative', overflow: 'hidden' }}
                     className={`px-2 py-1.5 text-left font-medium border-b border-r border-green-500 dark:border-green-600
                       select-none whitespace-nowrap transition-colors text-white
+                      ${isComputed ? 'bg-blue-600 dark:bg-blue-800' : ''}
                       ${isColSel ? 'bg-green-700 dark:bg-green-800' : 'hover:bg-green-500 dark:hover:bg-green-600 cursor-pointer'}`}
                     onClick={() => { setSelectedCol(isColSel ? null : col.name); onSort?.(col.name, sortColumn === col.name && sortDirection === 'asc' ? 'desc' : 'asc') }}
                     onContextMenu={e => onColContextMenu(e, col.name)}>
                     <span className="truncate flex items-center gap-1 pr-2">
                       {hasFilter && <span className="text-orange-400 shrink-0" title={`${filters[col.name].op} '${filters[col.name].value}'`}><ChevronDown className="w-2.5 h-2.5 inline" /></span>}
+                      <span className="text-green-200 dark:text-green-300 font-mono text-[10px]">{letter}</span>
+                      {isComputed && <Calculator className="w-2.5 h-2.5 inline text-blue-200" />}
                       {col.name}
                       {sortColumn === col.name && <span className="ml-1">{sortDirection === 'asc' ? <ArrowUp className="w-2.5 h-2.5 inline" /> : <ArrowDown className="w-2.5 h-2.5 inline" />}</span>}
                     </span>
@@ -493,7 +531,7 @@ export default function DataTable({
             {/* Top spacer for virtual scrolling */}
             {virtualItems.length > 0 && virtualItems[0].start > 0 && (
               <tr>
-                <td colSpan={columns.length + 1} style={{ height: virtualItems[0].start, padding: 0, border: 'none' }} />
+                <td colSpan={effectiveColumns.length + 1} style={{ height: virtualItems[0].start, padding: 0, border: 'none' }} />
               </tr>
             )}
             {virtualItems.map(virtualRow => {
@@ -516,7 +554,7 @@ export default function DataTable({
                       className="absolute bottom-0 left-0 w-full h-1.5 cursor-row-resize hover:bg-green-400/60 active:bg-green-500/80 transition-colors"
                       style={{ zIndex: 1 }} onClick={e => e.stopPropagation()} />
                   </td>
-                  {columns.map(col => {
+                  {effectiveColumns.map((col, colIdx) => {
                     const isColSel = selectedCol === col.name
                     const isCellHov = hoveredCell?.row === i && hoveredCell?.col === col.name
                     const bg = isCellHov ? 'bg-yellow-100 dark:bg-yellow-900/40'
@@ -524,17 +562,42 @@ export default function DataTable({
                       : isRowSel ? 'bg-green-100 dark:bg-green-900/40'
                       : isColSel ? 'bg-green-50 dark:bg-green-900/20' : ''
                     const isEditing = editingCell?.rowIdx === i && editingCell?.col === col.name
-                  const value = row[col.name]
+                    const cellHasFormula = hasFormula(colIdx, i)
+                    // Get value from formula store (handles computed columns + cell formulas)
+                    const rawValue = colIdx < columns.length ? row[col.name] : undefined
+                    const displayValue = getCellValue(colIdx, i)
+                    const value = displayValue !== undefined ? displayValue : rawValue
                   return (
                     <td key={col.name}
-                      style={{ width: getColW(col.name), height: rowH, maxWidth: getColW(col.name) }}
+                      style={{
+                        width: getColW(col.name), height: rowH, maxWidth: getColW(col.name),
+                        position: 'relative',
+                      }}
                       onMouseEnter={e => { if (!isEditing) { setHoveredCell({ row: i, col: col.name }); showTooltip(e, value) } }}
                       onMouseLeave={() => { if (!isEditing) { setHoveredCell(null); hideTooltip() } }}
                       onMouseMove={isEditing ? undefined : updateTooltipPos}
-                      onClick={() => { if (!isEditing) setHoveredCell({ row: i, col: col.name }) }}
-                      onDoubleClick={() => startEditing(i, col.name, value)}
+                      onClick={(e) => {
+                        if (!isEditing) {
+                          setHoveredCell({ row: i, col: col.name })
+                          if (e.shiftKey) { extendSelection(colIdx, i) }
+                          else { selectCell(colIdx, i) }
+                        }
+                      }}
+                      onDoubleClick={() => {
+                        selectCell(colIdx, i)
+                        if (cellHasFormula) {
+                          // Let user edit formula in the FormulaBar
+                          // The formulaStore.editingCell is set by selectCell + FormulaBar handles the rest
+                        } else {
+                          startEditing(i, col.name, value)
+                        }
+                      }}
                       onContextMenu={e => onCellContextMenu(e, i, col.name, value)}
                       className={`px-2 font-mono border-r border-gray-100 dark:border-gray-800 overflow-hidden cursor-default transition-colors ${bg}`}>
+                        {/* Formula indicator stripe */}
+                        {cellHasFormula && (
+                          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-blue-400 dark:bg-blue-500" />
+                        )}
                         {isEditing ? (
                           <input
                             ref={editInputRef}
@@ -549,8 +612,10 @@ export default function DataTable({
                             }}
                           />
                         ) : (
-                          <div className="cell-inner truncate" style={{ lineHeight: `${rowH}px` }}>
-                            {value === null ? <span className="text-gray-400 italic">NULL</span> : valueToString(value)}
+                          <div className={`cell-inner truncate ${cellHasFormula ? 'pl-1' : ''}`} style={{ lineHeight: `${rowH}px` }}>
+                            {value === null ? <span className="text-gray-400 italic">NULL</span>
+                              : value === undefined ? <span className="text-gray-300 italic">—</span>
+                              : valueToString(value)}
                           </div>
                         )}
                       </td>
@@ -562,7 +627,7 @@ export default function DataTable({
             {/* Bottom spacer for virtual scrolling */}
             {virtualItems.length > 0 && totalVirtualSize - (virtualItems[virtualItems.length - 1]?.end ?? 0) > 0 && (
               <tr>
-                <td colSpan={columns.length + 1} style={{
+                <td colSpan={effectiveColumns.length + 1} style={{
                   height: Math.max(0, totalVirtualSize - (virtualItems[virtualItems.length - 1]?.end ?? 0)),
                   padding: 0,
                   border: 'none'

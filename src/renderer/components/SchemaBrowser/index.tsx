@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { ChevronRight, Database, Table2, Key, Circle, Link2, RefreshCw, FileText, GitFork, Clipboard, BookOpen, Zap, BarChart3, HardDrive, Eye, Layers, Code2, Play, Clock } from 'lucide-react'
+import { ChevronRight, Database, Table2, Key, Circle, Link2, RefreshCw, FileText, GitFork, Clipboard, BookOpen, Zap, BarChart3, HardDrive, Eye, Layers, Code2, Play, Clock, Calculator } from 'lucide-react'
 import type { DatabaseSchema, DatabaseInfo, TableInfo } from '../../../shared/types'
 import { useConnectionStore } from '../../store/connectionStore'
 import { useSessionStore } from '../../store/sessionStore'
@@ -23,7 +23,7 @@ function formatBytes(bytes: number): string {
 export default function SchemaBrowser(): React.ReactElement {
   const { activeConnectionId } = useConnectionStore()
   const { refreshSchema, getSchema } = useSessionStore()
-  const { openPreviewTab, updatePreviewTab, addTab, updateContent } = useEditorStore()
+  const { openPreviewTab, updatePreviewTab, addTab, updateContent, openFormulaViewTab } = useEditorStore()
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [menu, setMenu] = useState<ContextMenu | null>(null)
@@ -97,6 +97,33 @@ export default function SchemaBrowser(): React.ReactElement {
           connectionId: activeConnectionId,
           sql: `SELECT * FROM \`${dbName}\`.\`${tableName}\` LIMIT 100 OFFSET 0`,
           queryId: `preview_${tabId}`
+        })
+      ])
+      const total = Number(countResult.rows[0]?.['__total'] ?? 0)
+      updatePreviewTab(tabId, { previewResult: dataResult, previewStatus: 'idle', previewTotal: total })
+    } catch (e) {
+      updatePreviewTab(tabId, { previewStatus: 'error', previewError: (e as Error).message })
+    }
+  }
+
+  const handleFormulaView = async () => {
+    if (!menu || !activeConnectionId) return
+    closeMenu()
+    const { dbName, tableName } = menu
+    const previewKey = `${dbName}.${tableName}`
+    const tabId = openFormulaViewTab(previewKey, `📊 ${tableName}`, activeConnectionId)
+    updatePreviewTab(tabId, { previewStatus: 'running', previewError: null })
+    try {
+      const [countResult, dataResult] = await Promise.all([
+        window.electronAPI.query.execute({
+          connectionId: activeConnectionId,
+          sql: `SELECT COUNT(*) AS __total FROM \`${dbName}\`.\`${tableName}\``,
+          queryId: `formula_count_${tabId}`
+        }),
+        window.electronAPI.query.execute({
+          connectionId: activeConnectionId,
+          sql: `SELECT * FROM \`${dbName}\`.\`${tableName}\` LIMIT 1000 OFFSET 0`,
+          queryId: `formula_${tabId}`
         })
       ])
       const total = Number(countResult.rows[0]?.['__total'] ?? 0)
@@ -366,6 +393,9 @@ export default function SchemaBrowser(): React.ReactElement {
           onClick={e => e.stopPropagation()}>
           <button onClick={handlePreview} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
             <FileText size={14} className="inline mr-1.5" />预览数据
+          </button>
+          <button onClick={handleFormulaView} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
+            <Calculator size={14} className="inline mr-1.5" />公式数据视图
           </button>
           <button onClick={handleShowER} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
             <GitFork size={14} className="inline mr-1.5" />查看 ER 图

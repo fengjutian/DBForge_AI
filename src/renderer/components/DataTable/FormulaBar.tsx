@@ -1,29 +1,38 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react'
+import React, { useState, useCallback, useRef, useMemo } from 'react'
 import { Check, X, Calculator } from 'lucide-react'
 import { useFormulaStore } from '../../store/formulaStore'
 import { colToLetter, isFormula } from '../../utils/formulaEngine'
 
 export default function FormulaBar(): React.ReactElement | null {
-  const {
-    selection,
-    formulaBarVisible,
-    editingCell,
-    getCellFormula,
-    getCellValue,
-    setCellFormula,
-    removeCellFormula,
-    selectCell,
-    setEditingCell,
-    cellFormulas,
-  } = useFormulaStore()
+  const selection = useFormulaStore(s => s.selection)
+  const formulaBarVisible = useFormulaStore(s => s.formulaBarVisible)
+  const getCellFormula = useFormulaStore(s => s.getCellFormula)
+  const getCellValue = useFormulaStore(s => s.getCellValue)
+  const setCellFormula = useFormulaStore(s => s.setCellFormula)
+  const removeCellFormula = useFormulaStore(s => s.removeCellFormula)
+  const setEditingCell = useFormulaStore(s => s.setEditingCell)
+  const cellFormulas = useFormulaStore(s => s.cellFormulas)
 
-  const [inputValue, setInputValue] = useState('')
+  const [editValue, setEditValue] = useState('')
   const [isEditing, setIsEditing] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const { anchor, focus } = selection
   const selectedCol = focus?.col ?? anchor?.col ?? -1
   const selectedRow = focus?.row ?? anchor?.row ?? -1
+
+  // ── Derive display value from selection (no useEffect needed) ──
+  const displayValue = useMemo((): string => {
+    if (isEditing) return '' // use editValue while editing
+    if (selectedCol < 0 || selectedRow < 0) return ''
+    const formula = getCellFormula(selectedCol, selectedRow)
+    if (formula && formula.length > 0) return formula
+    const val = getCellValue(selectedCol, selectedRow)
+    return val === null || val === undefined ? '' : String(val)
+  }, [isEditing, selectedCol, selectedRow, cellFormulas, getCellFormula, getCellValue])
+
+  // The actual input value = editValue when editing, displayValue otherwise
+  const inputValue = isEditing ? editValue : displayValue
 
   // Cell reference label (e.g. "A1" or "A1:B5" for ranges)
   const cellLabel =
@@ -39,73 +48,41 @@ export default function FormulaBar(): React.ReactElement | null {
 
   const displayLabel = rangeLabel || cellLabel
 
-  // Sync input with selection
-  useEffect(() => {
-    if (isEditing) return // don't overwrite while user is typing
-    if (selectedCol >= 0 && selectedRow >= 0) {
-      const formula = getCellFormula(selectedCol, selectedRow)
-      if (formula) {
-        setInputValue(formula)
-      } else {
-        const val = getCellValue(selectedCol, selectedRow)
-        setInputValue(val === null || val === undefined ? '' : String(val))
-      }
-    } else {
-      setInputValue('')
-    }
-  }, [selectedCol, selectedRow, cellFormulas, isEditing, getCellFormula, getCellValue])
-
   // ── Handlers ────────────────────────────────────────────
-  const handleFocus = useCallback(() => {
-    setIsEditing(true)
-    // If cell has a formula, show it; if it has a raw value, start fresh with =
-    if (selectedCol >= 0 && selectedRow >= 0) {
-      const formula = getCellFormula(selectedCol, selectedRow)
-      if (formula) {
-        setInputValue(formula)
-      } else {
-        const val = getCellValue(selectedCol, selectedRow)
-        const str = val === null || val === undefined ? '' : String(val)
-        setInputValue(`=${str}`)
-      }
-      setEditingCell({ col: selectedCol, row: selectedRow })
+  const startEditing = useCallback(() => {
+    if (selectedCol < 0 || selectedRow < 0) return
+    const formula = getCellFormula(selectedCol, selectedRow)
+    if (formula && formula.length > 0) {
+      setEditValue(formula)
+    } else {
+      const val = getCellValue(selectedCol, selectedRow)
+      const str = val === null || val === undefined ? '' : String(val)
+      setEditValue(`=${str}`)
     }
+    setIsEditing(true)
+    setEditingCell({ col: selectedCol, row: selectedRow })
   }, [selectedCol, selectedRow, getCellFormula, getCellValue, setEditingCell])
 
-  const handleBlur = useCallback(() => {
+  const stopEditing = useCallback(() => {
     setIsEditing(false)
+    setEditValue('')
     setEditingCell(null)
   }, [setEditingCell])
 
   const commitFormula = useCallback(() => {
     if (selectedCol < 0 || selectedRow < 0) return
-
-    const trimmed = inputValue.trim()
+    const trimmed = editValue.trim()
     if (isFormula(trimmed)) {
       setCellFormula(selectedCol, selectedRow, trimmed)
     } else if (trimmed === '') {
       removeCellFormula(selectedCol, selectedRow)
     }
-    // If it's not a formula and not empty, it's a plain value — treated as raw edit
-    // (DataTable's existing cell editing handles this)
-
-    setIsEditing(false)
-    setEditingCell(null)
-  }, [inputValue, selectedCol, selectedRow, setCellFormula, removeCellFormula, setEditingCell])
+    stopEditing()
+  }, [editValue, selectedCol, selectedRow, setCellFormula, removeCellFormula, stopEditing])
 
   const cancelEdit = useCallback(() => {
-    setIsEditing(false)
-    setEditingCell(null)
-    // Restore original value
-    if (selectedCol >= 0 && selectedRow >= 0) {
-      const formula = getCellFormula(selectedCol, selectedRow)
-      if (formula) setInputValue(formula)
-      else {
-        const val = getCellValue(selectedCol, selectedRow)
-        setInputValue(val === null || val === undefined ? '' : String(val))
-      }
-    }
-  }, [selectedCol, selectedRow, getCellFormula, getCellValue, setEditingCell])
+    stopEditing()
+  }, [stopEditing])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -120,6 +97,10 @@ export default function FormulaBar(): React.ReactElement | null {
     },
     [commitFormula, cancelEdit],
   )
+
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditValue(e.target.value)
+  }, [])
 
   if (!formulaBarVisible) return null
 
@@ -143,7 +124,7 @@ export default function FormulaBar(): React.ReactElement | null {
       <div className="flex items-center shrink-0">
         <span
           className={`text-xs font-bold px-1 select-none ${hasCellFormula ? 'text-blue-500' : 'text-gray-400'}`}
-          title={hasCellFormula ? '公式单元格' : '点击输入公式'}
+          title={hasCellFormula ? '公式单元格' : '选中单元格后在 fx 栏输入公式'}
         >
           <Calculator className="w-3 h-3 inline" /> fx
         </span>
@@ -158,11 +139,11 @@ export default function FormulaBar(): React.ReactElement | null {
             text-gray-900 dark:text-gray-100 placeholder-gray-400"
           style={{ lineHeight: '22px' }}
           value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
+          onChange={handleChange}
+          onFocus={startEditing}
+          onBlur={stopEditing}
           onKeyDown={handleKeyDown}
-          placeholder="输入值或以 = 开头输入公式，如 =A2*B2"
+          placeholder="选中单元格，然后输入公式，如 =A2*B2"
           disabled={selectedCol < 0 || selectedRow < 0}
           spellCheck={false}
         />
@@ -172,14 +153,14 @@ export default function FormulaBar(): React.ReactElement | null {
       {isEditing && (
         <div className="flex items-center gap-0.5 shrink-0">
           <button
-            onClick={commitFormula}
+            onMouseDown={(e) => { e.preventDefault(); commitFormula() }}
             className="p-0.5 rounded hover:bg-green-100 dark:hover:bg-green-900/30 text-green-600"
             title="确认 (Enter)"
           >
             <Check className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={cancelEdit}
+            onMouseDown={(e) => { e.preventDefault(); cancelEdit() }}
             className="p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500"
             title="取消 (Escape)"
           >

@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Database, X, Search, Upload, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Database, X, Search, Upload, ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { useResultStore, selectDisplayRows, selectTotalRows, selectColumns } from '../../store/resultStore'
 import { useConnectionStore } from '../../store/connectionStore'
+import { useFormulaStore } from '../../store/formulaStore'
 import DataTable from '../DataTable'
+import FormulaBar from '../DataTable/FormulaBar'
+import SelectionBar from '../DataTable/SelectionBar'
 
 export default function ResultPanel(): React.ReactElement {
   const store = useResultStore()
@@ -11,13 +14,20 @@ export default function ResultPanel(): React.ReactElement {
   const columns = selectColumns(store)
   const { status, error, pagination, sort, search, setPage, setSort, setSearch, setStatus, result, connectionId } = store
   const { activeDatabase } = useConnectionStore()
+  const addComputedColumn = useFormulaStore(s => s.addComputedColumn)
+  const removeComputedColumn = useFormulaStore(s => s.removeComputedColumn)
+  const computedColumns = useFormulaStore(s => s.computedColumns)
 
   const [showSearch, setShowSearch] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [showComputedColInput, setShowComputedColInput] = useState(false)
+  const [computedColName, setComputedColName] = useState('')
+  const [computedColExpr, setComputedColExpr] = useState('')
   const [exportProgress, setExportProgress] = useState<{ type: string; progress: number } | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const [jumpInput, setJumpInput] = useState('')
   const exportMenuRef = useRef<HTMLDivElement>(null)
+  const ccInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -138,6 +148,15 @@ export default function ResultPanel(): React.ReactElement {
                 <span className="text-xs text-gray-500 dark:text-gray-400">
                   {total.toLocaleString()} 行 · {result.executionTime}ms
                 </span>
+                {/* Computed column tags */}
+                {computedColumns.map(cc => (
+                  <span key={cc.id} className="inline-flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-700">
+                    <span className="font-mono">{cc.name}</span>
+                    <span className="text-blue-400">=</span>
+                    <span className="font-mono text-[10px] max-w-[120px] truncate">{cc.expression}</span>
+                    <button onClick={() => removeComputedColumn(cc.id)} className="hover:text-red-500 leading-none ml-0.5"><X className="w-2.5 h-2.5" /></button>
+                  </span>
+                ))}
               </>
             )}
             {status === 'error' && <span className="text-xs text-red-500"><X className="w-3 h-3 inline mr-1 align-middle" />{error}</span>}
@@ -150,6 +169,12 @@ export default function ResultPanel(): React.ReactElement {
             <button onClick={() => { setShowSearch(true); setTimeout(() => searchRef.current?.focus(), 50) }}
               className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">
               <Search className="w-3 h-3 inline mr-1" />搜索
+            </button>
+
+            <button onClick={() => { setShowComputedColInput(true); setTimeout(() => ccInputRef.current?.focus(), 50) }}
+              className="text-xs px-2 py-1 rounded border border-blue-300 dark:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400"
+              title="添加计算列">
+              <Plus className="w-3 h-3 inline mr-1" />计算列
             </button>
             
             <div className="relative" ref={exportMenuRef}>
@@ -218,6 +243,55 @@ export default function ResultPanel(): React.ReactElement {
         </div>
       )}
 
+      {/* Computed column input */}
+      {showComputedColInput && result && (
+        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 flex-shrink-0">
+          <span className="text-xs text-blue-600 dark:text-blue-400 font-medium shrink-0">计算列</span>
+          <input
+            ref={ccInputRef}
+            className="flex-1 text-sm px-2 py-1 rounded border border-blue-300 dark:border-blue-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            placeholder="列名"
+            value={computedColName}
+            onChange={e => setComputedColName(e.target.value)}
+          />
+          <input
+            className="flex-[2] text-sm px-2 py-1 rounded border border-blue-300 dark:border-blue-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+            placeholder="公式，如 =amount*0.85 或 =IF(score>=60,'及格','不及格')"
+            value={computedColExpr}
+            onChange={e => setComputedColExpr(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && computedColName.trim() && computedColExpr.trim()) {
+                addComputedColumn({ name: computedColName.trim(), expression: computedColExpr.trim(), dependencies: [] })
+                setComputedColName('')
+                setComputedColExpr('')
+                setShowComputedColInput(false)
+              } else if (e.key === 'Escape') {
+                setShowComputedColInput(false)
+                setComputedColName('')
+                setComputedColExpr('')
+              }
+            }}
+          />
+          <button
+            onClick={() => {
+              if (computedColName.trim() && computedColExpr.trim()) {
+                addComputedColumn({ name: computedColName.trim(), expression: computedColExpr.trim(), dependencies: [] })
+                setComputedColName('')
+                setComputedColExpr('')
+                setShowComputedColInput(false)
+              }
+            }}
+            disabled={!computedColName.trim() || !computedColExpr.trim()}
+            className="text-xs px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 shrink-0"
+          >添加</button>
+          <button onClick={() => { setShowComputedColInput(false); setComputedColName(''); setComputedColExpr('') }}
+            className="text-xs text-gray-400 hover:text-gray-600 shrink-0"><X className="w-3 h-3" /></button>
+        </div>
+      )}
+
+      {/* Formula bar */}
+      {result && columns.length > 0 && <FormulaBar />}
+
       <div style={{ flex: '1 1 0', minHeight: 0 }}>
         {!result && status === 'idle' && (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">执行 SQL 查询后结果将显示在这里</div>
@@ -234,6 +308,8 @@ export default function ResultPanel(): React.ReactElement {
           />
         )}
       </div>
+
+      <SelectionBar />
 
       {result && total > 0 && (
         <div className="flex items-center gap-2 px-3 py-1.5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex-shrink-0 text-xs flex-wrap min-h-[32px]">

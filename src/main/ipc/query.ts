@@ -1,19 +1,26 @@
 import { ipcMain } from 'electron'
 import { IPC } from '../../shared/ipc-channels'
-import type { IPCError, QueryOptions } from '../../shared/types'
+import type { QueryOptions, QueryResult } from '../../shared/types'
 import { queryExecutor, isDangerous } from '../services/QueryExecutor'
 import historyStore from '../services/HistoryStore'
 import auditLog from '../services/AuditLog'
 import connectionManager from '../services/ConnectionManager'
 import configStore from '../services/ConfigStore'
 
-function wrapError(err: unknown): IPCError {
-  const message = err instanceof Error ? err.message : String(err)
-  return {
-    code: 'IPC_ERROR',
-    message,
-    userMessage: message
+function wrapError(err: unknown): Error {
+  let message: string
+  if (err instanceof Error) {
+    message = err.message
+  } else if (typeof err === 'object' && err !== null) {
+    // Handle database driver error objects (mysql2/pg may throw structured objects)
+    const e = err as Record<string, unknown>
+    message = (e.sqlMessage as string) || (e.message as string) || (e.detail as string) || JSON.stringify(err)
+  } else {
+    message = String(err)
   }
+  const error = new Error(message)
+  error.name = 'IPCError'
+  return error
 }
 
 /** Active AbortControllers keyed by a client-provided queryId */
@@ -28,85 +35,84 @@ export function register(): void {
 
     const startTime = Date.now()
     let success = false
-    let result
+    let result: QueryResult | undefined
     let caughtError: unknown = null
 
     try {
       result = await queryExecutor.execute({ ...rest, abortSignal: controller.signal })
       success = true
-      // Fall through to finally for history/audit recording
-      return result
     } catch (err) {
       caughtError = err
-      // Fall through to finally for history/audit recording
-    } finally {
-      // Record history and audit — best-effort, never fail the query
-      try {
-        const connConfig = connectionManager.getConnection(rest.connectionId)
-        const limit = configStore.get('historyLimit') ?? 1000
+    }
 
-        if (success && result) {
-          const historyEntry = {
-            connectionId: rest.connectionId,
-            connectionName: connConfig?.name ?? rest.connectionId,
-            sql: rest.sql,
-            executedAt: startTime,
-            duration: result.executionTime,
-            rowCount: result.rows?.length ?? 0,
-            success: true
-          }
+    // Record history and audit — best-effort, never fail the query
+    try {
+      const connConfig = connectionManager.getConnection(rest.connectionId)
+      const limit = configStore.get('historyLimit') ?? 1000
 
-          historyStore.add(historyEntry, limit)
-          configStore.addQueryHistory(historyEntry)
+      if (success && result) {
+        const historyEntry = {
+          connectionId: rest.connectionId,
+          connectionName: connConfig?.name ?? rest.connectionId,
+          sql: rest.sql,
+          executedAt: startTime,
+          duration: result.executionTime,
+          rowCount: result.rows?.length ?? 0,
+          success: true
+        }
 
-          // Audit log for write operations
-          if (result.affectedRows !== undefined) {
-            auditLog.add({
-              connectionId: rest.connectionId,
-              connectionName: connConfig?.name ?? rest.connectionId,
-              sql: rest.sql,
-              executedAt: startTime,
-              result: 'success',
-              affectedRows: result.affectedRows ?? 0
-            })
-          }
-        } else {
-          const historyEntry = {
-            connectionId: rest.connectionId,
-            connectionName: connConfig?.name ?? rest.connectionId,
-            sql: rest.sql,
-            executedAt: startTime,
-            duration: Date.now() - startTime,
-            rowCount: 0,
-            success: false
-          }
+        historyStore.add(historyEntry, limit)
+        configStore.addQueryHistory(historyEntry)
 
-          historyStore.add(historyEntry, limit)
-          configStore.addQueryHistory(historyEntry)
-
-          // Audit all failed queries
+        // Audit log for write operations
+        if (result.affectedRows !== undefined) {
           auditLog.add({
             connectionId: rest.connectionId,
             connectionName: connConfig?.name ?? rest.connectionId,
             sql: rest.sql,
             executedAt: startTime,
-            result: 'failure',
-            affectedRows: 0,
-            errorMessage: undefined
+            result: 'success',
+            affectedRows: result.affectedRows ?? 0
           })
         }
-      } catch (recordErr) {
-        // History/audit recording failure must never affect query execution
-        console.error('[Query] Failed to record history/audit:', recordErr)
-      }
+      } else {
+        const historyEntry = {
+          connectionId: rest.connectionId,
+          connectionName: connConfig?.name ?? rest.connectionId,
+          sql: rest.sql,
+          executedAt: startTime,
+          duration: Date.now() - startTime,
+          rowCount: 0,
+          success: false
+        }
 
-      activeQueries.delete(id)
+        historyStore.add(historyEntry, limit)
+        configStore.addQueryHistory(historyEntry)
 
-      // If the query failed, throw the error after recording history
-      if (!success && caughtError) {
-        throw wrapError(caughtError)
+        // Audit all failed queries
+        auditLog.add({
+          connectionId: rest.connectionId,
+          connectionName: connConfig?.name ?? rest.connectionId,
+          sql: rest.sql,
+          executedAt: startTime,
+          result: 'failure',
+          affectedRows: 0,
+          errorMessage: undefined
+        })
       }
+    } catch (recordErr) {
+      // History/audit recording failure must never affect query execution
+      console.error('[Query] Failed to record history/audit:', recordErr)
     }
+
+    activeQueries.delete(id)
+
+    // If the query failed, throw the error after recording history
+    if (caughtError) {
+      throw wrapError(caughtError)
+    }
+
+    return result!
   })
 
   ipcMain.handle(IPC.QUERY_CANCEL, (_event, queryId: string) => {

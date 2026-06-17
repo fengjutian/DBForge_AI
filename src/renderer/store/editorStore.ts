@@ -18,6 +18,8 @@ export interface Tab {
   previewKey?: string // e.g. "dbName.tableName"
   previewTable?: { dbName: string; tableName: string }
   previewTotal?: number // total row count from COUNT(*)
+  /** When true, FormulaBar is shown by default and page size defaults to 1000 */
+  formulaMode?: boolean
 }
 
 const createEmptyTab = (): Tab => ({
@@ -46,6 +48,7 @@ interface EditorState {
   reorderTabs: (fromIndex: number, toIndex: number) => void
   // Preview tab actions
   openPreviewTab: (previewKey: string, title: string, connectionId: string) => string
+  openFormulaViewTab: (previewKey: string, title: string, connectionId: string) => string
   updatePreviewTab: (id: string, patch: Partial<Pick<Tab, 'previewResult' | 'previewStatus' | 'previewError' | 'previewTotal'>>) => void
 }
 
@@ -134,6 +137,29 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       content: '',
       isDirty: false,
       previewKey,
+      previewTable: (() => {
+        const parts = previewKey.split('.')
+        return { dbName: parts[0], tableName: parts[1] }
+      })(),
+      previewResult: null,
+      previewStatus: 'idle',
+      previewError: null,
+      previewTotal: undefined
+    }
+    set((state) => ({ tabs: [...state.tabs, tab], activeTabId: tab.id }))
+    return tab.id
+  },
+
+  openFormulaViewTab: (previewKey, title, connectionId) => {
+    const tab: Tab = {
+      id: `formula-${Date.now()}`,
+      type: 'preview',
+      connectionId,
+      title,
+      content: '',
+      isDirty: false,
+      previewKey,
+      formulaMode: true,
       previewTable: (() => {
         const parts = previewKey.split('.')
         return { dbName: parts[0], tableName: parts[1] }

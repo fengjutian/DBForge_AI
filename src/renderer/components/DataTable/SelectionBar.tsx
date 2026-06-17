@@ -7,7 +7,8 @@ import { Sigma, Hash, Divide } from 'lucide-react'
  * similar to Excel's status bar (SUM/AVG/COUNT).
  */
 export default function SelectionBar(): React.ReactElement | null {
-  const { selection, getSelectionAggregate } = useFormulaStore()
+  const selection = useFormulaStore(s => s.selection)
+  const getSelectionAggregate = useFormulaStore(s => s.getSelectionAggregate)
 
   const { anchor, focus } = selection
   if (!anchor || !focus) return null
