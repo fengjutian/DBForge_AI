@@ -496,3 +496,80 @@ export interface ExportResult {
   filePath?: string
   error?: string
 }
+
+// ============================================================
+// Formula Engine Types
+// ============================================================
+
+/** A cell address in A1 notation, e.g. "A1", "B5", "AA12" */
+export interface CellAddress {
+  col: number   // 0-based column index
+  row: number   // 0-based row index
+}
+
+/** Represents a parsed cell reference token */
+export interface CellRef {
+  col: number
+  row: number
+}
+
+/** Range reference, e.g. A2:A10 or A:B */
+export interface RangeRef {
+  startCol: number
+  startRow: number
+  endCol: number
+  endRow: number
+}
+
+/** A single cell formula entry */
+export interface CellFormula {
+  /** The raw formula expression (with leading =), e.g. "=A2*B2" */
+  expression: string
+  /** Cached computed value */
+  computedValue: unknown
+  /** Cell keys this formula depends on, e.g. ["A2", "B2"] */
+  dependencies: string[]
+  /** Error message if evaluation failed */
+  error?: string
+}
+
+/** Current selection state */
+export interface CellSelection {
+  /** The anchor cell (where selection started) */
+  anchor: CellAddress | null
+  /** The current focus cell */
+  focus: CellAddress | null
+}
+
+/** A virtual computed column defined by a formula applied to every row */
+export interface ComputedColumnDef {
+  id: string
+  name: string
+  expression: string              // formula applied to each row, e.g. "=amount * 0.85"
+  dependencies: string[]          // column names this formula depends on
+}
+
+/** Aggregate info for the selection bar */
+export interface SelectionAggregate {
+  count: number
+  sum: number | null
+  avg: number | null
+}
+
+/** Formula engine interface — isolates the parser/evaluator */
+export interface FormulaEngine {
+  /** Parse a formula string, return dependencies and a callable evaluator */
+  parse(formula: string): { dependencies: string[]; evaluate: (cellGetter: (ref: string) => unknown) => unknown }
+  /** Convert 0-based col index to letter(s), e.g. 0→A, 25→Z, 26→AA */
+  colToLetter(col: number): string
+  /** Convert letter(s) to 0-based col index, e.g. A→0, Z→25, AA→26 */
+  letterToCol(letter: string): number
+  /** Convert a CellAddress to a key string "A1", "B5", etc. */
+  toKey(col: number, row: number): string
+  /** Parse a key string to CellAddress */
+  fromKey(key: string): CellAddress | null
+  /** Parse a range string "A2:A10" or "A:B" to RangeRef */
+  parseRange(range: string): RangeRef | null
+  /** Check if a string looks like a formula (starts with =) */
+  isFormula(text: string): boolean
+}
