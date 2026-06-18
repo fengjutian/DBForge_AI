@@ -26,7 +26,7 @@ type SettingsTab = typeof TABS[number]
 interface Props { onClose: () => void }
 
 export default function Settings({ onClose }: Props): React.ReactElement {
-  const { config, loadSettings, updateAIConfig, setTheme, setLanguage, updateShortcut } = useSettingsStore()
+  const { config, loadSettings, updateAIConfig, setTheme, setColorTheme, setLanguage, updateShortcut } = useSettingsStore()
   const [activeTab, setActiveTab] = useState<SettingsTab>('AI 配置')
   const [dumpPath, setDumpPath] = useState('')
   const [dumpStatus, setDumpStatus] = useState<string | null>(null)
@@ -150,6 +150,26 @@ export default function Settings({ onClose }: Props): React.ReactElement {
                   <option value="light">浅色</option>
                   <option value="dark">深色</option>
                 </select>
+              </Field>
+              <Field label="主题颜色">
+                <div className="flex gap-3">
+                  {([
+                    { value: 'green' as const, label: '绿色', ring: 'ring-green-500', bg: 'bg-green-500' },
+                    { value: 'purple' as const, label: '紫色', ring: 'ring-purple-500', bg: 'bg-purple-500' },
+                    { value: 'gradient' as const, label: '渐变色', ring: 'ring-purple-400', bg: 'bg-gradient-to-br from-green-400 via-emerald-400 to-purple-400' }
+                  ]).map(opt => (
+                    <button key={opt.value} onClick={() => setColorTheme(opt.value)}
+                      className={`w-10 h-10 rounded-full ${opt.bg} flex items-center justify-center transition-all
+                        ${config.colorTheme === opt.value ? `ring-2 ring-offset-2 ${opt.ring}` : 'hover:scale-110'}`}
+                      title={opt.label}>
+                      {config.colorTheme === opt.value && (
+                        <svg className="w-4 h-4 text-white drop-shadow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
               </Field>
               <Field label="语言">
                 <select className="select-field" value={config.language} onChange={e => setLanguage(e.target.value as 'zh' | 'en')}>

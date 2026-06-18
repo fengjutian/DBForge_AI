@@ -48,6 +48,64 @@
     --ring: 150 30% 80%;
     --radius: 0.5rem;
   }
+
+  /* ── Purple color theme ─────────────────────────────── */
+  :root[data-color-theme="purple"] {
+    --primary: 270 55% 45%;
+    --primary-foreground: 270 40% 98%;
+    --secondary: 270 30% 95%;
+    --secondary-foreground: 270 50% 25%;
+    --muted: 270 30% 95%;
+    --muted-foreground: 270 10% 50%;
+    --accent: 270 30% 95%;
+    --accent-foreground: 270 50% 25%;
+    --border: 270 20% 88%;
+    --input: 270 20% 88%;
+    --ring: 270 55% 45%;
+  }
+
+  .dark[data-color-theme="purple"] {
+    --primary: 270 30% 90%;
+    --primary-foreground: 270 55% 35%;
+    --secondary: 270 25% 15%;
+    --secondary-foreground: 270 30% 95%;
+    --muted: 270 25% 15%;
+    --muted-foreground: 270 10% 65%;
+    --accent: 270 25% 15%;
+    --accent-foreground: 270 30% 95%;
+    --border: 270 25% 18%;
+    --input: 270 25% 18%;
+    --ring: 270 30% 75%;
+  }
+
+  /* ── Gradient color theme ───────────────────────────── */
+  :root[data-color-theme="gradient"] {
+    --primary: 220 60% 50%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 220 30% 95%;
+    --secondary-foreground: 220 50% 25%;
+    --muted: 220 30% 95%;
+    --muted-foreground: 220 10% 50%;
+    --accent: 220 30% 95%;
+    --accent-foreground: 220 50% 25%;
+    --border: 220 20% 88%;
+    --input: 220 20% 88%;
+    --ring: 220 60% 50%;
+  }
+
+  .dark[data-color-theme="gradient"] {
+    --primary: 220 30% 90%;
+    --primary-foreground: 220 55% 35%;
+    --secondary: 220 25% 15%;
+    --secondary-foreground: 220 30% 95%;
+    --muted: 220 25% 15%;
+    --muted-foreground: 220 10% 65%;
+    --accent: 220 25% 15%;
+    --accent-foreground: 220 30% 95%;
+    --border: 220 25% 18%;
+    --input: 220 25% 18%;
+    --ring: 220 30% 75%;
+  }
 }
 
 @layer base {
@@ -199,9 +257,71 @@
   .link {
     @apply text-xs text-green-500 hover:underline cursor-pointer transition-colors;
   }
-}
 
-/* ── Window drag region (frameless title bar) ────────────── */
+  /* ── Purple theme component overrides ────────────────── */
+  [data-color-theme="purple"] .btn-primary {
+    @apply bg-purple-600 hover:bg-purple-700;
+  }
+  [data-color-theme="purple"] .tab-active {
+    @apply border-purple-500 text-purple-600;
+  }
+  [data-color-theme="purple"] .sidebar-active {
+    @apply bg-purple-50 dark:bg-purple-900/30 text-purple-600;
+  }
+  [data-color-theme="purple"] .link {
+    @apply text-purple-500;
+  }
+  [data-color-theme="purple"] .tag {
+    @apply bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300;
+  }
+  [data-color-theme="purple"] .msg-success {
+    @apply text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800;
+  }
+  [data-color-theme="purple"] .card-success {
+    @apply border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20;
+  }
+  [data-color-theme="purple"] .card-info {
+    @apply border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20;
+  }
+  [data-color-theme="purple"] .progress-fill-green {
+    @apply bg-purple-500;
+  }
+  [data-color-theme="purple"] .input-field {
+    @apply focus:ring-purple-500;
+  }
+
+  /* ── Gradient theme component overrides ──────────────── */
+  [data-color-theme="gradient"] .btn-primary {
+    @apply bg-gradient-to-r from-green-500 via-emerald-500 to-purple-500 hover:from-green-600 hover:via-emerald-600 hover:to-purple-600 text-white;
+  }
+  [data-color-theme="gradient"] .tab-active {
+    @apply border-purple-400 text-purple-600;
+  }
+  [data-color-theme="gradient"] .sidebar-active {
+    @apply bg-gradient-to-r from-green-50 to-purple-50 dark:from-green-900/20 dark:to-purple-900/20 text-purple-600;
+  }
+  [data-color-theme="gradient"] .link {
+    @apply text-purple-500;
+  }
+  [data-color-theme="gradient"] .tag {
+    @apply bg-gradient-to-r from-green-100 to-purple-100 dark:from-green-900/30 dark:to-purple-900/30 text-purple-700 dark:text-purple-300;
+  }
+  [data-color-theme="gradient"] .msg-success {
+    @apply text-purple-600 dark:text-purple-400 bg-gradient-to-r from-green-50 to-purple-50 dark:from-green-900/20 dark:to-purple-900/20 border-purple-200 dark:border-purple-800;
+  }
+  [data-color-theme="gradient"] .card-success {
+    @apply border-purple-200 dark:border-purple-800 bg-gradient-to-r from-green-50 to-purple-50 dark:from-green-900/20 dark:to-purple-900/20;
+  }
+  [data-color-theme="gradient"] .card-info {
+    @apply border-purple-200 dark:border-purple-800 bg-gradient-to-r from-green-50 to-purple-50 dark:from-green-900/20 dark:to-purple-900/20;
+  }
+  [data-color-theme="gradient"] .progress-fill-green {
+    @apply bg-gradient-to-r from-green-400 to-purple-400;
+  }
+  [data-color-theme="gradient"] .input-field {
+    @apply focus:ring-purple-400;
+  }
+}
 .titlebar-drag {
   -webkit-app-region: drag;
 }

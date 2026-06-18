@@ -485,6 +485,7 @@ export interface AppConfig {
   connections: Array<ConnectionConfig & { passwordEncrypted: string }>
   connectionGroups: ConnectionGroup[]
   theme: 'system' | 'light' | 'dark'
+  colorTheme: 'green' | 'purple' | 'gradient'
   language: 'zh' | 'en'
   shortcuts: Record<string, string>
   mysqldumpPath?: string

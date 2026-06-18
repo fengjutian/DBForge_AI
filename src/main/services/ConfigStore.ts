@@ -30,6 +30,7 @@ const DEFAULT_CONFIG: AppConfig = {
   connections: [],
   connectionGroups: [],
   theme: 'system',
+  colorTheme: 'green',
   language: 'zh',
   shortcuts: {
     executeQuery: 'Ctrl+Enter',

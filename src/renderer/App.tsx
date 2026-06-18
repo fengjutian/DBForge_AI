@@ -123,6 +123,7 @@ function App(): React.ReactElement {
   useEffect(() => {
     if (!config) return
     const root = document.documentElement
+
     if (config.theme === 'dark') {
       root.classList.add('dark')
       return

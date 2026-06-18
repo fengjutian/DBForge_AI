@@ -9,6 +9,7 @@ declare global {
 }
 
 type Theme = 'system' | 'light' | 'dark'
+type ColorTheme = 'green' | 'purple' | 'gradient'
 type Language = 'zh' | 'en'
 
 interface SettingsState {
@@ -20,6 +21,7 @@ interface SettingsState {
   loadSettings: () => Promise<void>
   updateAIConfig: (ai: Partial<AIConfig>) => Promise<void>
   setTheme: (theme: Theme) => Promise<void>
+  setColorTheme: (colorTheme: ColorTheme) => Promise<void>
   setLanguage: (language: Language) => Promise<void>
   updateShortcut: (action: string, shortcut: string) => Promise<void>
 }
@@ -58,6 +60,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
     await window.electronAPI.settings.set({ theme })
     set({ config: { ...current, theme } })
+  },
+
+  setColorTheme: async (colorTheme) => {
+    const current = get().config
+    if (!current) return
+
+    await window.electronAPI.settings.set({ colorTheme })
+    set({ config: { ...current, colorTheme } })
   },
 
   setLanguage: async (language) => {
