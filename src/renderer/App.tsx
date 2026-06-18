@@ -140,6 +140,12 @@ function App(): React.ReactElement {
     return () => mq.removeEventListener('change', handler)
   }, [config?.theme])
 
+  // Apply color theme attribute
+  useEffect(() => {
+    if (!config) return
+    document.documentElement.setAttribute('data-color-theme', config.colorTheme ?? 'green')
+  }, [config?.colorTheme])
+
   // Auto-open AI panel when context menu triggers "AI 解释 SQL"
   useEffect(() => {
     if (pendingExplainSQL) {

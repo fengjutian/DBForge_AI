@@ -321,6 +321,20 @@
   [data-color-theme="gradient"] .input-field {
     @apply focus:ring-purple-400;
   }
+
+  /* Body background tints for each color theme */
+  [data-color-theme="purple"] body {
+    @apply bg-purple-50/30;
+  }
+  .dark[data-color-theme="purple"] body {
+    @apply bg-purple-950/50;
+  }
+  [data-color-theme="gradient"] body {
+    @apply bg-gradient-to-br from-green-50/30 to-purple-50/30;
+  }
+  .dark[data-color-theme="gradient"] body {
+    @apply bg-gradient-to-br from-green-950/50 to-purple-950/50;
+  }
 }
 .titlebar-drag {
   -webkit-app-region: drag;
