@@ -645,6 +645,29 @@ export default function DataTable({
     setEditValue('')
   }, [])
 
+  const confirmSaveEdit = useCallback(() => {
+    if (!editingCell) return
+    const { rowIdx, col } = editingCell
+    const oldValue = filteredRows[rowIdx]?.[col]
+    const oldStr = valueToString(oldValue)
+
+    // No actual changes — quietly exit edit mode
+    if (editValue === oldStr) {
+      setEditingCell(null)
+      setEditValue('')
+      return
+    }
+
+    // Changes detected — prompt user; abandoning is not allowed
+    const save = window.confirm(`是否保存对 "${col}" 的修改？`)
+    if (save) {
+      commitEdit()
+    } else {
+      // Return to editing — user cannot abandon changes
+      setTimeout(() => editInputRef.current?.focus(), 0)
+    }
+  }, [editingCell, editValue, filteredRows, commitEdit])
+
   return (
     <div ref={internalRef} className="h-full flex flex-col">
       {/* Active filter bar */}
@@ -762,7 +785,14 @@ export default function DataTable({
                         position: 'relative',
                       }}
                       onMouseEnter={e => { if (!isEditing) { setHoveredCell({ row: i, col: col.name }); showTooltip(e, value) } }}
-                      onMouseLeave={() => { if (!isEditing) { setHoveredCell(null); hideTooltip() } }}
+                      onMouseLeave={() => {
+                        if (isEditing) {
+                          confirmSaveEdit()
+                        } else {
+                          setHoveredCell(null);
+                          hideTooltip()
+                        }
+                      }}
                       onMouseMove={isEditing ? undefined : updateTooltipPos}
                       onMouseDown={(e) => {
                         if (!isEditing && e.button === 0) {
@@ -801,10 +831,10 @@ export default function DataTable({
                             style={{ lineHeight: `${rowH - 4}px` }}
                             value={editValue}
                             onChange={e => setEditValue(e.target.value)}
-                            onBlur={commitEdit}
+                            onBlur={confirmSaveEdit}
                             onKeyDown={e => {
                               if (e.key === 'Enter') commitEdit()
-                              else if (e.key === 'Escape') cancelEdit()
+                              else if (e.key === 'Escape') confirmSaveEdit()
                             }}
                           />
                         ) : (

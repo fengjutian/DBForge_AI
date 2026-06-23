@@ -166,11 +166,13 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
     setQueryIdRef.current(queryId)
     setStatusRef.current('running')
 
+    let lastStmt = ''
     try {
       let lastResult: QueryResult | null = null
       let totalAffected = 0
 
       for (const stmt of statements) {
+        lastStmt = stmt
         const result = await window.electronAPI.query.execute({
           connectionId,
           sql: stmt,
@@ -191,7 +193,7 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
         setResultRef.current(lastResult, connectionId)
       }
     } catch (e) {
-      setErrorSqlRef.current(stmt)
+      setErrorSqlRef.current(lastStmt)
       setStatusRef.current('error', (e as Error).message)
     } finally {
       setQueryIdRef.current(null)
@@ -222,11 +224,13 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
       setQueryIdRef.current(queryId)
       setStatusRef.current('running')
 
+      let lastStmt = ''
       try {
         let lastResult: QueryResult | null = null
         let totalAffected = 0
 
         for (const stmt of statements) {
+          lastStmt = stmt
           const result = await window.electronAPI.query.execute({
             connectionId,
             sql: stmt,
@@ -247,7 +251,7 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
           setResultRef.current(lastResult)
         }
       } catch (e) {
-        setErrorSqlRef.current(stmt)
+        setErrorSqlRef.current(lastStmt)
         setStatusRef.current('error', (e as Error).message)
       } finally {
         setQueryIdRef.current(null)
