@@ -63,6 +63,10 @@ export const useConnectionStore = create<ConnectionState>((set, get) => {
     updateConnection: async (config) => {
       await window.electronAPI.connection.update(config)
       await get().loadConnections()
+      // If the updated connection is the active one, sync activeDatabase
+      if (get().activeConnectionId === config.id) {
+        set({ activeDatabase: config.database ?? null })
+      }
     },
 
     deleteConnection: async (id) => {

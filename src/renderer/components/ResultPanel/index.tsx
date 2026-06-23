@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Database, X, Search, Upload, ChevronDown, ChevronLeft, ChevronRight, Plus, Bot, ChevronUp, Lightbulb, Wrench } from 'lucide-react'
+import { Database, X, Search, Upload, ChevronDown, ChevronLeft, ChevronRight, Plus, Bot, ChevronUp, Lightbulb, Wrench, ArrowRight, List } from 'lucide-react'
 import { useResultStore, selectDisplayRows, selectTotalRows, selectColumns } from '../../store/resultStore'
 import { useConnectionStore } from '../../store/connectionStore'
 import { useFormulaStore } from '../../store/formulaStore'
@@ -390,7 +390,24 @@ export default function ResultPanel(): React.ReactElement {
 
       <div style={{ flex: '1 1 0', minHeight: 0 }}>
         {!result && status === 'idle' && (
-          <div className="flex items-center justify-center h-full text-gray-400 text-sm">执行 SQL 查询后结果将显示在这里</div>
+          <div className="flex flex-col items-center justify-center h-full gap-6 text-gray-400 select-none">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-700/50">
+                <Database className="w-6 h-6 text-gray-400" />
+              </div>
+              <ArrowRight className="w-5 h-5 text-gray-300" />
+              <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-700/50">
+                <Search className="w-6 h-6 text-gray-400" />
+              </div>
+              <ArrowRight className="w-5 h-5 text-gray-300" />
+              <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-700/50">
+                <List className="w-6 h-6 text-gray-400" />
+              </div>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-gray-300 mt-1">在上方编辑区编写 SQL，点击运行即可查看</p>
+            </div>
+          </div>
         )}
         {result && columns.length > 0 && (
           <DataTable

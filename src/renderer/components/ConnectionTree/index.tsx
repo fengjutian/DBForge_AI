@@ -252,9 +252,9 @@ export default function ConnectionTree(): React.ReactElement {
     setConnMenu({ x: e.clientX, y: e.clientY, connection: conn })
   }
 
-  const handleEditConn = () => {
-    if (!connMenu) return
-    const c = connMenu.connection
+  const handleEditConn = (conn?: ConnectionConfig) => {
+    const c = conn ?? connMenu?.connection
+    if (!c) return
     setEditingId(c.id)
     setForm({
       name: c.name, databaseType: c.databaseType || 'mysql', host: c.host,
@@ -763,6 +763,13 @@ export default function ConnectionTree(): React.ReactElement {
                    <Database className="w-3 h-3 inline" />}
                 </span>
                 <span className="flex-1 text-sm truncate font-medium">{conn.name}</span>
+                <button
+                  onClick={e => { e.stopPropagation(); handleEditConn(conn) }}
+                  className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 shrink-0"
+                  title="编辑连接"
+                >
+                  <Pencil size={12} />
+                </button>
                 <span className="text-xs text-gray-400">{conn.host}:{conn.port}</span>
               </div>
 

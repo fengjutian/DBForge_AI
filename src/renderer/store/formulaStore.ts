@@ -111,7 +111,7 @@ export const useFormulaStore = create<FormulaState>((set, get) => ({
   },
 
   setRows: (rows) => {
-    set({ rows })
+    set({ rows, selection: { anchor: null, focus: null, pinnedCells: new Set() }, editingCell: null })
   },
 
   setCellFormula: (col, row, expression) => {
