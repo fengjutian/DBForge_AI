@@ -89,7 +89,7 @@ function App(): React.ReactElement {
   const [showBackup, setShowBackup] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
-  const [rightPanel, setRightPanel] = useState<'ai' | null>('ai')
+  const [rightPanel, setRightPanel] = useState<'ai' | null>(null)
   const [databases, setDatabases] = useState<string[]>([])
   const [orbHovered, setOrbHovered] = useState(false)
   const [orbClickTrigger, setOrbClickTrigger] = useState(0)
