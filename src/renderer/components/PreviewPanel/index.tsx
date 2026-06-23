@@ -29,33 +29,6 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
   const [computedColExpr, setComputedColExpr] = useState('')
   const ccInputRef = React.useRef<HTMLInputElement>(null)
 
-  // ── AI Error Explanation ──────────────────────────────────
-  const [previewAiAvailable, setPreviewAiAvailable] = useState(false)
-  const [previewAiAnalysis, setPreviewAiAnalysis] = useState<{ diagnosis: string; suggestions: string[]; fixedSql?: string; loading: boolean } | null>(null)
-  const [previewAiExpanded, setPreviewAiExpanded] = useState(false)
-
-  // Check if AI is configured when error changes
-  useEffect(() => {
-    if (status === 'error' && error) {
-      setPreviewAiAnalysis(null)
-      window.electronAPI.settings.get().then(cfg => {
-        setPreviewAiAvailable(!!cfg.ai.apiKeyEncrypted)
-      }).catch(() => setPreviewAiAvailable(false))
-    }
-  }, [status, error])
-
-  const handlePreviewAiExplain = async () => {
-    if (!error || !result?.sql || previewAiAnalysis?.loading) return
-    setPreviewAiAnalysis({ diagnosis: '', suggestions: [], loading: true })
-    setPreviewAiExpanded(true)
-    try {
-      const res = await window.electronAPI.ai.diagnoseError({ sql: result.sql, errorMessage: error })
-      setPreviewAiAnalysis({ diagnosis: res.diagnosis, suggestions: res.suggestions, fixedSql: res.fixedSql, loading: false })
-    } catch {
-      setPreviewAiAnalysis({ diagnosis: 'AI 分析失败，请检查 AI 配置是否正确', suggestions: [], loading: false })
-    }
-  }
-
   // ── Edit mode ──────────────────────────────────────────
   const [editingMode, setEditingMode] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle')
@@ -84,6 +57,38 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
   const result = tab.previewResult
   const status = tab.previewStatus ?? 'idle'
   const error = tab.previewError
+
+  // ── AI Error Explanation ──────────────────────────────────
+  const [previewAiAvailable, setPreviewAiAvailable] = useState(false)
+  const [previewAiExplaining, setPreviewAiExplaining] = useState(false)
+  const [previewAiAnalysis, setPreviewAiAnalysis] = useState<{ diagnosis: string; suggestions: string[]; fixedSql?: string; loading: boolean } | null>(null)
+  const [previewAiExpanded, setPreviewAiExpanded] = useState(false)
+
+  // Check if AI is configured when error changes
+  useEffect(() => {
+    if (status === 'error' && error) {
+      setPreviewAiAnalysis(null)
+      setPreviewAiExpanded(false)
+      window.electronAPI.settings.get().then(cfg => {
+        setPreviewAiAvailable(!!cfg.ai.apiKeyEncrypted)
+      }).catch(() => setPreviewAiAvailable(false))
+    }
+  }, [status, error])
+
+  const handlePreviewAiExplain = async () => {
+    if (!error || !result?.sql || previewAiExplaining) return
+    setPreviewAiExplaining(true)
+    setPreviewAiExpanded(true)
+    setPreviewAiAnalysis(null)
+    try {
+      const res = await window.electronAPI.ai.diagnoseError({ sql: result.sql, errorMessage: error })
+      setPreviewAiAnalysis({ diagnosis: res.diagnosis, suggestions: res.suggestions, fixedSql: res.fixedSql, loading: false })
+    } catch {
+      setPreviewAiAnalysis({ diagnosis: 'AI 分析失败，请检查 AI 配置是否正确', suggestions: [], loading: false })
+    } finally {
+      setPreviewAiExplaining(false)
+    }
+  }
   const total = tab.previewTotal ?? 0
   const columns = result?.columns ?? []
   const rows = result?.rows ?? []
@@ -351,10 +356,10 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
                   <div className="flex items-center gap-1 flex-wrap">
                     <span className="text-xs text-red-500"><X className="w-3 h-3 inline mr-1 align-middle" />{error}</span>
                     {previewAiAvailable && !previewAiAnalysis && (
-                      <button onClick={handlePreviewAiExplain} disabled={previewAiAnalysis?.loading}
+                      <button onClick={handlePreviewAiExplain} disabled={previewAiExplaining}
                         className="text-xs px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800 disabled:opacity-50 flex items-center gap-1">
                         <Bot className="w-3 h-3" />
-                        {previewAiAnalysis?.loading ? '分析中...' : 'AI 分析'}
+                        {previewAiExplaining ? '分析中...' : 'AI 分析'}
                       </button>
                     )}
                     {previewAiAvailable && previewAiAnalysis && !previewAiAnalysis.loading && (
@@ -429,13 +434,13 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
       </div>
 
       {/* ── AI Error Explanation Panel ────────────────────────── */}
-      {status === 'error' && previewAiAnalysis && previewAiExpanded && (
+      {status === 'error' && (previewAiExplaining || (previewAiAnalysis && previewAiExpanded)) && (
         <div className="border-b border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10 px-3 py-2 flex-shrink-0">
-          {previewAiAnalysis.loading ? (
+          {previewAiExplaining ? (
             <div className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400">
               <Bot className="w-4 h-4 animate-pulse" />AI 分析中...
             </div>
-          ) : (
+          ) : previewAiAnalysis && (
             <div className="space-y-2 text-xs">
               {/* Diagnosis */}
               <div>
