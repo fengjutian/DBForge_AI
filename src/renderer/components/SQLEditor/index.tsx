@@ -79,7 +79,7 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
   const conn = connections.find(c => c.id === activeConnectionId)
   const connLang = dbTypeToLang(conn?.databaseType)
   const { config } = useSettingsStore()
-  const { setResult, setStatus, setQueryId } = useResultStore()
+  const { setResult, setStatus, setQueryId, setErrorSql } = useResultStore()
   const { getSchema } = useSessionStore()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const editorRef = useRef<any>(null)
@@ -91,6 +91,7 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
   const setResultRef = useRef(setResult)
   const setStatusRef = useRef(setStatus)
   const setQueryIdRef = useRef(setQueryId)
+  const setErrorSqlRef = useRef(setErrorSql)
   const setPendingExplainSQLRef = useRef(setPendingExplainSQL)
   // Cleanup for inline AI prompt
   const inlineAICleanupRef = useRef<(() => void) | null>(null)
@@ -101,6 +102,7 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
   useEffect(() => { setResultRef.current = setResult }, [setResult])
   useEffect(() => { setStatusRef.current = setStatus }, [setStatus])
   useEffect(() => { setQueryIdRef.current = setQueryId }, [setQueryId])
+  useEffect(() => { setErrorSqlRef.current = setErrorSql }, [setErrorSql])
   useEffect(() => { setPendingExplainSQLRef.current = setPendingExplainSQL }, [setPendingExplainSQL])
 
   // Cleanup inline AI prompt on unmount
@@ -189,6 +191,7 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
         setResultRef.current(lastResult, connectionId)
       }
     } catch (e) {
+      setErrorSqlRef.current(stmt)
       setStatusRef.current('error', (e as Error).message)
     } finally {
       setQueryIdRef.current(null)
@@ -244,6 +247,7 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
           setResultRef.current(lastResult)
         }
       } catch (e) {
+        setErrorSqlRef.current(stmt)
         setStatusRef.current('error', (e as Error).message)
       } finally {
         setQueryIdRef.current(null)

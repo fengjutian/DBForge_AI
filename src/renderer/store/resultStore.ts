@@ -13,15 +13,24 @@ export interface PaginationState {
   pageSize: number
 }
 
+export interface AiErrorAnalysis {
+  diagnosis: string
+  suggestions: string[]
+  fixedSql?: string
+  loading: boolean
+}
+
 interface ResultState {
   result: QueryResult | null
   status: QueryStatus
   error: string | null
+  errorSql: string | null
   currentQueryId: string | null
   connectionId: string | null
   pagination: PaginationState
   sort: SortState
   search: string
+  aiErrorAnalysis: AiErrorAnalysis | null
 
   // Actions
   setResult: (result: QueryResult, connectionId?: string) => void
@@ -31,6 +40,8 @@ interface ResultState {
   setSearch: (search: string) => void
   clearResult: () => void
   setQueryId: (queryId: string | null) => void
+  setAiErrorAnalysis: (analysis: AiErrorAnalysis | null) => void
+  setErrorSql: (sql: string | null) => void
 }
 
 export const useResultStore = create<ResultState>((set) => ({
@@ -42,13 +53,19 @@ export const useResultStore = create<ResultState>((set) => ({
   pagination: { page: 1, pageSize: 100 },
   sort: { column: null, direction: 'asc' },
   search: '',
+  errorSql: null,
+  aiErrorAnalysis: null,
 
   setResult: (result, connectionId) => {
-    set({ result, status: 'idle', error: null, connectionId: connectionId ?? null, pagination: { page: 1, pageSize: 100 } })
+    set({ result, status: 'idle', error: null, errorSql: null, connectionId: connectionId ?? null, pagination: { page: 1, pageSize: 100 }, aiErrorAnalysis: null })
   },
 
   setStatus: (status, error) => {
-    set({ status, error: error ?? null })
+    set({ status, error: error ?? null, aiErrorAnalysis: null })
+  },
+
+  setErrorSql: (sql) => {
+    set({ errorSql: sql })
   },
 
   setPage: (page, pageSize) => {
@@ -77,12 +94,18 @@ export const useResultStore = create<ResultState>((set) => ({
       connectionId: null,
       sort: { column: null, direction: 'asc' },
       search: '',
-      pagination: { page: 1, pageSize: 100 }
+      pagination: { page: 1, pageSize: 100 },
+      errorSql: null,
+      aiErrorAnalysis: null
     })
   },
 
   setQueryId: (queryId) => {
     set({ currentQueryId: queryId })
+  },
+
+  setAiErrorAnalysis: (analysis) => {
+    set({ aiErrorAnalysis: analysis })
   }
 }))
 

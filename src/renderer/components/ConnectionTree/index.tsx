@@ -133,6 +133,18 @@ export default function ConnectionTree(): React.ReactElement {
     return () => window.removeEventListener('keydown', handler)
   }, [searchOpen])
 
+  // ── Close context menus when clicking outside ────────────
+  useEffect(() => {
+    if (!tableMenu && !dbMenu && !connMenu) return
+    const handler = () => {
+      setTableMenu(null)
+      setDbMenu(null)
+      setConnMenu(null)
+    }
+    document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
+  }, [tableMenu, dbMenu, connMenu])
+
   // ── Helpers ──────────────────────────────────────────────
   const dbKey = (connId: string, dbName: string) => `${connId}/${dbName}`
   const tblKey = (connId: string, dbName: string, tblName: string) => `${connId}/${dbName}/${tblName}`

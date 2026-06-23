@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { X, Search, RefreshCw, ChevronLeft, ChevronRight, Plus, Pencil, Save, Undo2 } from 'lucide-react'
+import { X, Search, RefreshCw, ChevronLeft, ChevronRight, Plus, Pencil, Save, Undo2, Bot, ChevronUp, ChevronDown, Lightbulb, Wrench } from 'lucide-react'
 import type { Tab } from '../../store/editorStore'
 import { useEditorStore } from '../../store/editorStore'
 import type { FilterRule } from '../../../shared/types'
@@ -28,6 +28,33 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
   const [computedColName, setComputedColName] = useState('')
   const [computedColExpr, setComputedColExpr] = useState('')
   const ccInputRef = React.useRef<HTMLInputElement>(null)
+
+  // ── AI Error Explanation ──────────────────────────────────
+  const [previewAiAvailable, setPreviewAiAvailable] = useState(false)
+  const [previewAiAnalysis, setPreviewAiAnalysis] = useState<{ diagnosis: string; suggestions: string[]; fixedSql?: string; loading: boolean } | null>(null)
+  const [previewAiExpanded, setPreviewAiExpanded] = useState(false)
+
+  // Check if AI is configured when error changes
+  useEffect(() => {
+    if (status === 'error' && error) {
+      setPreviewAiAnalysis(null)
+      window.electronAPI.settings.get().then(cfg => {
+        setPreviewAiAvailable(!!cfg.ai.apiKeyEncrypted)
+      }).catch(() => setPreviewAiAvailable(false))
+    }
+  }, [status, error])
+
+  const handlePreviewAiExplain = async () => {
+    if (!error || !result?.sql || previewAiAnalysis?.loading) return
+    setPreviewAiAnalysis({ diagnosis: '', suggestions: [], loading: true })
+    setPreviewAiExpanded(true)
+    try {
+      const res = await window.electronAPI.ai.diagnoseError({ sql: result.sql, errorMessage: error })
+      setPreviewAiAnalysis({ diagnosis: res.diagnosis, suggestions: res.suggestions, fixedSql: res.fixedSql, loading: false })
+    } catch {
+      setPreviewAiAnalysis({ diagnosis: 'AI 分析失败，请检查 AI 配置是否正确', suggestions: [], loading: false })
+    }
+  }
 
   // ── Edit mode ──────────────────────────────────────────
   const [editingMode, setEditingMode] = useState(false)
@@ -320,7 +347,26 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
             ) : (
               <>
                 {result && <span className="text-xs text-white/80">{result.executionTime}ms</span>}
-                {status === 'error' && <span className="text-xs text-red-500"><X className="w-3 h-3 inline mr-1 align-middle" />{error}</span>}
+                {status === 'error' && (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <span className="text-xs text-red-500"><X className="w-3 h-3 inline mr-1 align-middle" />{error}</span>
+                    {previewAiAvailable && !previewAiAnalysis && (
+                      <button onClick={handlePreviewAiExplain} disabled={previewAiAnalysis?.loading}
+                        className="text-xs px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800 disabled:opacity-50 flex items-center gap-1">
+                        <Bot className="w-3 h-3" />
+                        {previewAiAnalysis?.loading ? '分析中...' : 'AI 分析'}
+                      </button>
+                    )}
+                    {previewAiAvailable && previewAiAnalysis && !previewAiAnalysis.loading && (
+                      <button onClick={() => setPreviewAiExpanded(!previewAiExpanded)}
+                        className="text-xs px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800 flex items-center gap-1">
+                        <Bot className="w-3 h-3" />
+                        {previewAiExpanded ? '收起分析' : 'AI 分析'}
+                        {previewAiExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                      </button>
+                    )}
+                  </div>
+                )}
                 {/* Computed column tags */}
                 {computedColumns.map(cc => (
                   <span key={cc.id} className="inline-flex items-center gap-1 text-xs bg-blue-500/20 text-blue-200 px-1.5 py-0.5 rounded border border-blue-400/30">
@@ -381,6 +427,53 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
           </>
         )}
       </div>
+
+      {/* ── AI Error Explanation Panel ────────────────────────── */}
+      {status === 'error' && previewAiAnalysis && previewAiExpanded && (
+        <div className="border-b border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10 px-3 py-2 flex-shrink-0">
+          {previewAiAnalysis.loading ? (
+            <div className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400">
+              <Bot className="w-4 h-4 animate-pulse" />AI 分析中...
+            </div>
+          ) : (
+            <div className="space-y-2 text-xs">
+              {/* Diagnosis */}
+              <div>
+                <div className="font-medium text-red-700 dark:text-red-300 flex items-center gap-1 mb-1">
+                  <Lightbulb className="w-3.5 h-3.5" />错误分析
+                </div>
+                <div className="text-red-600 dark:text-red-400 whitespace-pre-wrap leading-relaxed">
+                  {previewAiAnalysis.diagnosis}
+                </div>
+              </div>
+              {/* Suggestions */}
+              {previewAiAnalysis.suggestions.length > 0 && (
+                <div>
+                  <div className="font-medium text-red-700 dark:text-red-300 flex items-center gap-1 mb-1">
+                    <Wrench className="w-3.5 h-3.5" />修复建议
+                  </div>
+                  <ul className="list-disc list-inside text-red-600 dark:text-red-400 space-y-0.5">
+                    {previewAiAnalysis.suggestions.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {/* Fixed SQL */}
+              {previewAiAnalysis.fixedSql && (
+                <div>
+                  <div className="font-medium text-red-700 dark:text-red-300 flex items-center gap-1 mb-1">
+                    <span className="font-mono text-[10px] bg-red-200 dark:bg-red-800 px-1 rounded">SQL</span>修复后的 SQL
+                  </div>
+                  <pre className="text-xs bg-white dark:bg-gray-800 border border-red-200 dark:border-red-700 rounded p-2 overflow-x-auto text-red-600 dark:text-red-400 font-mono">
+                    {previewAiAnalysis.fixedSql}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Search bar (client-side filter on current page) */}
       {showSearch && (

@@ -271,6 +271,7 @@ export default function DataTable({
 }: DataTableProps): React.ReactElement {
   const [colWidths, setColWidths] = useState<Record<string, number>>({})
   const [rowHeights, setRowHeights] = useState<Record<number, number>>({})
+  const [rowNumWidth, setRowNumWidth] = useState(ROW_NUM_W)
   const [selectedCol, setSelectedCol] = useState<string | null>(null)
   const [selectedRow, setSelectedRow] = useState<number | null>(null)
   const [hoveredCell, setHoveredCell] = useState<{ row: number; col: string } | null>(null)
@@ -353,6 +354,13 @@ export default function DataTable({
 
   const colDrag = useRef<{ col: string; startX: number; startW: number } | null>(null)
   const rowDrag = useRef<{ row: number; startY: number; startH: number } | null>(null)
+  const tableScaleDrag = useRef<{
+    startX: number; startY: number;
+    colSizes: { name: string; origW: number }[];
+    rowHeightsSnapshot: Record<number, number>;
+    totalOrigW: number;
+    totalOrigH: number;
+  } | null>(null)
   const mouseDrag = useRef<{ startCol: number; startRow: number } | null>(null)
   const isDragging = useRef(false)
   const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -438,6 +446,121 @@ export default function DataTable({
     const onUp = () => { rowDrag.current = null; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
     window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp)
   }, [])
+
+  // ── Table proportional scale (corner drag) ──────────────
+  const onTableScaleStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    const table = (e.currentTarget as HTMLElement).closest('table')
+    if (!table) return
+    const colgroup = table.querySelector('colgroup')
+    if (!colgroup) return
+
+    // Snapshot column widths from the DOM (direct read, no React re-render)
+    const colEls = Array.from(colgroup.children) as HTMLElement[]
+    const colSizes = colEls.map(el => ({
+      name: el.dataset.colName ?? '',
+      origW: parseFloat(el.style.width) || DEFAULT_COL_W,
+    }))
+    const totalOrigW = colSizes.reduce((a, b) => a + b.origW, 0)
+
+    // Snapshot row heights from the ref (fast, no re-render)
+    const rowHS: Record<number, number> = {}
+    filteredRows.forEach((_, i) => { rowHS[i] = rowHeightsRef.current[i] ?? DEFAULT_ROW_H })
+    const totalOrigH = Object.values(rowHS).reduce((a, b) => a + b, 0)
+
+    tableScaleDrag.current = {
+      startX: e.clientX, startY: e.clientY,
+      colSizes, rowHeightsSnapshot: rowHS,
+      totalOrigW, totalOrigH,
+    }
+
+    const onMove = (ev: MouseEvent) => {
+      if (!tableScaleDrag.current) return
+      const { startX, startY, colSizes, totalOrigW, totalOrigH } = tableScaleDrag.current
+      const dx = ev.clientX - startX
+      const dy = ev.clientY - startY
+      if (totalOrigW <= 0) return
+
+      // ── Horizontal: directly manipulate colgroup DOM ──
+      const scaleX = Math.max(0.3, (totalOrigW + dx) / totalOrigW)
+      // Re-query colgroup each frame (safe — no React reconciliation during drag)
+      const cg = table.querySelector('colgroup')
+      if (cg) {
+        const cols = cg.children as HTMLCollectionOf<HTMLElement>
+        for (let ci = 0; ci < cols.length && ci < colSizes.length; ci++) {
+          cols[ci].style.width = `${Math.max(MIN_COL_W, Math.round(colSizes[ci].origW * scaleX))}px`
+        }
+      }
+
+      // ── Vertical: directly manipulate visible <tr> elements ──
+      if (totalOrigH > 0) {
+        const scaleY = Math.max(0.3, (totalOrigH + dy) / totalOrigH)
+        const rows = table.querySelectorAll('tbody tr')
+        // Update rowHeightsRef so the virtualizer's estimateSize stays correct
+        const rh = tableScaleDrag.current.rowHeightsSnapshot
+        for (let ri = 0; ri < rows.length; ri++) {
+          const tr = rows[ri] as HTMLElement
+          const dataIdx = parseInt(tr.dataset.index ?? '', 10)
+          if (!isNaN(dataIdx) && rh[dataIdx] !== undefined) {
+            const newH = Math.max(MIN_ROW_H, Math.round(rh[dataIdx] * scaleY))
+            tr.style.height = `${newH}px`
+            rowHeightsRef.current[dataIdx] = newH
+          }
+        }
+        // Force virtualizer to re-measure
+        virtualizer.measure()
+      }
+    }
+
+    const onUp = () => {
+      if (!tableScaleDrag.current) return
+      const { colSizes, rowHeightsSnapshot } = tableScaleDrag.current
+
+      // Read the current colgroup widths from the DOM (set by onMove)
+      const finalColW: Record<string, number> = {}
+      const cg = table.querySelector('colgroup')
+      if (cg) {
+        const cols = cg.children as HTMLCollectionOf<HTMLElement>
+        for (let ci = 0; ci < cols.length; ci++) {
+          const name = colSizes[ci]?.name
+          if (name) {
+            const w = parseFloat(cols[ci].style.width) || MIN_COL_W
+            if (name === '__rowNum__') {
+              // handled below in rowNumWidth
+            } else {
+              finalColW[name] = w
+            }
+          }
+        }
+      }
+
+      // Read final row heights from rowHeightsRef (already updated by onMove)
+      const finalRowH: Record<number, number> = {}
+      for (const idxStr of Object.keys(rowHeightsSnapshot)) {
+        const idx = Number(idxStr)
+        finalRowH[idx] = rowHeightsRef.current[idx] ?? rowHeightsSnapshot[idx]
+      }
+
+      // Reset ref first
+      tableScaleDrag.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+
+      // Batch-commit to React state (single re-render)
+      setColWidths(finalColW)
+      setRowHeights(finalRowH)
+
+      // Read row-num width from colgroup
+      const firstCol = cg?.children[0] as HTMLElement | undefined
+      if (firstCol) {
+        const rnw = parseFloat(firstCol.style.width) || MIN_COL_W
+        setRowNumWidth(rnw)
+      }
+    }
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [filteredRows, virtualizer])
 
   // ── Tooltip ────────────────────────────────────────────────
   const showTooltip = useCallback((e: React.MouseEvent, value: unknown) => {
@@ -543,13 +666,22 @@ export default function DataTable({
       <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-auto">
         <table className="text-xs border-collapse select-none" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
           <colgroup>
-            <col style={{ width: ROW_NUM_W }} />
-            {effectiveColumns.map(col => <col key={col.name} style={{ width: getColW(col.name) }} />)}
+            <col data-col-name="__rowNum__" style={{ width: rowNumWidth }} />
+            {effectiveColumns.map(col => <col key={col.name} data-col-name={col.name} style={{ width: getColW(col.name) }} />)}
           </colgroup>
 
           <thead className="sticky top-0 bg-green-600 text-white dark:bg-green-700 z-10">
             <tr>
-              <th className="border-b border-r border-green-500 dark:border-green-600 bg-green-600 dark:bg-green-700 text-white select-none" style={{ width: ROW_NUM_W }} />
+              <th className="border-b border-r border-green-500 dark:border-green-600 bg-green-600 dark:bg-green-700 text-white select-none cursor-pointer"
+                style={{ width: rowNumWidth, position: 'relative', overflow: 'hidden', minWidth: ROW_NUM_W }}
+                onClick={selectAll}
+                title="点击选中全部">
+                {/* Excel-like corner drag handle */}
+                <div onMouseDown={onTableScaleStart}
+                  className="absolute right-0 bottom-0 w-3.5 h-3.5 cursor-nwse-resize hover:bg-white/30 active:bg-white/50 transition-colors"
+                  style={{ zIndex: 2, clipPath: 'polygon(100% 0, 100% 100%, 0 100%)' }}
+                  onClick={e => e.stopPropagation()} />
+              </th>
               {effectiveColumns.map((col, colIdx) => {
                 const isColSel = selectedCol === col.name
                 const hasFilter = !!filters[col.name]

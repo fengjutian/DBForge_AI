@@ -88,6 +88,17 @@ export default function SchemaBrowser(): React.ReactElement {
 
   const closeTooltip = () => setTooltip(null)
 
+  // ── Close context menus when clicking outside ────────────
+  useEffect(() => {
+    if (!menu && !dbMenu) return
+    const handler = () => {
+      setMenu(null)
+      setDbMenu(null)
+    }
+    document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
+  }, [menu, dbMenu])
+
   const handlePreview = async () => {
     if (!menu || !activeConnectionId) return
     closeMenu()
