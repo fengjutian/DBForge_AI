@@ -16,6 +16,7 @@ import ERDiagram from '../ERDiagram'
 import TableAnalysisModal, { type AnalysisType } from '../TableAnalysisModal'
 import JoinBuilder from '../JoinBuilder'
 import StorageDashboard from '../StorageDashboard'
+import SchemaDiagram from '../SchemaDiagram'
 
 // ── Types ─────────────────────────────────────────────────────
 interface TableContextMenu {
@@ -98,6 +99,7 @@ export default function ConnectionTree(): React.ReactElement {
   const [analysis, setAnalysis] = useState<{ dbName: string; tableName: string; type: AnalysisType } | null>(null)
   const [joinBuilder, setJoinBuilder] = useState<{ dbName: string } | null>(null)
   const [storageDashboard, setStorageDashboard] = useState<{ dbName: string } | null>(null)
+  const [schemaDiagram, setSchemaDiagram] = useState<{ connectionId: string; dbName: string } | null>(null)
 
   // ── Row count / storage size toggle ──
   const [showStorage, setShowStorage] = useState(false)
@@ -340,6 +342,12 @@ export default function ConnectionTree(): React.ReactElement {
   const handleShowAllER = () => {
     if (!dbMenu) return
     setErDiagramAll({ dbName: dbMenu.dbName })
+    closeAllMenus()
+  }
+
+  const handleShowSchemaDiagram = () => {
+    if (!dbMenu) return
+    setSchemaDiagram({ connectionId: dbMenu.connectionId, dbName: dbMenu.dbName })
     closeAllMenus()
   }
 
@@ -831,6 +839,9 @@ export default function ConnectionTree(): React.ReactElement {
           <button onClick={handleShowAllER} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
             <GitFork size={14} className="inline mr-1.5" />查看所有表 ER 图
           </button>
+          <button onClick={handleShowSchemaDiagram} className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
+            <GitFork size={14} className="inline mr-1.5" />Schema 关系图
+          </button>
           <button onClick={() => { const d = dbMenu; closeAllMenus(); setStorageDashboard({ dbName: d.dbName }) }}
             className="block w-full text-left px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700">
             <HardDrive size={14} className="inline mr-1.5" />存储分析
@@ -1067,6 +1078,18 @@ export default function ConnectionTree(): React.ReactElement {
             dbName={storageDashboard.dbName}
             schema={schema}
             onClose={() => setStorageDashboard(null)}
+          />
+        ) : null
+      })()}
+
+      {/* ── Schema Diagram modal ── */}
+      {schemaDiagram && (() => {
+        const schema = getSchema(schemaDiagram.connectionId)
+        const db = schema?.databases.find(d => d.name === schemaDiagram.dbName)
+        return db ? (
+          <SchemaDiagram
+            db={db}
+            onClose={() => setSchemaDiagram(null)}
           />
         ) : null
       })()}
