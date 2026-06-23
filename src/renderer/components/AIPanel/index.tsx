@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Database, RefreshCw, Loader2, X, AlertTriangle, BookOpen, Lightbulb, Bot, Rocket, FileText, Search, Shield, CheckCircle, Clipboard, BarChart3, Microscope, ChevronUp, ChevronDown, MessageSquare, Circle } from 'lucide-react'
 import { useConnectionStore } from '../../store/connectionStore'
 import { useSessionStore } from '../../store/sessionStore'
