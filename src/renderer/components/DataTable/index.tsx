@@ -21,6 +21,8 @@ interface DataTableProps {
   onFiltersChange?: (filters: Record<string, FilterRule>) => void
   /** Called when a cell is edited via double-click */
   onCellEdit?: (rowIndex: number, col: string, newValue: string, oldValue: unknown) => void
+  /** Called when a cell edit is confirmed — persist to DB */
+  onCellSave?: (rowIndex: number, col: string, newValue: string, oldValue: unknown) => void
 }
 
 interface TooltipState { content: string; x: number; y: number }
@@ -267,7 +269,7 @@ export default function DataTable({
   columns, rows, rowOffset = 0,
   sortColumn, sortDirection, onSort,
   sql, tableRef,
-  filterMode = 'client', onFiltersChange, onCellEdit
+  filterMode = 'client', onFiltersChange, onCellEdit, onCellSave
 }: DataTableProps): React.ReactElement {
   const [colWidths, setColWidths] = useState<Record<string, number>>({})
   const [rowHeights, setRowHeights] = useState<Record<number, number>>({})
@@ -662,11 +664,12 @@ export default function DataTable({
     const save = window.confirm(`是否保存对 "${col}" 的修改？`)
     if (save) {
       commitEdit()
+      onCellSave?.(rowIdx, col, editValue, oldValue)
     } else {
       // Return to editing — user cannot abandon changes
       setTimeout(() => editInputRef.current?.focus(), 0)
     }
-  }, [editingCell, editValue, filteredRows, commitEdit])
+  }, [editingCell, editValue, filteredRows, commitEdit, onCellSave])
 
   return (
     <div ref={internalRef} className="h-full flex flex-col">
@@ -785,14 +788,7 @@ export default function DataTable({
                         position: 'relative',
                       }}
                       onMouseEnter={e => { if (!isEditing) { setHoveredCell({ row: i, col: col.name }); showTooltip(e, value) } }}
-                      onMouseLeave={() => {
-                        if (isEditing) {
-                          confirmSaveEdit()
-                        } else {
-                          setHoveredCell(null);
-                          hideTooltip()
-                        }
-                      }}
+                      onMouseLeave={() => { if (!isEditing) { setHoveredCell(null); hideTooltip() } }}
                       onMouseMove={isEditing ? undefined : updateTooltipPos}
                       onMouseDown={(e) => {
                         if (!isEditing && e.button === 0) {

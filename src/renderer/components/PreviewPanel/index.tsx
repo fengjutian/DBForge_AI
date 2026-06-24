@@ -48,6 +48,8 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
   const editGenerateStructuredChanges = useEditBufferStore(s => s.generateStructuredChanges)
   const editGetCellValue = useEditBufferStore(s => s.getCellValue)
   const editGetRowState = useEditBufferStore(s => s.getRowState)
+  /** 订阅版本号，确保 editDisplayRows 在编辑后重新计算 */
+  const editVersion = useEditBufferStore(s => s._version)
 
   // Show formula bar by default for formula-mode tabs
   useEffect(() => {
@@ -270,7 +272,7 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
         connectionId: tab.connectionId,
         database: tab.previewTable.dbName,
         table: tab.previewTable.tableName,
-        primaryKeys: [],
+        primaryKeys: useEditBufferStore.getState().getSnapshot()?.primaryKeys ?? [],
         changes: structured.changes,
         optimisticLock: true
       })
@@ -307,6 +309,52 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
     editSetCell(rowIndex, col, newValue, oldValue)
   }, [editSetCell])
 
+  /** 单格编辑确认后直接保存到数据库 */
+  const handleCellSave = useCallback(async (rowIndex: number, col: string, newValue: string, oldValue: unknown) => {
+    if (!tab.connectionId || !tab.previewTable) return
+
+    const snapshot = useEditBufferStore.getState().getSnapshot()
+    if (!snapshot) return
+
+    const structured = editGenerateStructuredChanges()
+    if (!structured) return
+
+    try {
+      const patchResult = await window.electronAPI.snapshot.executePatch({
+        connectionId: tab.connectionId,
+        database: tab.previewTable.dbName,
+        table: tab.previewTable.tableName,
+        primaryKeys: snapshot.primaryKeys,
+        changes: structured.changes,
+        optimisticLock: true
+      })
+
+      if (patchResult.success && patchResult.conflicts && patchResult.conflicts.length === 0) {
+        editClearBuffer()
+        // 重新获取最新数据
+        fetchPage(page, pageSize, sort, whereClause)
+        // 更新总数
+        window.electronAPI.query.execute({
+          connectionId: tab.connectionId,
+          sql: `SELECT COUNT(*) AS cnt FROM \`${tab.previewTable.dbName}\`.\`${tab.previewTable.tableName}\``,
+          queryId: `preview_cell_save_${tab.id}`
+        }).then(countResult => {
+          const newTotal = (countResult.rows[0]?.cnt as number) ?? 0
+          updatePreviewTab(tab.id, { previewTotal: newTotal })
+        }).catch(() => {})
+      } else if (patchResult.conflicts && patchResult.conflicts.length > 0) {
+        setSaveStatus('error')
+        setSaveError(`${patchResult.conflicts.length} 行发生冲突（已被其他用户修改）`)
+      } else {
+        setSaveStatus('error')
+        setSaveError(patchResult.error ?? '保存失败')
+      }
+    } catch (err) {
+      setSaveStatus('error')
+      setSaveError(err instanceof Error ? err.message : '保存失败')
+    }
+  }, [tab.connectionId, tab.previewTable, tab.id, editGenerateStructuredChanges, editClearBuffer, fetchPage, page, pageSize, sort, whereClause, updatePreviewTab])
+
   // Build display rows for edit mode (merge snapshot + changes)
   const editDisplayRows = React.useMemo(() => {
     if (!editingMode || !result) return rows
@@ -322,7 +370,7 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
       }
       return displayRow
     })
-  }, [editingMode, result, rows, editGetRowState, editGetCellValue])
+  }, [editingMode, result, rows, editGetRowState, editGetCellValue, editVersion])
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
@@ -555,6 +603,7 @@ export default function PreviewPanel({ tab }: PreviewPanelProps): React.ReactEle
             filterMode={editingMode ? 'client' : 'server'}
             onFiltersChange={editingMode ? undefined : handleFiltersChange}
             onCellEdit={editingMode ? handleCellEdit : undefined}
+            onCellSave={editingMode ? handleCellSave : undefined}
           />
         )}
       </div>

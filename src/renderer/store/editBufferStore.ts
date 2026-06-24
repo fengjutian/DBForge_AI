@@ -21,6 +21,9 @@ interface BufferState {
 // ── Public store interface ─────────────────────────────────────
 
 interface EditBufferState {
+  /** 版本号，每次修改 bufferState 时递增，用于触发 zustand 重新渲染 */
+  _version: number
+
   // ── Read-only accessors ──
   /** 当前是否有未保存的修改 */
   hasChanges: () => boolean
@@ -91,7 +94,11 @@ function pkToWhereClause(pk: Record<string, unknown>): string {
 
 // ── Store ──────────────────────────────────────────────────────
 
+let _versionCounter = 0
+
 export const useEditBufferStore = create<EditBufferState>((_set, get) => ({
+  _version: 0,
+
   hasChanges: () => bufferState.changes.size > 0,
 
   getChangeSummary: () => {
@@ -166,6 +173,7 @@ export const useEditBufferStore = create<EditBufferState>((_set, get) => ({
       changes: new Map(),
       insertCounter: 0
     }
+    _set({ _version: ++_versionCounter })
   },
 
   setCell: (rowIndex, col, newValue, oldValue) => {
@@ -181,6 +189,7 @@ export const useEditBufferStore = create<EditBufferState>((_set, get) => ({
         oldValue: null,
         newValue
       }
+      _set({ _version: ++_versionCounter })
       return
     }
 
@@ -194,6 +203,8 @@ export const useEditBufferStore = create<EditBufferState>((_set, get) => ({
 
     // If row was deleted, ignore cell edits
     if (existing?.type === 'deleted') return
+
+    let _didMutate = false
 
     // If oldValue matches snapshot value, this is a real edit
     // If newValue === snapshot value, it's a revert
@@ -210,12 +221,14 @@ export const useEditBufferStore = create<EditBufferState>((_set, get) => ({
       // If the new value matches the snapshot value, remove this cell's change
       if (newValue === snapshotValue || (newValue === null && snapshotValue === null)) {
         delete existing.cells[col]
+        _didMutate = true
         // If no cells left changed, remove the entire row change
         if (Object.keys(existing.cells).length === 0) {
           bufferState.changes.delete(key)
         }
       } else {
         existing.cells[col] = cellChange
+        _didMutate = true
       }
     } else {
       // First modification for this row
@@ -226,8 +239,11 @@ export const useEditBufferStore = create<EditBufferState>((_set, get) => ({
           rowIndex,
           cells: { [col]: cellChange }
         })
+        _didMutate = true
       }
     }
+
+    if (_didMutate) _set({ _version: ++_versionCounter })
   },
 
   deleteRow: (rowIndex) => {
@@ -237,6 +253,7 @@ export const useEditBufferStore = create<EditBufferState>((_set, get) => ({
     const insertKey = `__inserted__${rowIndex}`
     if (bufferState.changes.has(insertKey)) {
       bufferState.changes.delete(insertKey)
+      _set({ _version: ++_versionCounter })
       return
     }
 
@@ -251,6 +268,7 @@ export const useEditBufferStore = create<EditBufferState>((_set, get) => ({
     if (existing?.type === 'inserted') {
       // Remove the inserted row entirely
       bufferState.changes.delete(key)
+      _set({ _version: ++_versionCounter })
       return
     }
 
@@ -260,6 +278,7 @@ export const useEditBufferStore = create<EditBufferState>((_set, get) => ({
       rowIndex,
       cells: {}
     })
+    _set({ _version: ++_versionCounter })
   },
 
   insertRow: () => {
@@ -275,15 +294,19 @@ export const useEditBufferStore = create<EditBufferState>((_set, get) => ({
       rowIndex: idx,
       cells: {}
     })
+    _set({ _version: ++_versionCounter })
   },
 
   undoCell: (rowIndex, col) => {
     if (!bufferState.snapshot) return
 
+    let _didMutate = false
+
     const insertKey = `__inserted__${rowIndex}`
     const insertedChange = bufferState.changes.get(insertKey)
     if (insertedChange) {
       delete insertedChange.cells[col]
+      _set({ _version: ++_versionCounter })
       return
     }
 
@@ -294,10 +317,13 @@ export const useEditBufferStore = create<EditBufferState>((_set, get) => ({
     const change = bufferState.changes.get(key)
     if (change) {
       delete change.cells[col]
+      _didMutate = true
       if (Object.keys(change.cells).length === 0) {
         bufferState.changes.delete(key)
       }
     }
+
+    if (_didMutate) _set({ _version: ++_versionCounter })
   },
 
   undoRow: (rowIndex) => {
@@ -306,6 +332,7 @@ export const useEditBufferStore = create<EditBufferState>((_set, get) => ({
     const insertKey = `__inserted__${rowIndex}`
     if (bufferState.changes.has(insertKey)) {
       bufferState.changes.delete(insertKey)
+      _set({ _version: ++_versionCounter })
       return
     }
 
@@ -314,6 +341,7 @@ export const useEditBufferStore = create<EditBufferState>((_set, get) => ({
     const pk = buildPkFromRow(row, bufferState.snapshot.primaryKeys, rowIndex)
     const key = rowPkToString(pk)
     bufferState.changes.delete(key)
+    _set({ _version: ++_versionCounter })
   },
 
   generatePreviewSQL: () => {
@@ -413,6 +441,7 @@ export const useEditBufferStore = create<EditBufferState>((_set, get) => ({
       changes: new Map(),
       insertCounter: 0
     }
+    _set({ _version: ++_versionCounter })
   }
 }))
 
