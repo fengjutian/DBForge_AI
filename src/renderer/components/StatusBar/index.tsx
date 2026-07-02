@@ -13,7 +13,7 @@ import {
 import { useConnectionStore } from '../../store/connectionStore'
 import { useResultStore } from '../../store/resultStore'
 import { useSettingsStore } from '../../store/settingsStore'
-import type { DatabaseType } from '../../../shared/types'
+import type { DatabaseType } from '@dbforge/shared'
 
 // ── Database type icons ───────────────────────────────────────
 const dbTypeLabels: Record<DatabaseType, string> = {

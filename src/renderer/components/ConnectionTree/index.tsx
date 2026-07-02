@@ -8,7 +8,7 @@ import {
 import type {
   ConnectionConfig, SSHTunnelConfig,
   DatabaseSchema, DatabaseInfo, TableInfo
-} from '../../../shared/types'
+} from '@dbforge/shared'
 import { useConnectionStore } from '../../store/connectionStore'
 import { useSessionStore } from '../../store/sessionStore'
 import { useEditorStore } from '../../store/editorStore'

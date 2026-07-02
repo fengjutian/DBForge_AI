@@ -1,7 +1,7 @@
 import * as net from 'net'
 import * as fs from 'fs'
 import { Client as SSHClient } from 'ssh2'
-import type { SSHTunnelConfig } from '../../shared/types'
+import type { SSHTunnelConfig } from '@dbforge/shared'
 
 // ============================================================
 // SSHTunnel — manages SSH tunnels keyed by connection ID

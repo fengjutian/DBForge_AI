@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { QueryResult } from '../../shared/types'
+import type { QueryResult } from '@dbforge/shared'
 
 export type TabType = 'query' | 'preview'
 

@@ -6,7 +6,7 @@ import { useFormulaStore } from '../../store/formulaStore'
 import DataTable from '../DataTable'
 import FormulaBar from '../DataTable/FormulaBar'
 import SelectionBar from '../DataTable/SelectionBar'
-import type { DiagnoseErrorResponse } from '../../../shared/types'
+import type { DiagnoseErrorResponse } from '@dbforge/shared'
 
 export default function ResultPanel(): React.ReactElement {
   const store = useResultStore()

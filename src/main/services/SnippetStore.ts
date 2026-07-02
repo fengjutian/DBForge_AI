@@ -1,6 +1,6 @@
 import path from 'path'
 import { app } from 'electron'
-import type { SqlSnippet } from '../../shared/types'
+import type { SqlSnippet } from '@dbforge/shared'
 
 // ============================================================
 // SnippetStore — singleton, backed by better-sqlite3

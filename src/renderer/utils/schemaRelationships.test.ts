@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { DatabaseInfo } from '../../shared/types'
+import type { DatabaseInfo } from '@dbforge/shared'
 import { detectRelationships, type Relationship } from './schemaRelationships'
 
 // ── Fixtures ──────────────────────────────────────────────────

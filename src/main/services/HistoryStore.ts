@@ -1,6 +1,6 @@
 import path from 'path'
 import { app } from 'electron'
-import type { QueryHistory } from '../../shared/types'
+import type { QueryHistory } from '@dbforge/shared'
 
 // ============================================================
 // HistoryStore — singleton, backed by better-sqlite3

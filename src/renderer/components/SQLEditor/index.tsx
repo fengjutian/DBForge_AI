@@ -16,7 +16,7 @@ function dbTypeToLang(dbType?: string): string {
   return 'sql'
 }
 import { formatSQL } from '../../utils/sqlFormatter'
-import type { QueryResult } from '../../../shared/types'
+import type { QueryResult } from '@dbforge/shared'
 
 interface SQLEditorProps {
   tabId: string

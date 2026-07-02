@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
-import { IPC } from '../../shared/ipc-channels'
-import type { QueryOptions, QueryResult } from '../../shared/types'
+import { IPC } from '@dbforge/shared'
+import type { QueryOptions, QueryResult } from '@dbforge/shared'
 import { queryExecutor, isDangerous } from '../services/QueryExecutor'
 import historyStore from '../services/HistoryStore'
 import auditLog from '../services/AuditLog'

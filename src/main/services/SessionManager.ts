@@ -1,6 +1,6 @@
 import { BrowserWindow } from 'electron'
-import type { SessionWarning } from '../../shared/types'
-import { IPC } from '../../shared/ipc-channels'
+import type { SessionWarning } from '@dbforge/shared'
+import { IPC } from '@dbforge/shared'
 import configStore from './ConfigStore'
 import connectionManager from './ConnectionManager'
 

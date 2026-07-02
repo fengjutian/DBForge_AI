@@ -4,7 +4,7 @@
 
 import mysql2 from 'mysql2/promise'
 import type { DatabaseDialect, BackupParams, RestoreParams } from './DialectInterface'
-import type { DatabaseSchema, ColumnMeta, QueryResult, ConnectionConfig, ViewInfo, IndexInfo, ProcedureInfo, TriggerInfo, EventInfo } from '../../../shared/types'
+import type { DatabaseSchema, ColumnMeta, QueryResult, ConnectionConfig, ViewInfo, IndexInfo, ProcedureInfo, TriggerInfo, EventInfo } from '@dbforge/shared'
 
 export class MySQLDialect implements DatabaseDialect {
   readonly id = 'mysql'

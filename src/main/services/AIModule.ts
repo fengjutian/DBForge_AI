@@ -18,8 +18,8 @@ import type {
   MigrationResponse,
   DataQualityRequest,
   DataQualityResponse
-} from '../../shared/types'
-import { IPC } from '../../shared/ipc-channels'
+} from '@dbforge/shared'
+import { IPC } from '@dbforge/shared'
 import configStore from './ConfigStore'
 
 // ============================================================

@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Check, Database, Plug, Bot, Save } from 'lucide-react'
 import { useSettingsStore } from '../../store/settingsStore'
-import type { AIProvider } from '../../../shared/types'
+import type { AIProvider } from '@dbforge/shared'
 
 interface Props {
   onComplete: () => void

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Database, FileText } from 'lucide-react'
 import { useConnectionStore } from '../../store/connectionStore'
 import { useSessionStore } from '../../store/sessionStore'
-import type { ConnectionConfig, SSHTunnelConfig } from '../../../shared/types'
+import type { ConnectionConfig, SSHTunnelConfig } from '@dbforge/shared'
 
 const STATUS_COLORS: Record<string, string> = {
   connected: 'bg-green-500', error: 'bg-red-500',

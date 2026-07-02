@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState, useCallback } from 'react'
 import { X } from 'lucide-react'
-import type { DatabaseInfo, TableInfo } from '../../../shared/types'
+import type { DatabaseInfo, TableInfo } from '@dbforge/shared'
 
 interface Props {
   db: DatabaseInfo

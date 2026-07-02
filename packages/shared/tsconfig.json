@@ -1,0 +1,12 @@
+{
+  "extends": "@electron-toolkit/tsconfig/tsconfig.node.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "declaration": true,
+    "declarationMap": true
+  },
+  "include": ["src"]
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import type { DatabaseSchema } from '../../shared/types'
+import type { DatabaseSchema } from '@dbforge/shared'
 
 // Monaco mock
 const createMonacoMock = () => ({

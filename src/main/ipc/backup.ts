@@ -1,6 +1,6 @@
 import { ipcMain, BrowserWindow, dialog } from 'electron'
-import { IPC } from '../../shared/ipc-channels'
-import type { BackupOptions, BackupProgress, IPCError } from '../../shared/types'
+import { IPC } from '@dbforge/shared'
+import type { BackupOptions, BackupProgress, IPCError } from '@dbforge/shared'
 import backupManager from '../services/BackupManager'
 
 function wrapError(err: unknown): IPCError {

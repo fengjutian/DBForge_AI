@@ -13,7 +13,7 @@
 
 import type { editor as MonacoEditor, IDisposable, IRange } from 'monaco-editor'
 import type * as Monaco from 'monaco-editor'
-import type { DatabaseSchema } from '../../../shared/types'
+import type { DatabaseSchema } from '@dbforge/shared'
 
 // ── State machine ─────────────────────────────────────────────
 type Phase =

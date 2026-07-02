@@ -3,7 +3,7 @@
 // ============================================================
 
 import type { DatabaseDialect, BackupParams, RestoreParams } from './DialectInterface'
-import type { DatabaseSchema, ColumnMeta, QueryResult, ConnectionConfig, ViewInfo, IndexInfo, ProcedureInfo, TriggerInfo } from '../../../shared/types'
+import type { DatabaseSchema, ColumnMeta, QueryResult, ConnectionConfig, ViewInfo, IndexInfo, ProcedureInfo, TriggerInfo } from '@dbforge/shared'
 
 function stripComments(sql: string): string {
   return sql.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/--[^\r\n]*/g, ' ')

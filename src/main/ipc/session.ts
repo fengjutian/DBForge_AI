@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { IPC } from '../../shared/ipc-channels'
+import { IPC } from '@dbforge/shared'
 import dbSessionManager from '../services/DBSessionManager'
 
 function wrapError(err: unknown): Error {

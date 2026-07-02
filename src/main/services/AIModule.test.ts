@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { filterReadonlySQL, buildSchemaDescription } from './AIModule'
-import type { DatabaseSchema } from '../../shared/types'
+import type { DatabaseSchema } from '@dbforge/shared'
 
 // ============================================================
 // filterReadonlySQL — pure function

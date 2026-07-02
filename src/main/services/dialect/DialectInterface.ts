@@ -11,7 +11,7 @@ import type {
   QueryResult,
   DatabaseDialectConfig,
   ConnectionConfig
-} from '../../shared/types'
+} from '@dbforge/shared'
 
 /** Parameters needed for a backup operation */
 export interface BackupParams {

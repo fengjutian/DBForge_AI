@@ -1,6 +1,6 @@
 import { safeStorage, app } from 'electron'
 import path from 'path'
-import type { AppConfig, ConnectionConfig, ConnectionGroup, QueryHistory } from '../../shared/types'
+import type { AppConfig, ConnectionConfig, ConnectionGroup, QueryHistory } from '@dbforge/shared'
 
 // Valid models per provider — kept in sync with the renderer Settings UI
 const VALID_MODELS: Record<string, string[]> = {

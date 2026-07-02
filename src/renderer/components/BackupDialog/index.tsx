@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { FolderOpen, AlertTriangle, Folder } from 'lucide-react'
 import { useConnectionStore } from '../../store/connectionStore'
 import Modal from '../ui/Modal'
-import type { BackupProgress } from '../../../shared/types'
+import type { BackupProgress } from '@dbforge/shared'
 
 interface Props {
   onClose: () => void

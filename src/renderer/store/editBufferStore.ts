@@ -6,7 +6,7 @@ import type {
   ChangeSummary,
   PatchSQL,
   ExecutePatchChange
-} from '../../shared/types'
+} from '@dbforge/shared'
 
 // ── Internal buffer state (not exposed directly) ───────────────
 

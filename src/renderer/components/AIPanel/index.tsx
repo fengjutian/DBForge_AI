@@ -14,7 +14,7 @@ import type {
   SchemaDocResponse,
   SecurityAuditResponse,
   DataQualityResponse
-} from '../../../shared/types'
+} from '@dbforge/shared'
 import MarkdownRenderer from '../MarkdownRenderer'
 
 type Tab = 'generate' | 'optimize' | 'diagnose' | 'security' | 'schema-doc' | 'data-quality' | 'history'

@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState, useCallback } from 'react'
 import { X, Info } from 'lucide-react'
-import type { DatabaseInfo, TableInfo } from '../../../shared/types'
+import type { DatabaseInfo, TableInfo } from '@dbforge/shared'
 import { detectRelationships, type Relationship, type Cardinality } from '../../utils/schemaRelationships'
 
 // ── Props ─────────────────────────────────────────────────────

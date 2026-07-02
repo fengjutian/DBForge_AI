@@ -8,7 +8,8 @@ export default defineConfig({
     resolve: {
       alias: {
         '@shared': resolve('src/shared'),
-        '@main': resolve('src/main')
+        '@main': resolve('src/main'),
+        '@dbforge/shared': resolve('packages/shared/src')
       }
     },
     build: {
@@ -34,7 +35,8 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     resolve: {
       alias: {
-        '@shared': resolve('src/shared')
+        '@shared': resolve('src/shared'),
+        '@dbforge/shared': resolve('packages/shared/src')
       }
     },
     build: {
@@ -50,7 +52,8 @@ export default defineConfig({
       alias: {
         '@renderer': resolve('src/renderer/src'),
         '@shared': resolve('src/shared'),
-        '@': resolve('src/renderer')
+        '@': resolve('src/renderer'),
+        '@dbforge/shared': resolve('packages/shared/src')
       }
     },
     plugins: [react()],

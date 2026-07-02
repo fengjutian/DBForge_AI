@@ -3,7 +3,7 @@
 // Infers cardinality (1:1, 1:N, N:M) from schema metadata.
 // ============================================================
 
-import type { DatabaseInfo, IndexInfo, TableInfo } from '../../shared/types'
+import type { DatabaseInfo, IndexInfo, TableInfo } from '@dbforge/shared'
 
 // ── Types ─────────────────────────────────────────────────────
 

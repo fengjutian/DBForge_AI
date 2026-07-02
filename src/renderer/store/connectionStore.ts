@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ConnectionConfig, ConnectionStatus } from '../../shared/types'
+import type { ConnectionConfig, ConnectionStatus } from '@dbforge/shared'
 import type { ElectronAPI } from '../../main/preload'
 
 declare global {

@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
-import { IPC } from '../../shared/ipc-channels'
-import type { IPCError } from '../../shared/types'
+import { IPC } from '@dbforge/shared'
+import type { IPCError } from '@dbforge/shared'
 import connectionManager from '../services/ConnectionManager'
 import configStore from '../services/ConfigStore'
 import { v4 as uuidv4 } from 'uuid'

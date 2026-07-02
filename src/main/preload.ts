@@ -32,8 +32,8 @@ import type {
   DatabaseSchema,
   SessionContext,
   UpdateStatusEvent
-} from '../shared/types'
-import { IPC } from '../shared/ipc-channels'
+} from '@dbforge/shared'
+import { IPC } from '@dbforge/shared'
 
 // Expose a safe, typed API to the renderer process via contextBridge
 // contextIsolation: true, nodeIntegration: false, sandbox: true

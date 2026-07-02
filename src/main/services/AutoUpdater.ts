@@ -1,6 +1,6 @@
 import { BrowserWindow } from 'electron'
-import type { UpdateStatusEvent, UpdateInfo } from '../../shared/types'
-import { IPC } from '../../shared/ipc-channels'
+import type { UpdateStatusEvent, UpdateInfo } from '@dbforge/shared'
+import { IPC } from '@dbforge/shared'
 
 // ============================================================
 // AutoUpdater — singleton

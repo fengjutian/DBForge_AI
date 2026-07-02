@@ -1,6 +1,6 @@
 import path from 'path'
 import { app } from 'electron'
-import type { AuditEntry } from '../../shared/types'
+import type { AuditEntry } from '@dbforge/shared'
 
 // ============================================================
 // AuditLog — singleton, backed by a separate better-sqlite3 DB

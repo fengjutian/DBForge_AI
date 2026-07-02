@@ -5,7 +5,7 @@
 // This skeleton shows the pattern for adding new databases.
 
 import type { DatabaseDialect, BackupParams, RestoreParams } from './DialectInterface'
-import type { DatabaseSchema, ColumnMeta, QueryResult, ConnectionConfig } from '../../../shared/types'
+import type { DatabaseSchema, ColumnMeta, QueryResult, ConnectionConfig } from '@dbforge/shared'
 
 export class SQLServerDialect implements DatabaseDialect {
   readonly id = 'mssql'

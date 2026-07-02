@@ -1,4 +1,4 @@
-import type { DatabaseSchema, DatabaseType } from '../../shared/types'
+import type { DatabaseSchema, DatabaseType } from '@dbforge/shared'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function registerSchemaCompletion(monaco: any, schema: DatabaseSchema, databaseType?: DatabaseType): void {

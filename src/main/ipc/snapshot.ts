@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
-import { IPC } from '../../shared/ipc-channels'
-import type { ExecutePatchRequest, ExecutePatchResult } from '../../shared/types'
+import { IPC } from '@dbforge/shared'
+import type { ExecutePatchRequest, ExecutePatchResult } from '@dbforge/shared'
 import connectionManager from '../services/ConnectionManager'
 import auditLog from '../services/AuditLog'
 import configStore from '../services/ConfigStore'

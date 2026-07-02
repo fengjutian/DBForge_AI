@@ -1,7 +1,7 @@
 import { BrowserWindow } from 'electron'
 import { v4 as uuidv4 } from 'uuid'
-import type { ConnectionConfig, ConnectionStatus, TestResult } from '../../shared/types'
-import { IPC } from '../../shared/ipc-channels'
+import type { ConnectionConfig, ConnectionStatus, TestResult } from '@dbforge/shared'
+import { IPC } from '@dbforge/shared'
 import configStore from './ConfigStore'
 import { getDialect, type DatabaseDialect } from './dialect/DialectInterface'
 

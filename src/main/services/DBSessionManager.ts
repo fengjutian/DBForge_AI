@@ -1,6 +1,6 @@
 import { BrowserWindow } from 'electron'
-import type { SessionContext, ConnectionConfig, DatabaseSchema, ConnectionStatus } from '../../shared/types'
-import { IPC } from '../../shared/ipc-channels'
+import type { SessionContext, ConnectionConfig, DatabaseSchema, ConnectionStatus } from '@dbforge/shared'
+import { IPC } from '@dbforge/shared'
 import connectionManager from './ConnectionManager'
 
 // ============================================================

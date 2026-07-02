@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { AIConfig, AppConfig } from '../../shared/types'
+import type { AIConfig, AppConfig } from '@dbforge/shared'
 import type { ElectronAPI } from '../../main/preload'
 
 declare global {

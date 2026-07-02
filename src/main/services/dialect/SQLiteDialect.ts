@@ -3,7 +3,7 @@
 // ============================================================
 
 import type { DatabaseDialect, BackupParams, RestoreParams } from './DialectInterface'
-import type { DatabaseSchema, ColumnMeta, QueryResult, ConnectionConfig, ViewInfo, IndexInfo, TriggerInfo } from '../../../shared/types'
+import type { DatabaseSchema, ColumnMeta, QueryResult, ConnectionConfig, ViewInfo, IndexInfo, TriggerInfo } from '@dbforge/shared'
 
 export class SQLiteDialect implements DatabaseDialect {
   readonly id = 'sqlite'

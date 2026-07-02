@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { ChevronRight, Database, Table2, Key, Circle, Link2, RefreshCw, FileText, GitFork, Clipboard, BookOpen, Zap, BarChart3, HardDrive, Eye, Layers, Code2, Play, Clock, Calculator } from 'lucide-react'
-import type { DatabaseSchema, DatabaseInfo, TableInfo } from '../../../shared/types'
+import type { DatabaseSchema, DatabaseInfo, TableInfo } from '@dbforge/shared'
 import { useConnectionStore } from '../../store/connectionStore'
 import { useSessionStore } from '../../store/sessionStore'
 import { useEditorStore } from '../../store/editorStore'

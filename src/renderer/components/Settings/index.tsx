@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useSettingsStore } from '../../store/settingsStore'
 import Modal from '../ui/Modal'
-import type { AIProvider, AuditEntry } from '../../../shared/types'
+import type { AIProvider, AuditEntry } from '@dbforge/shared'
 
 const PROVIDERS: AIProvider[] = ['openai', 'groq', 'claude', 'deepseek', 'ollama']
 const MODELS: Record<AIProvider, string[]> = {

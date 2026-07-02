@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { X, HardDrive, ArrowUpDown } from 'lucide-react'
 import Modal from '../ui/Modal'
-import type { DatabaseSchema, TableInfo } from '../../../shared/types'
+import type { DatabaseSchema, TableInfo } from '@dbforge/shared'
 
 interface Props {
   dbName: string

@@ -1,6 +1,6 @@
 ﻿import { ipcMain } from 'electron'
-import { IPC } from '../../shared/ipc-channels'
-import type { AppConfig, IPCError, SqlSnippet } from '../../shared/types'
+import { IPC } from '@dbforge/shared'
+import type { AppConfig, IPCError, SqlSnippet } from '@dbforge/shared'
 import configStore from '../services/ConfigStore'
 import auditLog from '../services/AuditLog'
 import snippetStore from '../services/SnippetStore'

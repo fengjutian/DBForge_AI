@@ -1,5 +1,5 @@
 import { ipcMain, shell } from 'electron'
-import { IPC } from '../../shared/ipc-channels'
+import { IPC } from '@dbforge/shared'
 import connectionManager from '../services/ConnectionManager'
 import * as fs from 'fs'
 import { join } from 'path'

@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState, useCallback } from 'react'
 import { X, Link2, ExternalLink, Check, Plus, Image, Clipboard, FileText, FolderKanban, Circle } from 'lucide-react'
-import type { DatabaseInfo, TableInfo } from '../../../shared/types'
+import type { DatabaseInfo, TableInfo } from '@dbforge/shared'
 
 // ── Types ─────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { SessionContext, DatabaseSchema } from '../../shared/types'
+import type { SessionContext, DatabaseSchema } from '@dbforge/shared'
 import { useConnectionStore } from './connectionStore'
 
 interface SessionState {

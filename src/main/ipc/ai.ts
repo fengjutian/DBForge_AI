@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { IPC } from '../../shared/ipc-channels'
+import { IPC } from '@dbforge/shared'
 import type {
   AIConfig,
   QueryResult,
@@ -12,7 +12,7 @@ import type {
   DataQualityRequest,
   TableAnalysisRequest,
   TableQueryPerfRequest
-} from '../../shared/types'
+} from '@dbforge/shared'
 import aiModule from '../services/AIModule'
 import configStore from '../services/ConfigStore'
 import historyStore from '../services/HistoryStore'

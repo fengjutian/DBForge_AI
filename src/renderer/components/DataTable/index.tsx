@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Check, X, ArrowUp, ArrowDown, FileText, Camera, ChevronDown, Copy, Calculator } from 'lucide-react'
 import { createPortal } from 'react-dom'
-import type { ColumnMeta, FilterRule } from '../../../shared/types'
+import type { ColumnMeta, FilterRule } from '@dbforge/shared'
 import { useFormulaStore } from '../../store/formulaStore'
 import { colToLetter, isFormula } from '../../utils/formulaEngine'
 

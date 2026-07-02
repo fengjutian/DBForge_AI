@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { CellFormula, CellSelection, ComputedColumnDef, SelectionAggregate } from '../../shared/types'
+import type { CellFormula, CellSelection, ComputedColumnDef, SelectionAggregate } from '@dbforge/shared'
 import { parseFormula, DependencyGraph, toKey, colToLetter, isFormula, type CellGetter } from '../utils/formulaEngine'
 
 // ── State shape ────────────────────────────────────────────────

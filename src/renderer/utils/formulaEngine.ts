@@ -1,7 +1,7 @@
 // ============================================================
 // Formula Engine — self-contained parser / evaluator / dependency tracker
 // ============================================================
-import type { FormulaEngine as IFormulaEngine, CellAddress, RangeRef } from '../../shared/types'
+import type { FormulaEngine as IFormulaEngine, CellAddress, RangeRef } from '@dbforge/shared'
 
 // ── Coordinate helpers ────────────────────────────────────────
 export function colToLetter(col: number): string {

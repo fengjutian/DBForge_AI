@@ -1,4 +1,4 @@
-import type { DangerousCheckResult, QueryOptions, QueryResult } from '../../shared/types'
+import type { DangerousCheckResult, QueryOptions, QueryResult } from '@dbforge/shared'
 import configStore from './ConfigStore'
 import connectionManager from './ConnectionManager'
 import { getDialect } from './dialect/DialectInterface'

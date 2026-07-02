@@ -2,6 +2,8 @@
   "name": "dbforge-ai",
   "version": "1.2.2",
   "description": "DBForge AI - Cross-platform desktop database management tool",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -71,7 +73,8 @@
     "tailwind-merge": "^3.6.0",
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.184.0",
-    "zustand": "^4.5.2"
+    "zustand": "^4.5.2",
+    "@dbforge/shared": "workspace:*"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.0",

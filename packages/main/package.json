@@ -1,0 +1,6 @@
+{
+  "name": "@dbforge/main",
+  "version": "1.2.2",
+  "description": "DBForge AI main process (Electron)",
+  "private": true
+}

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { QueryResult, ColumnMeta } from '../../shared/types'
+import type { QueryResult, ColumnMeta } from '@dbforge/shared'
 
 export type QueryStatus = 'idle' | 'running' | 'cancelled' | 'error'
 

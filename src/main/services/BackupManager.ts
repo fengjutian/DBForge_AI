@@ -4,7 +4,7 @@ import { access, constants } from 'fs/promises'
 import path from 'path'
 import { createGzip } from 'zlib'
 import { shell } from 'electron'
-import type { BackupOptions, BackupProgress } from '../../shared/types'
+import type { BackupOptions, BackupProgress } from '@dbforge/shared'
 import configStore from './ConfigStore'
 import connectionManager from './ConnectionManager'
 

@@ -1,0 +1,6 @@
+{
+  "name": "@dbforge/renderer",
+  "version": "1.2.2",
+  "description": "DBForge AI renderer process (React)",
+  "private": true
+}
