@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({ exclude: ['@dbforge/shared'] })],
     resolve: {
       alias: {
         '@shared': resolve('src/shared'),
@@ -32,7 +32,7 @@ export default defineConfig({
     }
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({ exclude: ['@dbforge/shared'] })],
     resolve: {
       alias: {
         '@shared': resolve('src/shared'),

@@ -1,5 +1,6 @@
-import React, { useRef, useCallback, useEffect } from 'react'
-import { Play, Bot, AlertTriangle } from 'lucide-react'
+import React, { useRef, useCallback, useEffect, useState } from 'react'
+import { Play, Bot, AlertTriangle, Table2 } from 'lucide-react'
+import VisualExplain from '../VisualExplain'
 import Editor, { OnMount, BeforeMount } from '@monaco-editor/react'
 import { useEditorStore } from '../../store/editorStore'
 import { useSettingsStore } from '../../store/settingsStore'
@@ -16,7 +17,7 @@ function dbTypeToLang(dbType?: string): string {
   return 'sql'
 }
 import { formatSQL } from '../../utils/sqlFormatter'
-import type { QueryResult } from '@dbforge/shared'
+import type { QueryResult, ExplainResult } from '@dbforge/shared'
 
 interface SQLEditorProps {
   tabId: string
@@ -83,6 +84,8 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
   const { getSchema } = useSessionStore()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const editorRef = useRef<any>(null)
+  const [explainResult, setExplainResult] = useState<ExplainResult | null>(null)
+  const [explaining, setExplaining] = useState(false)
 
   // Always-current refs so Monaco action closures never capture stale values
   const activeConnectionIdRef = useRef(activeConnectionId)
@@ -265,6 +268,31 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
     await runSQLRef.current(sql)
   }, [])
 
+  /** Run EXPLAIN on current SQL */
+  const handleExplain = useCallback(async () => {
+    if (!activeConnectionId) return
+    const sql = editorRef.current?.getModel()?.getValue()?.trim()
+    if (!sql) return
+    setExplaining(true)
+    setExplainResult(null)
+    try {
+      const result = await window.electronAPI.query.explain({
+        connectionId: activeConnectionId,
+        sql
+      })
+      setExplainResult(result)
+    } catch (err) {
+      setExplainResult({
+        query: sql,
+        rawOutput: String(err),
+        plan: null,
+        databaseType: conn?.databaseType ?? 'unknown'
+      })
+    } finally {
+      setExplaining(false)
+    }
+  }, [activeConnectionId, conn])
+
   /** Execute selected text —used by toolbar button */
   const executeSelected = useCallback(async () => {
     if (!editorRef.current) return
@@ -389,6 +417,11 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
           className="text-xs px-3 py-1 rounded border border-green-300 dark:border-amber-700 hover:bg-green-100 dark:hover:bg-amber-900">
           格式化<span className="opacity-60 ml-1">Ctrl+K</span>
         </button>
+        <button onClick={handleExplain} disabled={explaining}
+          className="text-xs px-3 py-1 rounded border border-purple-300 dark:border-purple-700 hover:bg-purple-100 dark:hover:bg-purple-900/30 disabled:opacity-50">
+          <Table2 className="w-3 h-3 inline mr-1" />
+          {explaining ? '分析中...' : 'EXPLAIN'}
+        </button>
         {!activeConnectionId && (
           <span className="text-xs text-yellow-500 ml-2"><AlertTriangle className="w-3 h-3 inline mr-1 align-middle" />未选择连接</span>
         )}
@@ -414,6 +447,20 @@ export default function SQLEditor({ tabId }: SQLEditorProps): React.ReactElement
           }}
         />
       </div>
+
+      {/* EXPLAIN result */}
+      {explainResult && (
+        <div className="border-t border-purple-200 dark:border-purple-800 flex-shrink-0" style={{ maxHeight: '50%' }}>
+          <div className="flex items-center gap-2 px-3 py-1 bg-purple-50 dark:bg-purple-900/20">
+            <Table2 className="w-3 h-3 text-purple-500" />
+            <span className="text-xs font-medium text-purple-700 dark:text-purple-300">EXPLAIN</span>
+            <button onClick={() => setExplainResult(null)} className="ml-auto text-xs text-purple-400 hover:text-purple-600">关闭</button>
+          </div>
+          <div className="overflow-auto" style={{ maxHeight: 'calc(50vh - 28px)' }}>
+            <VisualExplain result={explainResult} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

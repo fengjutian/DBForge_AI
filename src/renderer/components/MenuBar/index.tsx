@@ -16,6 +16,8 @@ interface MenuGroup {
 // ── Props ─────────────────────────────────────────────────────
 interface MenuBarProps {
   onNewQuery?: () => void
+  onOpenNotebook?: () => void
+  onOpenQueryBuilder?: () => void
   onOpenSettings?: () => void
   onToggleAI?: () => void
   aiPanelOpen?: boolean
@@ -24,6 +26,8 @@ interface MenuBarProps {
 // ── MenuBar ──────────────────────────────────────────────────
 function MenuBar({
   onNewQuery,
+  onOpenNotebook,
+  onOpenQueryBuilder,
   onOpenSettings,
   onToggleAI,
   aiPanelOpen
@@ -60,7 +64,8 @@ function MenuBar({
       label: '文件',
       items: [
         { label: '新建查询', shortcut: 'Ctrl+N', action: onNewQuery },
-        { label: '打开', shortcut: 'Ctrl+O' },
+        { label: '查询构建器...', action: onOpenQueryBuilder },
+        { label: '打开 Notebook...', action: onOpenNotebook },
         { label: '', separator: true },
         { label: '退出', shortcut: 'Ctrl+Q', action: () => window.electronAPI.window.close() }
       ]

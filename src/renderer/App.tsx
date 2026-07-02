@@ -13,8 +13,12 @@ import BackupDialog from './components/BackupDialog'
 import Settings from './components/Settings'
 import Onboarding from './components/Onboarding'
 import WelcomePage from './components/WelcomePage'
+import NotebookEditor from './components/NotebookEditor'
+import JoinBuilder from './components/JoinBuilder'
 import LiquidGlassOrb from './components/LiquidGlassOrb'
+import type { NotebookDocument } from '@dbforge/shared'
 import { useSettingsStore } from './store/settingsStore'
+import { useSessionStore } from './store/sessionStore'
 import { useEditorStore } from './store/editorStore'
 import { useResultStore } from './store/resultStore'
 import { useConnectionStore } from './store/connectionStore'
@@ -79,6 +83,8 @@ function App(): React.ReactElement {
   const { tabs, activeTabId, pendingExplainSQL } = useEditorStore()
   const { clearResult } = useResultStore()
   const { activeConnectionId } = useConnectionStore()
+  const getSchema = useSessionStore(s => s.getSchema)
+  const activeSchema = activeConnectionId ? getSchema(activeConnectionId) : null
 
   // Reset result panel when switching tabs
   useEffect(() => {
@@ -93,6 +99,9 @@ function App(): React.ReactElement {
   const [databases, setDatabases] = useState<string[]>([])
   const [orbHovered, setOrbHovered] = useState(false)
   const [orbClickTrigger, setOrbClickTrigger] = useState(0)
+  const [notebookDoc, setNotebookDoc] = useState<NotebookDocument | null>(null)
+  const [notebookFilePath, setNotebookFilePath] = useState<string | null>(null)
+  const [showQueryBuilder, setShowQueryBuilder] = useState(false)
 
   // Resizable panels
   const [leftWidth, leftDragProps] = useResize({ direction: 'horizontal', initialSize: 300, min: 300, max: 500 })
@@ -164,6 +173,21 @@ function App(): React.ReactElement {
     setLocked(false)
   }
 
+  const handleOpenNotebook = async () => {
+    try {
+      const doc = await window.electronAPI.notebook.open()
+      if (doc) setNotebookDoc(doc as NotebookDocument)
+    } catch (err) {
+      console.error('Failed to open notebook:', err)
+    }
+  }
+
+  const handleExecuteNotebookCell = async (cellId: string, sql: string) => {
+    const connId = activeConnectionId
+    if (!connId) throw new Error('未选择数据库连接')
+    return window.electronAPI.notebook.executeCell({ connectionId: connId, sql })
+  }
+
   const activeTab = tabs.find(t => t.id === activeTabId)
 
   return (
@@ -181,12 +205,23 @@ function App(): React.ReactElement {
         {/* Menu bar */}
         <MenuBar
           onOpenSettings={() => setShowSettings(true)}
+          onOpenNotebook={handleOpenNotebook}
+          onOpenQueryBuilder={() => setShowQueryBuilder(true)}
           onToggleAI={() => setRightPanel(p => p === 'ai' ? null : 'ai')}
           aiPanelOpen={rightPanel === 'ai'}
-
         />
 
         {/* Main layout */}
+        {notebookDoc ? (
+          <div className="flex-1 overflow-hidden">
+            <NotebookEditor
+              doc={notebookDoc}
+              onChange={setNotebookDoc}
+              onClose={() => setNotebookDoc(null)}
+              onExecuteCell={handleExecuteNotebookCell}
+            />
+          </div>
+        ) : (
         <div className="flex flex-1 overflow-hidden">
           {/* Left sidebar */}
           <div className="flex flex-col border-r border-gray-200 dark:border-gray-700 flex-shrink-0 overflow-hidden"
@@ -259,6 +294,7 @@ function App(): React.ReactElement {
             </>
           )}
         </div>
+        )}
 
         {/* VSCode-style status bar */}
         <StatusBar />
@@ -294,6 +330,16 @@ function App(): React.ReactElement {
         {showBackup && <BackupDialog onClose={() => setShowBackup(false)} />}
         {showSettings && <Settings onClose={() => setShowSettings(false)} />}
         {showOnboarding && <Onboarding onComplete={() => setShowOnboarding(false)} />}
+        {showQueryBuilder && activeSchema?.databases[0] && (
+          <JoinBuilder
+            db={activeSchema.databases[0]}
+            onClose={() => setShowQueryBuilder(false)}
+            onInsertSQL={(sql) => {
+              // Insert into active editor tab
+              setShowQueryBuilder(false)
+            }}
+          />
+        )}
         {locked && <LockScreen onUnlock={handleUnlock} />}
       </div>
     </ErrorBoundary>

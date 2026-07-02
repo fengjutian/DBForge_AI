@@ -5,7 +5,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react'
 import Editor, { type OnMount } from '@monaco-editor/react'
 import type { editor as monacoEditor } from 'monaco-editor'
-import { Play, Plus, Trash2, ChevronDown, ChevronRight, FileText, Database, GripVertical } from 'lucide-react'
+import { Play, Plus, Trash2, ChevronDown, ChevronRight, FileText, Database, GripVertical, X } from 'lucide-react'
 import type { NotebookDocument, NotebookCell, ColumnMeta } from '@dbforge/shared'
 import { resolveVariables, resolveSQLVariables, hasUnresolvedVariables } from '../../utils/notebookResolver'
 import MarkdownRenderer from '../MarkdownRenderer'
@@ -16,6 +16,7 @@ import DataTable from '../DataTable'
 interface NotebookEditorProps {
   doc: NotebookDocument
   onChange: (doc: NotebookDocument) => void
+  onClose?: () => void
   onExecuteCell: (cellId: string, sql: string) => Promise<{
     columns: ColumnMeta[]
     rows: Record<string, unknown>[]
@@ -182,6 +183,7 @@ function NotebookCellView({
 export default function NotebookEditor({
   doc,
   onChange,
+  onClose,
   onExecuteCell,
   connectionName,
 }: NotebookEditorProps) {
@@ -265,6 +267,11 @@ export default function NotebookEditor({
           Notebook {connectionName && <span className="text-gray-400">· {connectionName}</span>}
         </span>
         <div className="flex-1" />
+        {onClose && (
+          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+            <X className="w-4 h-4 text-gray-400" />
+          </button>
+        )}
         <button
           onClick={executeAll}
           disabled={isExecuting !== null}
