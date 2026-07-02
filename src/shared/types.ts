@@ -702,3 +702,67 @@ export interface PluginRegistryEntry {
   checksum: string
   homepage?: string
 }
+
+// ============================================================
+// Notebook Types
+// ============================================================
+
+export interface NotebookCell {
+  id: string
+  type: 'sql' | 'markdown'
+  name?: string              // cell name for variable reference
+  content: string
+  result?: NotebookCellResult // SQL cell execution result
+  collapsed?: boolean
+}
+
+export interface NotebookCellResult {
+  columns: ColumnMeta[]
+  rows: Record<string, unknown>[]
+  rowCount: number
+  duration: number
+  error?: string
+}
+
+export interface NotebookDocument {
+  version: '1.0'
+  connectionId?: string
+  cells: NotebookCell[]
+  parameters: Record<string, string>
+}
+
+export interface NotebookVariable {
+  cellName: string
+  columnName?: string
+  rowIndex?: number
+}
+
+// ============================================================
+// Visual EXPLAIN Types
+// ============================================================
+
+export interface ExplainPlanNode {
+  id: string
+  operation: string
+  relation?: string
+  alias?: string
+  startupCost: number
+  totalCost: number
+  planRows: number
+  planWidth: number
+  actualRows?: number
+  actualTime?: number
+  loops?: number
+  filter?: string
+  indexName?: string
+  joinType?: string
+  children: ExplainPlanNode[]
+  warnings: string[]
+}
+
+export interface ExplainResult {
+  query: string
+  rawOutput: string
+  plan: ExplainPlanNode | null
+  databaseType: string
+}

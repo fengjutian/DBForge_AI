@@ -2,35 +2,20 @@
 // ============================================================
 // Provides types and helpers for building external plugins
 // that communicate with DBForge AI via JSON-RPC 2.0 over stdio.
+//
+// Core plugin types are defined in @dbforge/shared and re-exported here.
+// This package adds JSON-RPC types and driver interface definitions.
 
 import type { ConnectionConfig, QueryResult, DatabaseSchema, TestResult } from '@dbforge/shared'
 
-// ── Plugin Manifest ──────────────────────────────────────────
-
-export type PluginType = 'driver' | 'ai-provider' | 'exporter' | 'tool' | 'theme'
-
-export type PluginCapability =
-  | 'database:connect'
-  | 'database:query'
-  | 'database:schema'
-  | 'database:backup'
-  | 'ai:text-to-sql'
-  | 'ai:explain'
-  | 'export:csv'
-  | 'export:json'
-  | 'export:excel'
-  | 'ui:theme'
-
-export interface PluginManifest {
-  name: string
-  version: string
-  description: string
-  author: string
-  main: string
-  type: PluginType
-  engines: { dbforge: string }
-  capabilities: PluginCapability[]
-}
+// Re-export from shared (single source of truth)
+export type {
+  PluginType,
+  PluginCapability,
+  PluginManifest,
+  InstalledPlugin,
+  PluginRegistryEntry
+} from '@dbforge/shared'
 
 // ── JSON-RPC 2.0 ─────────────────────────────────────────────
 
@@ -78,16 +63,9 @@ export interface DriverPluginMethods {
 }
 
 // ── Plugin Registry Entry ────────────────────────────────────
+// (defined in @dbforge/shared, re-exported above)
 
-export interface PluginRegistryEntry {
-  name: string
-  version: string
-  description: string
-  type: PluginType
-  download: string
-  checksum: string
-  homepage?: string
-}
+// ── JSON-RPC 2.0 ─────────────────────────────────────────────
 
 export interface PluginRegistry {
   plugins: PluginRegistryEntry[]

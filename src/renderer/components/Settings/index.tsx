@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useSettingsStore } from '../../store/settingsStore'
 import Modal from '../ui/Modal'
 import PluginManager from './PluginManager'
+import MCPSettings from './MCPSettings'
 import type { AIProvider, AuditEntry } from '@dbforge/shared'
 
 const PROVIDERS: AIProvider[] = ['openai', 'groq', 'claude', 'deepseek', 'ollama']
@@ -21,7 +22,7 @@ const DEFAULT_MODEL: Record<AIProvider, string> = {
   ollama: 'llama3'
 }
 
-const TABS = ['AI 配置', '外观', 'mysqldump', '快捷键', '插件', '审计日志', '关于'] as const
+const TABS = ['AI 配置', '外观', 'mysqldump', '快捷键', '插件', 'MCP', '审计日志', '关于'] as const
 type SettingsTab = typeof TABS[number]
 
 interface Props { onClose: () => void }
@@ -220,6 +221,10 @@ export default function Settings({ onClose }: Props): React.ReactElement {
 
           {activeTab === '插件' && (
             <PluginManager />
+          )}
+
+          {activeTab === 'MCP' && (
+            <MCPSettings />
           )}
 
           {activeTab === '审计日志' && (

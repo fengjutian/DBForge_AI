@@ -7,6 +7,7 @@ import DataTable from '../DataTable'
 import FormulaBar from '../DataTable/FormulaBar'
 import SelectionBar from '../DataTable/SelectionBar'
 import type { DiagnoseErrorResponse } from '@dbforge/shared'
+import InsightPanel from './InsightPanel'
 
 export default function ResultPanel(): React.ReactElement {
   const store = useResultStore()
@@ -421,6 +422,14 @@ export default function ResultPanel(): React.ReactElement {
           />
         )}
       </div>
+
+      {result && rows.length > 0 && (
+        <InsightPanel
+          columns={columns}
+          rows={rows}
+          connectionId={connectionId ?? ''}
+        />
+      )}
 
       <SelectionBar />
 

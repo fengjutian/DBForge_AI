@@ -123,6 +123,20 @@ export const IPC = {
   PLUGIN_ENABLE: 'plugin:enable',
   PLUGIN_DISABLE: 'plugin:disable',
   PLUGIN_GET_REGISTRY: 'plugin:get-registry',
+
+  // MCP Server
+  MCP_STATUS: 'mcp:status',
+  MCP_START: 'mcp:start',
+  MCP_STOP: 'mcp:stop',
+  MCP_INSTALL_CONFIG: 'mcp:install-config',
+
+  // Notebook
+  NOTEBOOK_OPEN: 'notebook:open',
+  NOTEBOOK_SAVE: 'notebook:save',
+  NOTEBOOK_EXECUTE_CELL: 'notebook:execute-cell',
+
+  // Visual EXPLAIN
+  QUERY_EXPLAIN: 'query:explain',
 } as const
 
 export type IPCChannel = (typeof IPC)[keyof typeof IPC]

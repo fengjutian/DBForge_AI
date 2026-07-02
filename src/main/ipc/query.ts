@@ -1,7 +1,8 @@
 import { ipcMain } from 'electron'
 import { IPC } from '@dbforge/shared'
-import type { QueryOptions, QueryResult } from '@dbforge/shared'
+import type { QueryOptions, QueryResult, ExplainResult } from '@dbforge/shared'
 import { queryExecutor, isDangerous } from '../services/QueryExecutor'
+import { parseExplain } from '../services/ExplainParser'
 import historyStore from '../services/HistoryStore'
 import auditLog from '../services/AuditLog'
 import connectionManager from '../services/ConnectionManager'
@@ -130,6 +131,47 @@ export function register(): void {
       return isDangerous(sql)
     } catch (err) {
       throw wrapError(err)
+    }
+  })
+
+  // Visual EXPLAIN
+  ipcMain.handle(IPC.QUERY_EXPLAIN, async (_event, options: { connectionId: string; sql: string }): Promise<ExplainResult> => {
+    const conn = connectionManager.getPool(options.connectionId)
+    const databaseType = conn.config.databaseType
+
+    // Generate the appropriate EXPLAIN syntax
+    let explainSQL: string
+    switch (databaseType) {
+      case 'mysql':
+        explainSQL = `EXPLAIN FORMAT=JSON ${options.sql}`
+        break
+      case 'postgresql':
+        explainSQL = `EXPLAIN (FORMAT JSON, ANALYZE, BUFFERS) ${options.sql}`
+        break
+      case 'sqlite':
+        explainSQL = `EXPLAIN QUERY PLAN ${options.sql}`
+        break
+      default:
+        explainSQL = `EXPLAIN ${options.sql}`
+    }
+
+    const result = await queryExecutor.execute({
+      connectionId: options.connectionId,
+      sql: explainSQL,
+      timeout: 30000
+    })
+
+    const rawOutput = result.rows
+      ? JSON.stringify(result.rows)
+      : ''
+
+    const plan = parseExplain(rawOutput, databaseType)
+
+    return {
+      query: options.sql,
+      rawOutput: rawOutput || JSON.stringify(result),
+      plan,
+      databaseType
     }
   })
 }

@@ -8,7 +8,7 @@
 import { ChildProcess, spawn } from 'child_process'
 import { join } from 'path'
 import { app } from 'electron'
-import { existsSync, readFileSync, readdirSync, mkdirSync } from 'fs'
+import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync, unlinkSync } from 'fs'
 import type {
   PluginManifest,
   InstalledPlugin,
@@ -27,7 +27,7 @@ interface PendingRequest {
 
 interface PluginInstance {
   manifest: PluginManifest
-  process: ChildProcess
+  process: ChildProcess | null
   installPath: string
   enabled: boolean
   installedAt: number
@@ -69,7 +69,7 @@ class PluginHost {
           const enabled = existsSync(configPath)
           this.plugins.set(manifest.name, {
             manifest,
-            process: null as unknown as ChildProcess,
+            process: null,
             installPath: join(PLUGINS_DIR, entry.name),
             enabled,
             installedAt: Date.now(),
@@ -98,7 +98,16 @@ class PluginHost {
     }
 
     try {
-      const proc = spawn(mainPath, [], {
+      // Detect runtime: .js/.ts files need Node.js; others executed directly
+      const ext = mainPath.split('.').pop()?.toLowerCase()
+      const isScript = ext === 'js' || ext === 'ts' || ext === 'mjs' || ext === 'cjs'
+      const [cmd, args] = isScript
+        ? ['node', [mainPath]]
+        : process.platform === 'win32'
+          ? [mainPath, []]
+          : [mainPath, []]
+
+      const proc = spawn(cmd, args, {
         stdio: ['pipe', 'pipe', 'pipe'],
         env: { ...process.env }
       })
@@ -114,7 +123,7 @@ class PluginHost {
 
       proc.on('exit', (code, signal) => {
         console.log(`[PluginHost:${name}] Process exited (code=${code}, signal=${signal})`)
-        plugin.process = null as unknown as ChildProcess
+        plugin.process = null
         // Reject all pending requests
         for (const [, pending] of plugin.pending) {
           clearTimeout(pending.timer)
@@ -125,7 +134,7 @@ class PluginHost {
 
       proc.on('error', (err) => {
         console.error(`[PluginHost:${name}] Process error:`, err.message)
-        plugin.process = null as unknown as ChildProcess
+        plugin.process = null
       })
 
       plugin.process = proc
@@ -147,13 +156,13 @@ class PluginHost {
       this.sendNotification(name, 'shutdown')
       setTimeout(() => {
         if (plugin.process) {
-          plugin.process.kill()
-          plugin.process = null as unknown as ChildProcess
+          plugin.process?.kill()
+          plugin.process = null
         }
       }, 2000)
     } catch {
       plugin.process.kill()
-      plugin.process = null as unknown as ChildProcess
+      plugin.process = null
     }
   }
 
@@ -226,7 +235,7 @@ class PluginHost {
       plugin.pending.set(id, { resolve: resolve as (v: unknown) => void, reject, timer })
 
       try {
-        plugin.process.stdin?.write(request + '\n')
+        plugin.process?.stdin?.write(request + '\n')
       } catch (err) {
         clearTimeout(timer)
         plugin.pending.delete(id)
@@ -240,7 +249,7 @@ class PluginHost {
     const plugin = this.plugins.get(name)
     if (!plugin?.process) return
     try {
-      plugin.process.stdin?.write(JSON.stringify({
+      plugin.process?.stdin?.write(JSON.stringify({
         jsonrpc: '2.0',
         method,
         params: params ?? {}
@@ -265,15 +274,14 @@ class PluginHost {
     }
 
     // Write manifest
-    const fs = require('fs')
-    fs.writeFileSync(join(destPath, 'plugin.json'), JSON.stringify(manifest, null, 2))
+    writeFileSync(join(destPath, 'plugin.json'), JSON.stringify(manifest, null, 2))
 
     // Mark as enabled
-    fs.writeFileSync(join(destPath, '.enabled'), '')
+    writeFileSync(join(destPath, '.enabled'), '')
 
     this.plugins.set(manifest.name, {
       manifest,
-      process: null as unknown as ChildProcess,
+      process: null,
       installPath: destPath,
       enabled: true,
       installedAt: Date.now(),
@@ -302,8 +310,7 @@ class PluginHost {
     const plugin = this.plugins.get(name)
     if (!plugin) return false
     plugin.enabled = true
-    const fs = require('fs')
-    fs.writeFileSync(join(plugin.installPath, '.enabled'), '')
+    writeFileSync(join(plugin.installPath, '.enabled'), '')
     return true
   }
 
@@ -313,10 +320,8 @@ class PluginHost {
     if (!plugin) return false
     this.stop(name)
     plugin.enabled = false
-    const fs = require('fs')
     const enabledPath = join(plugin.installPath, '.enabled')
     if (existsSync(enabledPath)) {
-      const { unlinkSync } = require('fs')
       unlinkSync(enabledPath)
     }
     return true

@@ -17,8 +17,34 @@ import { register as registerBackupHandlers } from './ipc/backup'
 import { register as registerSettingsHandlers } from './ipc/settings'
 import { register as registerSessionHandlers } from './ipc/session'
 import { registerPluginHandlers } from './ipc/plugin'
+import { registerMCPHandlers } from './ipc/mcp'
+import { registerNotebookHandlers } from './ipc/notebook'
 import { bootstrapDialects } from './services/dialect/index'
+import connectionManager from './services/ConnectionManager'
 import { pluginHost } from './services/PluginHost'
+import { mcpServer } from './services/MCPServer'
+
+// ── MCP standalone mode ──────────────────────────────────────
+if (process.argv.includes('--mcp')) {
+  app.whenReady().then(async () => {
+    await configStore.init()
+    bootstrapDialects()
+
+    // Auto-activate all saved connections for MCP mode
+    const connections = configStore.getConnections()
+    for (const conn of connections) {
+      try {
+        await connectionManager.activateConnection(conn.id)
+        console.error(`[MCPServer] Activated connection: ${conn.name}`)
+      } catch (err) {
+        console.error(`[MCPServer] Failed to activate ${conn.name}:`, err)
+      }
+    }
+
+    mcpServer.startStdio()
+  })
+  app.on('window-all-closed', () => {})
+} else {
 
 // Global uncaught exception handler - prevents white screen
 process.on('uncaughtException', (error) => {
@@ -140,6 +166,8 @@ app.whenReady().then(async () => {
   registerSettingsHandlers()
   registerSessionHandlers()
   registerPluginHandlers()
+  registerMCPHandlers()
+  registerNotebookHandlers()
 
   createWindow()
 
@@ -154,3 +182,5 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
+
+} // end if (--mcp) else

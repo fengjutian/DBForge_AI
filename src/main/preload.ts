@@ -70,7 +70,9 @@ const electronAPI = {
       ipcRenderer.invoke(IPC.QUERY_EXECUTE, options),
     cancel: (queryId: string) => ipcRenderer.invoke(IPC.QUERY_CANCEL, queryId),
     dangerousCheck: (sql: string): Promise<DangerousCheckResult> =>
-      ipcRenderer.invoke(IPC.QUERY_DANGEROUS_CHECK, sql)
+      ipcRenderer.invoke(IPC.QUERY_DANGEROUS_CHECK, sql),
+    explain: (options: { connectionId: string; sql: string }) =>
+      ipcRenderer.invoke(IPC.QUERY_EXPLAIN, options),
   },
 
   // ── Snapshot (Diff/Patch editing) ──────────────────────────
@@ -274,6 +276,22 @@ const electronAPI = {
     uninstall: (name: string) => ipcRenderer.invoke(IPC.PLUGIN_UNINSTALL, name),
     enable: (name: string) => ipcRenderer.invoke(IPC.PLUGIN_ENABLE, name),
     disable: (name: string) => ipcRenderer.invoke(IPC.PLUGIN_DISABLE, name),
+  },
+
+  // ── MCP Server ─────────────────────────────────────────────
+  mcp: {
+    status: () => ipcRenderer.invoke(IPC.MCP_STATUS),
+    start: () => ipcRenderer.invoke(IPC.MCP_START),
+    stop: () => ipcRenderer.invoke(IPC.MCP_STOP),
+    installConfig: (target: 'claude' | 'cursor') => ipcRenderer.invoke(IPC.MCP_INSTALL_CONFIG, target),
+  },
+
+  // ── Notebook ────────────────────────────────────────────────
+  notebook: {
+    open: () => ipcRenderer.invoke(IPC.NOTEBOOK_OPEN),
+    save: (doc: unknown) => ipcRenderer.invoke(IPC.NOTEBOOK_SAVE, doc),
+    executeCell: (params: { connectionId: string; sql: string }) =>
+      ipcRenderer.invoke(IPC.NOTEBOOK_EXECUTE_CELL, params),
   }
 }
 

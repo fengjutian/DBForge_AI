@@ -5,6 +5,9 @@ import { createPortal } from 'react-dom'
 import type { ColumnMeta, FilterRule } from '@dbforge/shared'
 import { useFormulaStore } from '../../store/formulaStore'
 import { colToLetter, isFormula } from '../../utils/formulaEngine'
+import JSONCellViewer from './JSONCellViewer'
+import GeoCellViewer from './GeoCellViewer'
+import { isGeometryColumn } from '../../utils/geometryParser'
 
 interface DataTableProps {
   columns: ColumnMeta[]
@@ -42,6 +45,12 @@ function valueToString(v: unknown): string {
   if (v === null || v === undefined) return ''
   if (typeof v === 'object') return JSON.stringify(v)
   return String(v)
+}
+
+// ── detect JSON columns ─────────────────────────────────────
+function isJSONColumn(col: ColumnMeta): boolean {
+  const t = col.type.toLowerCase()
+  return t.includes('json') || t.includes('jsonb')
 }
 
 // ── apply a single filter rule to a value ─────────────────────
@@ -837,6 +846,8 @@ export default function DataTable({
                           <div className={`cell-inner truncate ${cellHasFormula ? 'pl-1' : ''}`} style={{ lineHeight: `${rowH}px` }}>
                             {value === null ? <span className="text-gray-400 italic">NULL</span>
                               : value === undefined ? <span className="text-gray-300 italic">—</span>
+                              : isJSONColumn(col) ? <JSONCellViewer value={value} />
+                              : isGeometryColumn(col.type) ? <GeoCellViewer value={value} />
                               : valueToString(value)}
                           </div>
                         )}
