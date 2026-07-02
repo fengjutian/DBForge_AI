@@ -115,6 +115,14 @@ export const IPC = {
   UPDATER_DOWNLOAD: 'updater:download',
   UPDATER_INSTALL: 'updater:install',
   UPDATER_STATUS: 'updater:status', // main -> renderer push
+
+  // Plugin management
+  PLUGIN_LIST: 'plugin:list',
+  PLUGIN_INSTALL: 'plugin:install',
+  PLUGIN_UNINSTALL: 'plugin:uninstall',
+  PLUGIN_ENABLE: 'plugin:enable',
+  PLUGIN_DISABLE: 'plugin:disable',
+  PLUGIN_GET_REGISTRY: 'plugin:get-registry',
 } as const
 
 export type IPCChannel = (typeof IPC)[keyof typeof IPC]

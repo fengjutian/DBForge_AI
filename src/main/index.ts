@@ -16,7 +16,9 @@ import { register as registerAIHandlers } from './ipc/ai'
 import { register as registerBackupHandlers } from './ipc/backup'
 import { register as registerSettingsHandlers } from './ipc/settings'
 import { register as registerSessionHandlers } from './ipc/session'
+import { registerPluginHandlers } from './ipc/plugin'
 import { bootstrapDialects } from './services/dialect/index'
+import { pluginHost } from './services/PluginHost'
 
 // Global uncaught exception handler - prevents white screen
 process.on('uncaughtException', (error) => {
@@ -125,6 +127,7 @@ app.whenReady().then(async () => {
   auditLog.init()
   snippetStore.init()
   sessionManager.start()
+  pluginHost.init()
   await autoUpdater.init()
 
   // Register all IPC handlers
@@ -136,6 +139,7 @@ app.whenReady().then(async () => {
   registerBackupHandlers()
   registerSettingsHandlers()
   registerSessionHandlers()
+  registerPluginHandlers()
 
   createWindow()
 
@@ -145,6 +149,7 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
+  pluginHost.shutdownAll()
   if (process.platform !== 'darwin') {
     app.quit()
   }

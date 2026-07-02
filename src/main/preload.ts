@@ -264,6 +264,16 @@ const electronAPI = {
       ipcRenderer.on(IPC.UPDATER_STATUS, (_event, status) => callback(status))
       return () => ipcRenderer.removeAllListeners(IPC.UPDATER_STATUS)
     }
+  },
+
+  // ── Plugin management ──────────────────────────────────────
+  plugins: {
+    list: () => ipcRenderer.invoke(IPC.PLUGIN_LIST),
+    getRegistry: () => ipcRenderer.invoke(IPC.PLUGIN_GET_REGISTRY),
+    install: (entry: unknown) => ipcRenderer.invoke(IPC.PLUGIN_INSTALL, entry),
+    uninstall: (name: string) => ipcRenderer.invoke(IPC.PLUGIN_UNINSTALL, name),
+    enable: (name: string) => ipcRenderer.invoke(IPC.PLUGIN_ENABLE, name),
+    disable: (name: string) => ipcRenderer.invoke(IPC.PLUGIN_DISABLE, name),
   }
 }
 

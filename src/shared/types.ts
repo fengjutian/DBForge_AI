@@ -656,3 +656,49 @@ export interface FormulaEngine {
   /** Check if a string looks like a formula (starts with =) */
   isFormula(text: string): boolean
 }
+
+// ============================================================
+// Plugin Types
+// ============================================================
+
+export type PluginType = 'driver' | 'ai-provider' | 'exporter' | 'tool' | 'theme'
+
+export type PluginCapability =
+  | 'database:connect'
+  | 'database:query'
+  | 'database:schema'
+  | 'database:backup'
+  | 'ai:text-to-sql'
+  | 'ai:explain'
+  | 'export:csv'
+  | 'export:json'
+  | 'export:excel'
+  | 'ui:theme'
+
+export interface PluginManifest {
+  name: string
+  version: string
+  description: string
+  author: string
+  main: string
+  type: PluginType
+  engines: { dbforge: string }
+  capabilities: PluginCapability[]
+}
+
+export interface InstalledPlugin {
+  manifest: PluginManifest
+  installPath: string
+  installedAt: number
+  enabled: boolean
+}
+
+export interface PluginRegistryEntry {
+  name: string
+  version: string
+  description: string
+  type: PluginType
+  download: string
+  checksum: string
+  homepage?: string
+}
